@@ -161,7 +161,7 @@ NEXTAUTH_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_NAME="Repentance 101"
 
-ADMIN_EMAIL="host@repentance101ministry.com"
+ADMIN_EMAIL="norman@repentance101ministry.com"
 ADMIN_PASSWORD="your-secure-admin-password"
 ADMIN_NAME="Ministry Admin"
 

@@ -39,6 +39,48 @@ When a live session starts, the **Join Live Meeting** button appears at the top 
 - Come ready to participate respectfully`,
 };
 
+async function ensureAdmin(email: string, password: string, name: string) {
+  const normalizedEmail = email.toLowerCase();
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  const existingAdmin = await prisma.user.findFirst({
+    where: { role: "ADMIN" },
+  });
+
+  if (existingAdmin) {
+    const conflict = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+    if (conflict && conflict.id !== existingAdmin.id) {
+      throw new Error(`Cannot set admin email: ${normalizedEmail} is already in use.`);
+    }
+
+    await prisma.user.update({
+      where: { id: existingAdmin.id },
+      data: {
+        email: normalizedEmail,
+        passwordHash,
+        name,
+        role: "ADMIN",
+        status: "APPROVED",
+      },
+    });
+    return;
+  }
+
+  await prisma.user.upsert({
+    where: { email: normalizedEmail },
+    update: { role: "ADMIN", status: "APPROVED", name, passwordHash },
+    create: {
+      email: normalizedEmail,
+      passwordHash,
+      name,
+      role: "ADMIN",
+      status: "APPROVED",
+    },
+  });
+}
+
 async function upsertUser(
   email: string,
   password: string,
@@ -63,7 +105,7 @@ async function main() {
     throw new Error("Set ADMIN_EMAIL and ADMIN_PASSWORD in .env before running seed.");
   }
 
-  await upsertUser(adminEmail, adminPassword, adminName, "ADMIN", "APPROVED");
+  await ensureAdmin(adminEmail, adminPassword, adminName);
 
   for (const channel of Object.values(CHANNELS)) {
     const content =
@@ -92,7 +134,7 @@ async function main() {
   }
 
   console.log("\n=== Seed complete ===");
-  console.log("Host admin login:", "/host");
+  console.log("Host admin:", adminEmail.toLowerCase(), "→ /host");
   console.log("Member login:", "/login");
 }
 

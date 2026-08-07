@@ -105,7 +105,7 @@ SUPABASE_SERVICE_ROLE_KEY
 AUTH_SECRET           = (run: openssl rand -base64 32)
 NEXTAUTH_URL          = https://repentance101ministry.com
 NEXT_PUBLIC_APP_URL   = https://repentance101ministry.com
-ADMIN_EMAIL           = host@repentance101ministry.com
+ADMIN_EMAIL           = norman@repentance101ministry.com
 ADMIN_PASSWORD        = (strong password for the host)
 ADMIN_NAME            = Ministry Admin
 NEXT_PUBLIC_APP_NAME  = Repentance 101
