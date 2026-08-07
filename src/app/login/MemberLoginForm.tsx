@@ -4,8 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
-import { MINISTRY_NAME } from "@/lib/brand";
-import { BrandDivider } from "@/components/BrandDivider";
 
 export function MemberLoginForm() {
   const [email, setEmail] = useState("");
@@ -41,17 +39,14 @@ export function MemberLoginForm() {
 
   return (
     <div className="mx-auto grid min-h-[75vh] max-w-4xl items-center gap-10 px-4 py-12 lg:grid-cols-2">
-      <div className="hidden text-center lg:block">
+      <div className="hidden justify-center lg:flex">
         <Image
           src="/brand/repentance101-logo.png"
           alt="Repentance 101"
           width={200}
           height={200}
-          className="seal-ring mx-auto rounded-full ring-offset-cream"
+          className="seal-ring rounded-full ring-offset-cream"
         />
-        <h2 className="mt-6 font-serif text-2xl font-bold text-burgundy">Repentance 101</h2>
-        <BrandDivider className="mx-auto my-4 max-w-[200px]" />
-        <p className="text-burgundy/70">{MINISTRY_NAME}</p>
       </div>
 
       <div>
