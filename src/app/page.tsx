@@ -24,10 +24,6 @@ export default async function HomePage() {
 
         <div className="relative grid items-center gap-10 lg:grid-cols-[1fr_auto]">
           <div className="animate-fade-up">
-            <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-gold-light">
-              <Radio className="h-3.5 w-3.5" />
-              repentance101ministry.com
-            </p>
             <h1 className="font-serif text-4xl font-bold leading-tight md:text-6xl">
               {MINISTRY_NAME}
             </h1>
