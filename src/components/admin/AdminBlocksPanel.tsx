@@ -4,25 +4,25 @@ import { useState } from "react";
 import { Ban, ShieldOff } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatDate } from "@/lib/utils";
+import { MemberSearchPicker } from "./MemberSearchPicker";
 import type { Block, Member } from "./types";
 
 type Props = {
   blocks: Block[];
-  approvedMembers: Member[];
   onUnblock: (blockId: string) => void;
   onBlock: (userId: string, reason: string) => void;
 };
 
-export function AdminBlocksPanel({ blocks, approvedMembers, onUnblock, onBlock }: Props) {
-  const [blockUserId, setBlockUserId] = useState("");
+export function AdminBlocksPanel({ blocks, onUnblock, onBlock }: Props) {
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [blockReason, setBlockReason] = useState("");
 
   const activeBlocks = blocks.filter((b) => !b.unblockedAt);
 
   function handleBlock() {
-    if (!blockUserId) return;
-    onBlock(blockUserId, blockReason);
-    setBlockUserId("");
+    if (!selectedMember) return;
+    onBlock(selectedMember.id, blockReason);
+    setSelectedMember(null);
     setBlockReason("");
   }
 
@@ -35,18 +35,12 @@ export function AdminBlocksPanel({ blocks, approvedMembers, onUnblock, onBlock }
           session from the meeting chat.
         </p>
         <div className="grid gap-3 md:grid-cols-2">
-          <select
-            value={blockUserId}
-            onChange={(e) => setBlockUserId(e.target.value)}
-            className="input-field"
-          >
-            <option value="">Select member to block...</option>
-            {approvedMembers.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name} ({m.email})
-              </option>
-            ))}
-          </select>
+          <MemberSearchPicker
+            value={selectedMember}
+            onChange={setSelectedMember}
+            placeholder="Search approved member to block..."
+            status="APPROVED"
+          />
           <input
             type="text"
             value={blockReason}
@@ -57,7 +51,7 @@ export function AdminBlocksPanel({ blocks, approvedMembers, onUnblock, onBlock }
         </div>
         <button
           type="button"
-          disabled={!blockUserId}
+          disabled={!selectedMember}
           onClick={handleBlock}
           className="btn-burgundy mt-4 inline-flex items-center gap-2 disabled:opacity-50"
         >
@@ -75,7 +69,7 @@ export function AdminBlocksPanel({ blocks, approvedMembers, onUnblock, onBlock }
             No users are currently blocked.
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
             {activeBlocks.map((b) => (
               <div
                 key={b.id}
@@ -114,7 +108,7 @@ export function AdminBlocksPanel({ blocks, approvedMembers, onUnblock, onBlock }
       {blocks.filter((b) => b.unblockedAt).length > 0 && (
         <section className="card-brand p-6 opacity-80">
           <h2 className="mb-3 font-serif text-lg font-semibold text-burgundy">Past Blocks</h2>
-          <ul className="space-y-2 text-sm text-burgundy/60">
+          <ul className="max-h-48 space-y-2 overflow-y-auto text-sm text-burgundy/60">
             {blocks
               .filter((b) => b.unblockedAt)
               .slice(0, 10)

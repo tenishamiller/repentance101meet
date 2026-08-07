@@ -21,6 +21,7 @@ import { useLivestream } from "@/hooks/useLivestream";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
+import { ParticipantGallery } from "@/components/livestream/ParticipantGallery";
 
 type Props = {
   meetingToken: string;
@@ -51,14 +52,19 @@ export function LivestreamRoom({
     isRecording,
     isSavingRecording,
     participants,
+    galleryMembers,
     viewerCount,
     error,
     handRaised,
     thumbsUp,
     thumbsDown,
     myReaction,
+    memberVideoEnabled,
+    memberMicEnabled,
     toggleMute,
     toggleCamera,
+    toggleMemberVideo,
+    toggleMemberMic,
     toggleScreenShare,
     beginRecording,
     endBroadcast,
@@ -125,6 +131,22 @@ export function LivestreamRoom({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  <HostPolicyToggle
+                    active={memberVideoEnabled}
+                    onClick={toggleMemberVideo}
+                    enabledLabel="Member Video On"
+                    disabledLabel="Member Video Off"
+                    enabledIcon={Video}
+                    disabledIcon={VideoOff}
+                  />
+                  <HostPolicyToggle
+                    active={memberMicEnabled}
+                    onClick={toggleMemberMic}
+                    enabledLabel="Member Mics On"
+                    disabledLabel="Member Mics Off"
+                    enabledIcon={Mic}
+                    disabledIcon={MicOff}
+                  />
                   {!isRecording ? (
                     <button
                       type="button"
@@ -215,6 +237,12 @@ export function LivestreamRoom({
                 </button>
               )}
             </div>
+
+            <ParticipantGallery
+              members={galleryMembers}
+              memberVideoEnabled={memberVideoEnabled}
+              memberMicEnabled={memberMicEnabled}
+            />
           </>
         ) : (
           <>
@@ -262,6 +290,8 @@ export function LivestreamRoom({
                   Live meeting
                   {isMuted ? " · muted" : ""}
                   {isCameraOff ? " · camera off" : ""}
+                  {!memberMicEnabled ? " · mics off by host" : ""}
+                  {!memberVideoEnabled ? " · cameras off by host" : ""}
                 </p>
               </div>
             </div>
@@ -419,6 +449,40 @@ export function LivestreamRoom({
         </div>
       </div>
     </div>
+  );
+}
+
+function HostPolicyToggle({
+  active,
+  onClick,
+  enabledLabel,
+  disabledLabel,
+  enabledIcon: EnabledIcon,
+  disabledIcon: DisabledIcon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  enabledLabel: string;
+  disabledLabel: string;
+  enabledIcon: React.ComponentType<{ className?: string }>;
+  disabledIcon: React.ComponentType<{ className?: string }>;
+}) {
+  const label = active ? enabledLabel : disabledLabel;
+  const Icon = active ? EnabledIcon : DisabledIcon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition sm:text-sm ${
+        active
+          ? "border-gold/50 bg-burgundy-dark text-gold-light hover:border-gold"
+          : "border-gold bg-gold/20 text-cream"
+      }`}
+    >
+      <Icon className="h-4 w-4" />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
 

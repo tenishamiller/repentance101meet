@@ -131,6 +131,8 @@ model Meeting {
   invitedUserId String?
   startedAt     DateTime?
   endedAt       DateTime?
+  memberVideoEnabled Boolean @default(true)
+  memberMicEnabled   Boolean @default(true)
   createdAt     DateTime      @default(now())
 
   createdBy    User                 @relation("MeetingCreator", fields: [createdById], references: [id])

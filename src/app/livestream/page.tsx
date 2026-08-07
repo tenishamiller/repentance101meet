@@ -135,7 +135,7 @@ export default async function LivestreamPage() {
                   No live meeting right now
                 </p>
                 <p className="mt-1 text-sm text-cream/80">
-                  Check the schedule below. The host will start the room from the Admin Console when it&apos;s time.
+                  Check the schedule below for upcoming sessions.
                 </p>
               </div>
             )}
@@ -179,7 +179,7 @@ export default async function LivestreamPage() {
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-burgundy text-xs font-bold text-gold-light">
                   2
                 </span>
-                Come to this page when a meeting is LIVE
+                Come to your dashboard or this page when a meeting is live
               </li>
               <li className="flex gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-burgundy text-xs font-bold text-gold-light">

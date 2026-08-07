@@ -15,7 +15,6 @@ import type {
   ChannelMembershipStatus,
   ChannelSummary,
   DashboardStats,
-  Member,
   MemberStatus,
   Meeting,
 } from "@/components/admin/types";
@@ -24,17 +23,16 @@ export default function AdminPage() {
   const [tab, setTab] = useState<AdminTab>("overview");
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [channels, setChannels] = useState<ChannelSummary[]>([]);
   const [newMeetingTitle, setNewMeetingTitle] = useState("Repentance 101 Teaching");
   const [generatedLinkToken, setGeneratedLinkToken] = useState("");
+  const [membersRefreshKey, setMembersRefreshKey] = useState(0);
 
   const fetchAll = useCallback(async () => {
-    const [dashRes, membersRes, blocksRes, meetingsRes, channelsRes] = await Promise.all([
+    const [dashRes, blocksRes, meetingsRes, channelsRes] = await Promise.all([
       fetch("/api/admin/dashboard"),
-      fetch("/api/admin/members"),
       fetch("/api/admin/blocks"),
       fetch("/api/admin/meetings"),
       fetch("/api/admin/channels"),
@@ -42,10 +40,6 @@ export default function AdminPage() {
 
     if (dashRes.ok) {
       setStats(await dashRes.json());
-    }
-    if (membersRes.ok) {
-      const data = await membersRes.json();
-      setAllMembers(data.members);
     }
     if (blocksRes.ok) {
       const data = await blocksRes.json();
@@ -74,6 +68,7 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, status }),
     });
+    setMembersRefreshKey((k) => k + 1);
     void fetchAll();
   }
 
@@ -152,8 +147,6 @@ export default function AdminPage() {
     blocks: stats.activeBlocks.length,
   };
 
-  const approvedMembers = allMembers.filter((m) => m.status === "APPROVED");
-
   return (
     <AdminShell activeTab={tab} onTabChange={setTab} badges={badges}>
       {tab === "overview" && (
@@ -163,9 +156,9 @@ export default function AdminPage() {
       {tab === "members" && (
         <AdminMembersPanel
           pendingMembers={stats.pendingMembers}
-          allMembers={allMembers}
           onStatusChange={(userId, status) => void setMemberStatus(userId, status)}
           onBlock={(userId) => void blockUser(userId)}
+          refreshKey={membersRefreshKey}
         />
       )}
 
@@ -196,7 +189,6 @@ export default function AdminPage() {
       {tab === "blocks" && (
         <AdminBlocksPanel
           blocks={blocks}
-          approvedMembers={approvedMembers}
           onUnblock={unblockUser}
           onBlock={(userId, reason) => void blockUser(userId, reason)}
         />

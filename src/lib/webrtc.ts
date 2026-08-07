@@ -11,11 +11,14 @@ export type SignalType =
   | "kick"
   | "host-ended"
   | "promote-speaker"
-  | "revoke-speaker";
+  | "revoke-speaker"
+  | "member-video-policy"
+  | "member-mic-policy";
 
 export type SignalPayload = {
   sdp?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
+  enabled?: boolean;
 };
 
 export type MeetingSignalMessage = {

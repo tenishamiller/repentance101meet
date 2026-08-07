@@ -74,7 +74,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const { token } = await params;
-  const { userId, action } = await request.json();
+  const { userId, action, enabled } = await request.json();
 
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
   if (!meeting) {
@@ -113,8 +113,33 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return Response.json({ success: true, reaction });
   }
 
-  if (session.user.role !== "ADMIN") {
+  if (session.user.role !== "ADMIN" && meeting.createdById !== session.user.id) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (action === "set-member-video" || action === "set-member-mic") {
+    const allowed = enabled !== false;
+    await prisma.meeting.update({
+      where: { id: meeting.id },
+      data:
+        action === "set-member-video"
+          ? { memberVideoEnabled: allowed }
+          : { memberMicEnabled: allowed },
+    });
+    await prisma.meetingSignal.create({
+      data: {
+        meetingId: meeting.id,
+        fromUserId: session.user.id,
+        toUserId: null,
+        type: action === "set-member-video" ? "member-video-policy" : "member-mic-policy",
+        payload: { enabled: allowed },
+      },
+    });
+    return Response.json({
+      success: true,
+      memberVideoEnabled: action === "set-member-video" ? allowed : meeting.memberVideoEnabled,
+      memberMicEnabled: action === "set-member-mic" ? allowed : meeting.memberMicEnabled,
+    });
   }
 
   if (action === "block") {

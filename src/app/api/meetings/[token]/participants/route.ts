@@ -29,6 +29,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
   return Response.json({
     hostId: meeting.createdById,
     meetingStatus: meeting.status,
+    memberVideoEnabled: meeting.memberVideoEnabled,
+    memberMicEnabled: meeting.memberMicEnabled,
     participants,
     thumbsUp,
     thumbsDown,

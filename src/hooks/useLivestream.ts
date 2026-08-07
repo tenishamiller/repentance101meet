@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createPeerConnection,
   type MeetingSignalMessage,
@@ -12,6 +12,28 @@ import {
   triggerBrowserDownload,
   uploadRecordingBlob,
 } from "@/lib/recording";
+import { RecordingCompositor } from "@/lib/recording-compositor";
+
+export type GalleryMember = {
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  stream: MediaStream | null;
+  cameraOn: boolean;
+  micOn: boolean;
+  connected: boolean;
+};
+
+type ViewerMedia = {
+  userId: string;
+  stream: MediaStream;
+  cameraOn: boolean;
+  micOn: boolean;
+};
+
+function trackIsActive(track: MediaStreamTrack | undefined) {
+  return !!track && track.readyState === "live" && track.enabled;
+}
 
 type Participant = {
   user: { id: string; name: string; avatarUrl: string | null; role: string };
@@ -52,7 +74,13 @@ export function useLivestream({
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const signalCursorRef = useRef<string>(new Date(0).toISOString());
   const connectedViewersRef = useRef<Set<string>>(new Set());
-  const viewerAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const viewerStreamsRef = useRef<Map<string, MediaStream>>(new Map());
+  const viewerHiddenVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
+  const compositorRef = useRef<RecordingCompositor | null>(null);
+  const syncViewerMediaRef = useRef<() => void>(() => {});
+  const updateCompositorRef = useRef<() => void>(() => {});
+
+  const [viewerMedia, setViewerMedia] = useState<ViewerMedia[]>([]);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
@@ -73,6 +101,13 @@ export function useLivestream({
   const [thumbsDown, setThumbsDown] = useState(0);
   const [myReaction, setMyReaction] = useState<string | null>(null);
   const [meetingEnded, setMeetingEnded] = useState(false);
+  const [memberVideoEnabled, setMemberVideoEnabled] = useState(true);
+  const [memberMicEnabled, setMemberMicEnabled] = useState(true);
+
+  const memberVideoEnabledRef = useRef(true);
+  const memberMicEnabledRef = useRef(true);
+  const applyMemberMediaPolicyRef = useRef<() => void>(() => {});
+  const applyHostMemberMediaPolicyRef = useRef<() => void>(() => {});
 
   const meetingEndedRef = useRef(false);
   const stopAllRef = useRef<() => void>(() => {});
@@ -84,6 +119,154 @@ export function useLivestream({
   onKickedRef.current = onKicked;
   onMeetingEndedRef.current = onMeetingEnded;
   onRecordingSavedRef.current = onRecordingSaved;
+
+  const viewerAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const useCompositorRecording = isHost && mode === "livestream";
+
+  const syncViewerMedia = useCallback(() => {
+    const items: ViewerMedia[] = [];
+    for (const [userId, stream] of viewerStreamsRef.current) {
+      const videoTrack = stream.getVideoTracks()[0];
+      const audioTrack = stream.getAudioTracks()[0];
+      items.push({
+        userId,
+        stream,
+        cameraOn: trackIsActive(videoTrack),
+        micOn: trackIsActive(audioTrack),
+      });
+    }
+    setViewerMedia(items);
+    updateCompositorRef.current();
+  }, []);
+
+  syncViewerMediaRef.current = syncViewerMedia;
+
+  const removeViewerMedia = useCallback((viewerId: string) => {
+    viewerStreamsRef.current.delete(viewerId);
+
+    const audio = viewerAudioRefs.current.get(viewerId);
+    if (audio) {
+      audio.srcObject = null;
+      viewerAudioRefs.current.delete(viewerId);
+    }
+
+    const hidden = viewerHiddenVideoRefs.current.get(viewerId);
+    if (hidden) {
+      hidden.srcObject = null;
+      hidden.remove();
+      viewerHiddenVideoRefs.current.delete(viewerId);
+    }
+
+    syncViewerMediaRef.current();
+  }, []);
+
+  const attachViewerStream = useCallback((viewerId: string, stream: MediaStream) => {
+    viewerStreamsRef.current.set(viewerId, stream);
+
+    let hiddenVideo = viewerHiddenVideoRefs.current.get(viewerId);
+    if (!hiddenVideo) {
+      hiddenVideo = document.createElement("video");
+      hiddenVideo.autoplay = true;
+      hiddenVideo.playsInline = true;
+      hiddenVideo.muted = true;
+      hiddenVideo.style.cssText =
+        "position:fixed;left:-9999px;width:2px;height:2px;opacity:0;pointer-events:none;";
+      document.body.appendChild(hiddenVideo);
+      viewerHiddenVideoRefs.current.set(viewerId, hiddenVideo);
+    }
+    hiddenVideo.srcObject = stream;
+
+    const onTrackChange = () => syncViewerMediaRef.current();
+    for (const track of stream.getTracks()) {
+      track.onmute = onTrackChange;
+      track.onunmute = onTrackChange;
+      track.onended = onTrackChange;
+    }
+
+    syncViewerMediaRef.current();
+  }, []);
+
+  const applyHostMemberMediaPolicy = useCallback(() => {
+    if (!isHost) return;
+    viewerAudioRefs.current.forEach((audio) => {
+      audio.muted = !memberMicEnabledRef.current;
+    });
+    syncViewerMediaRef.current();
+  }, [isHost]);
+
+  applyHostMemberMediaPolicyRef.current = applyHostMemberMediaPolicy;
+
+  const applyMemberMediaPolicy = useCallback(() => {
+    if (isHost) return;
+    const stream = localStreamRef.current;
+    if (!stream) return;
+
+    const videoAllowed = memberVideoEnabledRef.current;
+    const micAllowed = memberMicEnabledRef.current;
+
+    for (const track of stream.getVideoTracks()) {
+      if (!videoAllowed && track.enabled) {
+        track.enabled = false;
+      }
+    }
+    for (const track of stream.getAudioTracks()) {
+      if (!micAllowed && track.enabled) {
+        track.enabled = false;
+      }
+    }
+
+    if (!videoAllowed) setIsCameraOff(true);
+    if (!micAllowed) setIsMuted(true);
+  }, [isHost]);
+
+  applyMemberMediaPolicyRef.current = applyMemberMediaPolicy;
+
+  const updateCompositorParticipants = useCallback(() => {
+    const compositor = compositorRef.current;
+    if (!compositor) return;
+
+    const videoAllowed = memberVideoEnabledRef.current;
+    const micAllowed = memberMicEnabledRef.current;
+    const items = [];
+    for (const [viewerUserId, stream] of viewerStreamsRef.current) {
+      const participant = participants.find((p) => p.user.id === viewerUserId);
+      const video = viewerHiddenVideoRefs.current.get(viewerUserId) ?? null;
+      const videoTrack = stream.getVideoTracks()[0];
+      items.push({
+        id: viewerUserId,
+        name: participant?.user.name ?? "Member",
+        video,
+        cameraOn: videoAllowed && trackIsActive(videoTrack),
+      });
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack && micAllowed) {
+        compositor.connectAudioTrack(viewerUserId, audioTrack);
+      } else {
+        compositor.disconnectAudioTrack(viewerUserId);
+      }
+    }
+    compositor.setParticipants(items);
+  }, [participants]);
+
+  updateCompositorRef.current = updateCompositorParticipants;
+
+  const galleryMembers = useMemo((): GalleryMember[] => {
+    const mediaById = new Map(viewerMedia.map((entry) => [entry.userId, entry]));
+    return participants
+      .filter((p) => p.user.id !== hostId)
+      .map((p) => {
+        const media = mediaById.get(p.user.id);
+        return {
+          userId: p.user.id,
+          name: p.user.name,
+          avatarUrl: p.user.avatarUrl,
+          stream: media?.stream ?? null,
+          cameraOn: memberVideoEnabled && (media?.cameraOn ?? false),
+          micOn: memberMicEnabled && (media?.micOn ?? false),
+          connected: !!media,
+        };
+      });
+  }, [participants, viewerMedia, hostId, memberVideoEnabled, memberMicEnabled]);
 
   const attachRemoteStream = useCallback((stream: MediaStream) => {
     if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== stream) {
@@ -111,8 +294,32 @@ export function useLivestream({
     return stream;
   }, []);
 
-  const startRecording = useCallback(() => {
-    const stream = buildRecordingStream();
+  const startRecording = useCallback(async () => {
+    let stream: MediaStream | null = null;
+
+    if (useCompositorRecording) {
+      try {
+        const compositor = new RecordingCompositor();
+        compositorRef.current = compositor;
+        await compositor.resumeAudio();
+        if (localVideoRef.current) {
+          compositor.setMainVideo(localVideoRef.current);
+        }
+        const hostAudio = localStreamRef.current?.getAudioTracks()[0];
+        if (hostAudio) {
+          compositor.connectAudioTrack("host", hostAudio);
+        }
+        updateCompositorParticipants();
+        compositor.startDrawing();
+        stream = compositor.getStream();
+      } catch {
+        setError("Could not start recording. Try a different browser (Chrome recommended).");
+        return;
+      }
+    } else {
+      stream = buildRecordingStream();
+    }
+
     if (!stream) return;
 
     recordingStreamRef.current = stream;
@@ -135,9 +342,11 @@ export function useLivestream({
       recorderRef.current = recorder;
       setIsRecording(true);
     } catch {
+      compositorRef.current?.stop();
+      compositorRef.current = null;
       setError("Could not start recording. Try a different browser (Chrome recommended).");
     }
-  }, [buildRecordingStream]);
+  }, [buildRecordingStream, updateCompositorParticipants, useCompositorRecording]);
 
   const beginRecording = useCallback(() => {
     if (recorderRef.current?.state === "recording") return;
@@ -145,6 +354,8 @@ export function useLivestream({
   }, [startRecording]);
 
   const updateRecordingVideoTrack = useCallback(() => {
+    if (compositorRef.current) return;
+
     const stream = recordingStreamRef.current;
     if (!stream || !recorderRef.current) return;
 
@@ -234,13 +445,17 @@ export function useLivestream({
           }
 
           if (mode === "livestream") {
+            attachViewerStream(viewerId, stream);
+
             let audio = viewerAudioRefs.current.get(viewerId);
             if (!audio) {
               audio = document.createElement("audio");
               audio.autoplay = true;
               viewerAudioRefs.current.set(viewerId, audio);
             }
+            audio.muted = !memberMicEnabledRef.current;
             audio.srcObject = stream;
+            applyHostMemberMediaPolicyRef.current();
           }
         };
       }
@@ -255,6 +470,7 @@ export function useLivestream({
         if (pc.connectionState === "failed" || pc.connectionState === "closed") {
           peerConnectionsRef.current.delete(viewerId);
           connectedViewersRef.current.delete(viewerId);
+          removeViewerMedia(viewerId);
         }
       };
 
@@ -263,7 +479,7 @@ export function useLivestream({
       await sendSignal("offer", viewerId, { sdp: offer });
       connectedViewersRef.current.add(viewerId);
     },
-    [addLocalTracks, attachRemoteStream, isPrivate, mode, sendSignal],
+    [addLocalTracks, attachRemoteStream, attachViewerStream, isPrivate, mode, removeViewerMedia, sendSignal],
   );
 
   const handleHostSignal = useCallback(
@@ -303,6 +519,22 @@ export function useLivestream({
 
       if (signal.type === "host-ended") {
         handleMeetingEndedRef.current();
+        return;
+      }
+
+      if (signal.type === "member-video-policy") {
+        const allowed = signal.payload.enabled !== false;
+        memberVideoEnabledRef.current = allowed;
+        setMemberVideoEnabled(allowed);
+        applyMemberMediaPolicyRef.current();
+        return;
+      }
+
+      if (signal.type === "member-mic-policy") {
+        const allowed = signal.payload.enabled !== false;
+        memberMicEnabledRef.current = allowed;
+        setMemberMicEnabled(allowed);
+        applyMemberMediaPolicyRef.current();
         return;
       }
 
@@ -392,7 +624,22 @@ export function useLivestream({
       (p) => p.user.id !== data.hostId,
     );
     setViewerCount(viewers.length);
-  }, [meetingToken, userId]);
+
+    const videoAllowed = data.memberVideoEnabled !== false;
+    const micAllowed = data.memberMicEnabled !== false;
+    memberVideoEnabledRef.current = videoAllowed;
+    memberMicEnabledRef.current = micAllowed;
+    setMemberVideoEnabled(videoAllowed);
+    setMemberMicEnabled(micAllowed);
+
+    if (isHost) {
+      applyHostMemberMediaPolicyRef.current();
+    } else {
+      applyMemberMediaPolicyRef.current();
+    }
+
+    syncViewerMediaRef.current();
+  }, [isHost, meetingToken, userId]);
 
   const startBroadcast = useCallback(async () => {
     const existing = localStreamRef.current;
@@ -410,8 +657,21 @@ export function useLivestream({
       localStreamRef.current = stream;
       attachLocalStream(stream);
       setIsLive(true);
+      applyMemberMediaPolicyRef.current();
     } catch {
-      setError("Camera or microphone access was denied. Please allow access and reload.");
+      try {
+        const audioOnly = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+        });
+        localStreamRef.current = audioOnly;
+        setIsCameraOff(true);
+        setIsLive(true);
+        applyMemberMediaPolicyRef.current();
+      } catch {
+        setError(
+          "Microphone access was denied. Allow mic (camera optional) and reload to join.",
+        );
+      }
     }
   }, [attachLocalStream]);
 
@@ -420,6 +680,9 @@ export function useLivestream({
       recorderRef.current.stop();
       recorderRef.current = null;
     }
+
+    compositorRef.current?.stop();
+    compositorRef.current = null;
 
     for (const pc of peerConnectionsRef.current.values()) {
       pc.close();
@@ -430,6 +693,13 @@ export function useLivestream({
       a.srcObject = null;
     });
     viewerAudioRefs.current.clear();
+    viewerHiddenVideoRefs.current.forEach((video) => {
+      video.srcObject = null;
+      video.remove();
+    });
+    viewerHiddenVideoRefs.current.clear();
+    viewerStreamsRef.current.clear();
+    setViewerMedia([]);
 
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -489,26 +759,43 @@ export function useLivestream({
     };
   }, [meetingToken]);
 
+  useEffect(() => {
+    if (!isHost || mode !== "livestream") return;
+    const mediaInterval = setInterval(() => syncViewerMediaRef.current(), 1500);
+    return () => clearInterval(mediaInterval);
+  }, [isHost, mode]);
+
   const toggleMute = useCallback(() => {
+    if (!isHost && !memberMicEnabledRef.current) {
+      setError("The host has turned off member microphones.");
+      return;
+    }
     const stream = localStreamRef.current;
     if (!stream) return;
     for (const track of stream.getAudioTracks()) {
       track.enabled = !track.enabled;
     }
     setIsMuted((m) => !m);
-  }, []);
+    setError("");
+  }, [isHost]);
 
   const toggleCamera = useCallback(() => {
+    if (!isHost && !memberVideoEnabledRef.current) {
+      setError("The host has turned off member cameras.");
+      return;
+    }
     const stream = localStreamRef.current;
     if (!stream) return;
     for (const track of stream.getVideoTracks()) {
       track.enabled = !track.enabled;
     }
     setIsCameraOff((c) => !c);
+    syncViewerMediaRef.current();
     if (!isScreenSharing) {
       updateRecordingVideoTrack();
     }
-  }, [isScreenSharing, updateRecordingVideoTrack]);
+    setError("");
+  }, [isHost, isScreenSharing, updateRecordingVideoTrack]);
 
   const replaceVideoOnAllConnections = useCallback(async (newStream: MediaStream) => {
     const videoTrack = newStream.getVideoTracks()[0];
@@ -628,10 +915,47 @@ export function useLivestream({
       peerConnectionsRef.current.get(viewerId)?.close();
       peerConnectionsRef.current.delete(viewerId);
       connectedViewersRef.current.delete(viewerId);
+      removeViewerMedia(viewerId);
       void fetchParticipants();
     },
-    [fetchParticipants, meetingToken, sendSignal],
+    [fetchParticipants, meetingToken, removeViewerMedia, sendSignal],
   );
+
+  const setMemberMediaPolicy = useCallback(
+    async (action: "set-member-video" | "set-member-mic", enabled: boolean) => {
+      if (!isHost) return;
+
+      const res = await fetch(`/api/meetings/${meetingToken}/chat`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, enabled }),
+      });
+
+      if (!res.ok) {
+        setError("Could not update member media settings.");
+        return;
+      }
+
+      const data = await res.json();
+      const videoAllowed = data.memberVideoEnabled !== false;
+      const micAllowed = data.memberMicEnabled !== false;
+      memberVideoEnabledRef.current = videoAllowed;
+      memberMicEnabledRef.current = micAllowed;
+      setMemberVideoEnabled(videoAllowed);
+      setMemberMicEnabled(micAllowed);
+      applyHostMemberMediaPolicyRef.current();
+      setError("");
+    },
+    [isHost, meetingToken],
+  );
+
+  const toggleMemberVideo = useCallback(() => {
+    void setMemberMediaPolicy("set-member-video", !memberVideoEnabled);
+  }, [memberVideoEnabled, setMemberMediaPolicy]);
+
+  const toggleMemberMic = useCallback(() => {
+    void setMemberMediaPolicy("set-member-mic", !memberMicEnabled);
+  }, [memberMicEnabled, setMemberMediaPolicy]);
 
   const sendReaction = useCallback(
     async (action: "react-up" | "react-down") => {
@@ -659,14 +983,19 @@ export function useLivestream({
     isRecording,
     isSavingRecording,
     participants,
+    galleryMembers,
     viewerCount,
     error,
     handRaised,
     thumbsUp,
     thumbsDown,
     myReaction,
+    memberVideoEnabled,
+    memberMicEnabled,
     toggleMute,
     toggleCamera,
+    toggleMemberVideo,
+    toggleMemberMic,
     toggleScreenShare,
     beginRecording,
     endBroadcast,

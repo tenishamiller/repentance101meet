@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatDate } from "@/lib/utils";
+import { ListPagination } from "./ListPagination";
 import { MEMBER_STATUS_OPTIONS, StatusToggle } from "./StatusToggle";
 import type { Member, MemberStatus, PendingMember } from "./types";
 
 type Props = {
   pendingMembers: PendingMember[];
-  allMembers: Member[];
   onStatusChange: (userId: string, status: MemberStatus) => void;
   onBlock: (userId: string) => void;
+  refreshKey?: number;
 };
 
 const STATUS_STYLE: Record<string, string> = {
@@ -20,22 +21,51 @@ const STATUS_STYLE: Record<string, string> = {
   REJECTED: "bg-stone-200 text-stone-600",
 };
 
+const PAGE_SIZE = 25;
+
 export function AdminMembersPanel({
   pendingMembers,
-  allMembers,
   onStatusChange,
   onBlock,
+  refreshKey = 0,
 }: Props) {
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | MemberStatus>("ALL");
+  const [page, setPage] = useState(1);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = allMembers.filter((m) => {
-    const q = filter.toLowerCase();
-    const matchesSearch =
-      !q || m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
-    const matchesStatus = statusFilter === "ALL" || m.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const fetchMembers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(PAGE_SIZE),
+        status: statusFilter,
+      });
+      if (filter.trim()) params.set("q", filter.trim());
+
+      const res = await fetch(`/api/admin/members?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data.members);
+        setTotal(data.total);
+        setTotalPages(data.totalPages);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [filter, page, statusFilter]);
+
+  useEffect(() => {
+    void fetchMembers();
+  }, [fetchMembers, refreshKey]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filter, statusFilter]);
 
   return (
     <div className="space-y-8 animate-fade-up">
@@ -51,7 +81,7 @@ export function AdminMembersPanel({
             No pending membership requests — all caught up!
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
             {pendingMembers.map((m) => (
               <div
                 key={m.id}
@@ -102,63 +132,80 @@ export function AdminMembersPanel({
           </select>
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <p className="py-8 text-center text-burgundy/60">Loading members...</p>
+        ) : members.length === 0 ? (
           <p className="text-burgundy/60">No members match your search.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-gold/20 text-burgundy/60">
-                  <th className="pb-3 pr-4 font-semibold">Member</th>
-                  <th className="pb-3 pr-4 font-semibold">Status</th>
-                  <th className="pb-3 pr-4 font-semibold">Joined</th>
-                  <th className="pb-3 font-semibold">Decision</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((m) => (
-                  <tr key={m.id} className="border-b border-gold/10 last:border-0">
-                    <td className="py-3 pr-4">
-                      <div className="flex items-center gap-2">
-                        <UserAvatar userId={m.id} name={m.name} avatarUrl={m.avatarUrl} size="sm" />
-                        <div>
-                          <p className="font-medium text-burgundy">{m.name}</p>
-                          <p className="text-xs text-burgundy/55">{m.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 pr-4">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[m.status] ?? ""}`}
-                      >
-                        {m.status === "REJECTED" ? "DENIED" : m.status}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-4 text-burgundy/60">{formatDate(m.createdAt)}</td>
-                    <td className="py-3">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <StatusToggle
-                          value={m.status as MemberStatus}
-                          options={MEMBER_STATUS_OPTIONS}
-                          onChange={(status) => onStatusChange(m.id, status)}
-                          size="sm"
-                        />
-                        {m.status === "APPROVED" && (
-                          <button
-                            type="button"
-                            onClick={() => onBlock(m.id)}
-                            className="rounded-lg border border-burgundy/30 px-2.5 py-1 text-xs font-semibold text-burgundy hover:bg-burgundy/10"
-                          >
-                            Block
-                          </button>
-                        )}
-                      </div>
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                  <tr className="border-b border-gold/20 text-burgundy/60">
+                    <th className="pb-3 pr-4 font-semibold">Member</th>
+                    <th className="pb-3 pr-4 font-semibold">Status</th>
+                    <th className="pb-3 pr-4 font-semibold">Joined</th>
+                    <th className="pb-3 font-semibold">Decision</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {members.map((m) => (
+                    <tr key={m.id} className="border-b border-gold/10 last:border-0">
+                      <td className="py-3 pr-4">
+                        <div className="flex items-center gap-2">
+                          <UserAvatar
+                            userId={m.id}
+                            name={m.name}
+                            avatarUrl={m.avatarUrl}
+                            size="sm"
+                          />
+                          <div>
+                            <p className="font-medium text-burgundy">{m.name}</p>
+                            <p className="text-xs text-burgundy/55">{m.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[m.status] ?? ""}`}
+                        >
+                          {m.status === "REJECTED" ? "DENIED" : m.status}
+                        </span>
+                      </td>
+                      <td className="py-3 pr-4 text-burgundy/60">{formatDate(m.createdAt)}</td>
+                      <td className="py-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                          <StatusToggle
+                            value={m.status as MemberStatus}
+                            options={MEMBER_STATUS_OPTIONS}
+                            onChange={(status) => onStatusChange(m.id, status)}
+                            size="sm"
+                          />
+                          {m.status === "APPROVED" && (
+                            <button
+                              type="button"
+                              onClick={() => onBlock(m.id)}
+                              className="rounded-lg border border-burgundy/30 px-2.5 py-1 text-xs font-semibold text-burgundy hover:bg-burgundy/10"
+                            >
+                              Block
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <ListPagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
+              pageSize={PAGE_SIZE}
+              onPageChange={setPage}
+            />
+          </>
         )}
       </section>
     </div>
