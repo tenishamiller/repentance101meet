@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { TEACHER_NAME } from "@/lib/brand";
 
 const signupSchema = z.object({
   name: z.string().min(2).max(100),
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
 
     return Response.json({
       message:
-        "Account created! Norman will review and approve your membership soon.",
+        `Account created! ${TEACHER_NAME} will review and approve your membership soon.`,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

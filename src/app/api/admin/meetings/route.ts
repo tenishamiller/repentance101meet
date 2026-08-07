@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { createMeetingToken, startRoomRecording } from "@/lib/livekit";
 import { v4 as uuidv4 } from "uuid";
 
 export async function GET() {
@@ -26,13 +25,13 @@ export async function POST(request: NextRequest) {
 
   const { title } = await request.json();
   const linkToken = uuidv4().replace(/-/g, "").slice(0, 16);
-  const livekitRoom = `repentance101-${linkToken}`;
+  const roomId = `repentance101-${linkToken}`;
 
   const meeting = await prisma.meeting.create({
     data: {
       title: title ?? "Repentance 101 Teaching",
       linkToken,
-      livekitRoom,
+      livekitRoom: roomId,
       createdById: session.user.id,
       status: "SCHEDULED",
     },
@@ -60,7 +59,6 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (action === "start") {
-    await startRoomRecording(meeting.livekitRoom!);
     const updated = await prisma.meeting.update({
       where: { id: meetingId },
       data: { status: "LIVE", startedAt: new Date() },
@@ -69,13 +67,21 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (action === "end") {
-    const recordingUrl = `/recordings/${meeting.livekitRoom}-${Date.now()}.mp4`;
+    await prisma.meetingSignal.create({
+      data: {
+        meetingId: meeting.id,
+        fromUserId: session.user.id,
+        toUserId: null,
+        type: "host-ended",
+        payload: {},
+      },
+    });
+
     const updated = await prisma.meeting.update({
       where: { id: meetingId },
       data: {
         status: "ENDED",
         endedAt: new Date(),
-        recordingUrl,
       },
     });
     return Response.json({ meeting: updated });

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
 import { getInitials } from "@/lib/utils";
+import { BrandDivider } from "@/components/BrandDivider";
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
@@ -92,94 +93,87 @@ export default function SettingsPage() {
   if (!session) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <p>Please sign in to access settings.</p>
+        <p className="text-burgundy/70">Please sign in to access settings.</p>
       </div>
     );
   }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="font-serif text-3xl font-bold">Account Settings</h1>
+      <h1 className="font-serif text-3xl font-bold text-burgundy">Account Settings</h1>
+      <BrandDivider className="my-4 max-w-xs" />
 
       {message && (
-        <div className="mt-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div className="mt-4 rounded-lg border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-burgundy">
           {message}
         </div>
       )}
       {error && (
-        <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+        <div className="mt-4 rounded-lg border border-burgundy/30 bg-burgundy/5 px-4 py-3 text-sm text-burgundy">
+          {error}
+        </div>
       )}
 
-      <section className="mt-8 rounded-2xl border border-stone-200 bg-white p-6">
-        <h2 className="mb-4 font-semibold">Profile Photo</h2>
+      <section className="card-brand mt-8 p-6">
+        <h2 className="mb-4 font-serif font-semibold text-burgundy">Profile Photo</h2>
         <div className="flex items-center gap-4">
-          <div className="h-20 w-20 overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-200">
+          <div className="h-20 w-20 overflow-hidden rounded-full bg-burgundy/10 ring-2 ring-gold/40">
             {avatarUrl ? (
               <Image src={avatarUrl} alt="Avatar" width={80} height={80} className="object-cover" />
             ) : (
-              <span className="flex h-full w-full items-center justify-center text-2xl font-bold text-amber-900">
+              <span className="flex h-full w-full items-center justify-center text-2xl font-bold text-burgundy">
                 {getInitials(name || "U")}
               </span>
             )}
           </div>
-          <input type="file" accept="image/*" onChange={handleAvatarUpload} />
+          <input type="file" accept="image/*" onChange={handleAvatarUpload} className="text-sm text-burgundy/70" />
         </div>
       </section>
 
-      <form onSubmit={handleProfileUpdate} className="mt-6 space-y-4 rounded-2xl border border-stone-200 bg-white p-6">
-        <h2 className="font-semibold">Profile</h2>
+      <form onSubmit={handleProfileUpdate} className="card-brand mt-6 space-y-4 p-6">
+        <h2 className="font-serif font-semibold text-burgundy">Profile</h2>
         <div>
-          <label className="mb-1 block text-sm font-medium">Name</label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-4 py-2"
-          />
+          <label className="mb-1 block text-sm font-medium text-burgundy">Name</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="input-field" />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-4 py-2"
-          />
+          <label className="mb-1 block text-sm font-medium text-burgundy">Email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" />
         </div>
-        <button type="submit" className="rounded-lg bg-amber-600 px-6 py-2 font-semibold text-white">
+        <button type="submit" className="btn-primary">
           Save Profile
         </button>
       </form>
 
-      <form onSubmit={handlePasswordUpdate} className="mt-6 space-y-4 rounded-2xl border border-stone-200 bg-white p-6">
-        <h2 className="font-semibold">Change Password</h2>
+      <form onSubmit={handlePasswordUpdate} className="card-brand mt-6 space-y-4 p-6">
+        <h2 className="font-serif font-semibold text-burgundy">Change Password</h2>
         <div>
-          <label className="mb-1 block text-sm font-medium">Current Password</label>
+          <label className="mb-1 block text-sm font-medium text-burgundy">Current Password</label>
           <input
             type="password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-4 py-2"
+            className="input-field"
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">New Password</label>
+          <label className="mb-1 block text-sm font-medium text-burgundy">New Password</label>
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             minLength={8}
-            className="w-full rounded-lg border border-stone-300 px-4 py-2"
+            className="input-field"
           />
         </div>
-        <button type="submit" className="rounded-lg bg-stone-800 px-6 py-2 font-semibold text-white">
+        <button type="submit" className="btn-burgundy">
           Change Password
         </button>
       </form>
 
-      <section className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-6">
-        <h2 className="font-semibold text-red-900">Delete Account</h2>
-        <p className="mt-2 text-sm text-red-700">
+      <section className="mt-6 rounded-2xl border-2 border-burgundy/30 bg-burgundy/5 p-6">
+        <h2 className="font-serif font-semibold text-burgundy">Delete Account</h2>
+        <p className="mt-2 text-sm text-burgundy/70">
           This permanently deletes your profile. Type <strong>confirm</strong> to proceed.
         </p>
         <input
@@ -187,13 +181,9 @@ export default function SettingsPage() {
           value={deleteConfirm}
           onChange={(e) => setDeleteConfirm(e.target.value)}
           placeholder='Type "confirm"'
-          className="mt-3 w-full rounded-lg border border-red-300 px-4 py-2"
+          className="input-field mt-3"
         />
-        <button
-          type="button"
-          onClick={handleDeleteAccount}
-          className="mt-3 rounded-lg bg-red-600 px-6 py-2 font-semibold text-white hover:bg-red-700"
-        >
+        <button type="button" onClick={handleDeleteAccount} className="btn-burgundy mt-3">
           Permanently Delete Profile
         </button>
       </section>

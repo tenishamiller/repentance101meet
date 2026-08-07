@@ -1,6 +1,5 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { createMeetingToken } from "@/lib/livekit";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -37,7 +36,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return Response.json({ error: "Complete your profile first" }, { status: 400 });
   }
 
-  const isAdmin = session.user.role === "ADMIN";
+  const isHost = session.user.id === meeting.createdById;
 
   await prisma.meetingParticipant.upsert({
     where: {
@@ -47,18 +46,14 @@ export async function GET(_request: Request, { params }: RouteParams) {
     create: { meetingId: meeting.id, userId: session.user.id },
   });
 
-  const livekitToken = await createMeetingToken(
-    meeting.livekitRoom!,
-    session.user.name,
-    session.user.id,
-    isAdmin,
-  );
-
   return Response.json({
-    meeting,
-    token: livekitToken,
-    livekitUrl: process.env.NEXT_PUBLIC_LIVEKIT_URL,
-    isAdmin,
+    meeting: {
+      id: meeting.id,
+      title: meeting.title,
+      status: meeting.status,
+      createdById: meeting.createdById,
+    },
+    isHost,
     user: {
       id: session.user.id,
       name: session.user.name,

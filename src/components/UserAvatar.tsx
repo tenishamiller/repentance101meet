@@ -36,7 +36,7 @@ export function UserAvatar({
         type="button"
         onClick={() => setShowPopover((v) => !v)}
         className={cn(
-          "relative overflow-hidden rounded-full bg-amber-100 font-semibold text-amber-900 ring-2 ring-amber-200 transition hover:ring-amber-400",
+          "relative overflow-hidden rounded-full bg-burgundy/10 font-semibold text-burgundy ring-2 ring-gold/40 transition hover:ring-gold",
           sizes[size],
           className,
         )}
@@ -59,15 +59,12 @@ export function UserAvatar({
 
       {showPopover && (
         <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowPopover(false)}
-          />
-          <div className="absolute left-0 top-full z-50 mt-2 w-48 rounded-xl border border-stone-200 bg-white p-4 shadow-lg">
+          <div className="fixed inset-0 z-40" onClick={() => setShowPopover(false)} />
+          <div className="absolute left-0 top-full z-50 mt-2 w-48 rounded-xl border border-gold/30 bg-cream p-4 shadow-lg">
             <div className="mb-3 flex justify-center">
               <div
                 className={cn(
-                  "overflow-hidden rounded-full bg-amber-100 ring-2 ring-amber-200",
+                  "overflow-hidden rounded-full bg-burgundy/10 ring-2 ring-gold/40",
                   sizes.lg,
                 )}
               >
@@ -80,16 +77,16 @@ export function UserAvatar({
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <span className="flex h-full w-full items-center justify-center text-xl font-semibold text-amber-900">
+                  <span className="flex h-full w-full items-center justify-center text-xl font-semibold text-burgundy">
                     {getInitials(name)}
                   </span>
                 )}
               </div>
             </div>
-            <p className="text-center font-semibold text-stone-900">{name}</p>
+            <p className="text-center font-serif font-semibold text-burgundy">{name}</p>
             <Link
               href={`/profile/${userId}`}
-              className="mt-3 block text-center text-sm text-amber-700 hover:underline"
+              className="mt-3 block text-center text-sm text-gold-muted hover:underline"
               onClick={() => setShowPopover(false)}
             >
               View Profile

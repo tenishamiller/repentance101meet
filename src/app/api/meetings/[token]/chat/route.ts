@@ -50,6 +50,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const { content, attachments } = await request.json();
 
+  if (!content?.trim() && !attachments?.length) {
+    return Response.json({ error: "Message cannot be empty" }, { status: 400 });
+  }
+
   const message = await prisma.meetingMessage.create({
     data: {
       meetingId: meeting.id,
@@ -65,8 +69,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { token } = await params;
@@ -75,6 +79,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
   if (!meeting) {
     return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (action === "raise-hand" || action === "lower-hand") {
+    await prisma.meetingParticipant.update({
+      where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
+      data: { handRaised: action === "raise-hand" },
+    });
+    return Response.json({ success: true });
+  }
+
+  if (session.user.role !== "ADMIN") {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   if (action === "block") {
@@ -89,19 +105,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       update: { unblockedAt: null },
       create: { userId, blockedById: session.user.id, reason: "Blocked during meeting" },
     });
-  }
-
-  if (action === "raise-hand") {
-    await prisma.meetingParticipant.update({
-      where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
-      data: { handRaised: true },
-    });
-  }
-
-  if (action === "lower-hand") {
-    await prisma.meetingParticipant.update({
-      where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
-      data: { handRaised: false },
+    await prisma.meetingSignal.create({
+      data: {
+        meetingId: meeting.id,
+        fromUserId: session.user.id,
+        toUserId: userId,
+        type: "kick",
+        payload: {},
+      },
     });
   }
 

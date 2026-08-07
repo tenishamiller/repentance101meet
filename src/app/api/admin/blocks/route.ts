@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { removeParticipant } from "@/lib/livekit";
 
 export async function GET() {
   const session = await auth();
@@ -45,12 +44,16 @@ export async function POST(request: NextRequest) {
 
   if (meetingId) {
     const meeting = await prisma.meeting.findUnique({ where: { id: meetingId } });
-    if (meeting?.livekitRoom) {
-      try {
-        await removeParticipant(meeting.livekitRoom, userId);
-      } catch {
-        /* participant may not be in room */
-      }
+    if (meeting) {
+      await prisma.meetingSignal.create({
+        data: {
+          meetingId: meeting.id,
+          fromUserId: session.user.id,
+          toUserId: userId,
+          type: "kick",
+          payload: {},
+        },
+      });
     }
     await prisma.meetingParticipant.updateMany({
       where: { meetingId, userId },

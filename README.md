@@ -2,7 +2,7 @@
 
 Ministry platform for **Norman's** teaching ministry: member approvals, channels, live meetings, and community chat.
 
-**Deploy stack:** GitHub → Vercel · Database & storage → Supabase · Video → LiveKit Cloud
+**Deploy stack:** GitHub → Vercel · Database & storage → Supabase · Livestream → built-in WebRTC (free, no third-party video)
 
 **Completely separate from BraidAppt** — see [ISOLATION.md](./ISOLATION.md)
 
@@ -10,7 +10,7 @@ Ministry platform for **Norman's** teaching ministry: member approvals, channels
 
 ## Quick local preview (with Supabase)
 
-1. Copy `.env.example` → `.env` and fill in your Supabase + LiveKit keys
+1. Copy `.env.example` → `.env` and fill in your Supabase keys
 2. Create a public **`uploads`** bucket in Supabase Storage
 3. Run:
    ```bash
@@ -26,7 +26,7 @@ Ministry platform for **Norman's** teaching ministry: member approvals, channels
 - Member signup with Norman's admin approval
 - Public channels: Guidelines & Livestream info (editable by Norman)
 - Private channels: Resource, Accountability, Tough Q&A, General Chat
-- LiveKit video meetings with chat, raise hand, block list, recordings
+- Custom WebRTC livestream (Norman broadcasts, members watch) with chat, raise hand, block list
 - Profiles with avatars (Supabase Storage)
 
 ## Admin login (after seed)

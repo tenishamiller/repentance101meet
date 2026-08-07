@@ -1,0 +1,217 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Paperclip, Smile } from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
+import { formatDate, type Attachment } from "@/lib/utils";
+import { MessageAttachments } from "@/components/livestream/MessageAttachments";
+import { EmojiPicker } from "@/components/livestream/EmojiPicker";
+
+type MeetingMessage = {
+  id: string;
+  content: string;
+  attachments: Attachment[] | null;
+  createdAt: string;
+  user: { id: string; name: string; avatarUrl: string | null };
+};
+
+export function MeetingChat({
+  meetingToken,
+  userId,
+  isAdmin,
+}: {
+  meetingToken: string;
+  userId: string;
+  isAdmin: boolean;
+}) {
+  const [messages, setMessages] = useState<MeetingMessage[]>([]);
+  const [content, setContent] = useState("");
+  const [sending, setSending] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const fetchMessages = useCallback(async () => {
+    const res = await fetch(`/api/meetings/${meetingToken}/chat`);
+    if (res.ok) {
+      const data = await res.json();
+      setMessages(data.messages);
+    }
+  }, [meetingToken]);
+
+  useEffect(() => {
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 2500);
+    return () => clearInterval(interval);
+  }, [fetchMessages]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  async function uploadFile(file: File): Promise<Attachment | null> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: form });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const type = file.type.startsWith("image/")
+      ? "image"
+      : file.type.startsWith("video/")
+        ? "video"
+        : file.type.startsWith("audio/")
+          ? "audio"
+          : "file";
+    return { type, url: data.url, name: file.name };
+  }
+
+  async function sendMessage(e: React.FormEvent) {
+    e.preventDefault();
+    const hasText = content.trim().length > 0;
+    const hasFiles = (fileRef.current?.files?.length ?? 0) > 0;
+    if (!hasText && !hasFiles) return;
+
+    setSending(true);
+    const attachments: Attachment[] = [];
+
+    if (fileRef.current?.files?.length) {
+      for (const file of Array.from(fileRef.current.files)) {
+        const att = await uploadFile(file);
+        if (att) attachments.push(att);
+      }
+      fileRef.current.value = "";
+    }
+
+    const linkMatch = content.match(/https?:\/\/[^\s]+/);
+    if (linkMatch && attachments.length === 0 && !hasText) {
+      attachments.push({ type: "link", url: linkMatch[0] });
+    }
+
+    await fetch(`/api/meetings/${meetingToken}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: content.trim(),
+        attachments: attachments.length ? attachments : undefined,
+      }),
+    });
+
+    setContent("");
+    setShowEmoji(false);
+    setSending(false);
+    fetchMessages();
+  }
+
+  function insertEmoji(emoji: string) {
+    setContent((prev) => prev + emoji);
+    setShowEmoji(false);
+  }
+
+  async function blockUser(targetUserId: string) {
+    if (!isAdmin) return;
+    await fetch(`/api/meetings/${meetingToken}/chat`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: targetUserId, action: "block" }),
+    });
+    await fetch(`/api/meetings/${meetingToken}/signal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "kick", toUserId: targetUserId, payload: {} }),
+    });
+  }
+
+  return (
+    <div className="flex h-full flex-col bg-burgundy-dark">
+      <div className="border-b border-gold/20 px-4 py-3">
+        <h3 className="font-serif font-semibold text-cream">Meeting Chat</h3>
+        <p className="text-xs text-gold-light/70">Messages, files & emojis — everyone in the room</p>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4">
+        {messages.length === 0 && (
+          <p className="text-center text-sm text-gold-light/60">
+            Say hello! Share files 📎 or tap 😊 for emojis.
+          </p>
+        )}
+        {messages.map((msg) => (
+          <div key={msg.id} className="mb-3 flex gap-2">
+            <UserAvatar
+              userId={msg.user.id}
+              name={msg.user.name}
+              avatarUrl={msg.user.avatarUrl}
+              size="sm"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm font-medium text-gold">{msg.user.name}</span>
+                <span className="text-xs text-gold-light/50">{formatDate(msg.createdAt)}</span>
+              </div>
+              {msg.content && (
+                <p className="whitespace-pre-wrap break-words text-sm text-cream/90">
+                  {msg.content}
+                </p>
+              )}
+              {msg.attachments && msg.attachments.length > 0 && (
+                <MessageAttachments attachments={msg.attachments} />
+              )}
+              {isAdmin && msg.user.id !== userId && (
+                <button
+                  type="button"
+                  onClick={() => blockUser(msg.user.id)}
+                  className="mt-1 text-xs text-gold-light/60 hover:text-gold"
+                >
+                  Block
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      <form onSubmit={sendMessage} className="relative border-t border-gold/20 p-3">
+        {showEmoji && (
+          <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmoji(false)} />
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip"
+          className="hidden"
+          id={`meeting-file-${meetingToken}`}
+        />
+        <div className="flex gap-2">
+          <label
+            htmlFor={`meeting-file-${meetingToken}`}
+            className="flex cursor-pointer items-center rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-gold-light hover:bg-burgundy-deep"
+            title="Attach file"
+          >
+            <Paperclip className="h-4 w-4" />
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowEmoji((s) => !s)}
+            className="rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-gold-light hover:bg-burgundy-deep"
+            title="Add emoji"
+          >
+            <Smile className="h-4 w-4" />
+          </button>
+          <input
+            type="text"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Message, emoji, or attach a file..."
+            className="flex-1 rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-sm text-cream placeholder:text-gold-light/40 focus:outline-none focus:ring-2 focus:ring-gold/40"
+          />
+          <button
+            type="submit"
+            disabled={sending}
+            className="rounded-lg bg-gold px-4 py-2 text-sm font-bold text-burgundy-deep disabled:opacity-60"
+          >
+            {sending ? "..." : "Send"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}

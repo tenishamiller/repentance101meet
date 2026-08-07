@@ -128,6 +128,21 @@ model Meeting {
   createdBy    User                 @relation("MeetingCreator", fields: [createdById], references: [id])
   participants MeetingParticipant[]
   messages     MeetingMessage[]
+  signals      MeetingSignal[]
+}
+
+model MeetingSignal {
+  id         String   @id @default(cuid())
+  meetingId  String
+  fromUserId String
+  toUserId   String?
+  type       String
+  payload    Json
+  createdAt  DateTime @default(now())
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, createdAt])
 }
 
 model MeetingParticipant {

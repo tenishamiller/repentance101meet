@@ -3,12 +3,17 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { CHANNELS } from "@/lib/utils";
 
+const DEMO_MEMBER = {
+  email: "demo@repentance101meet.com",
+  password: "DemoMember2026!",
+};
+
 const defaultContent = {
   guidelines: `# Welcome to Repentance 101
 
 ## Ministry Guidelines
 
-Thank you for your interest in joining Repentance 101, taught by Norman.
+Thank you for your interest in joining Repentance 101, taught by Norman Miller.
 
 ### Before You Join
 - Come with a humble heart ready to learn
@@ -21,44 +26,59 @@ Thank you for your interest in joining Repentance 101, taught by Norman.
 - Accountability with your assigned partner when applicable
 - Prayerful preparation before each teaching session
 
-Norman will review all membership requests personally.`,
-  livestream: `# Livestream Information
+Norman Miller will review all membership requests personally.`,
+  livestream: `# Livestream Schedule
 
-## Repentance 101 with Norman
+## Weekly with Norman Miller
 
-**Teacher:** Norman  
-**Ministry:** Repentance 101
+### Regular Sessions
+- **Sunday Teaching** — 7:00 PM EST
+- **Wednesday Q&A** — 8:00 PM EST
 
-### Upcoming Livestreams
-- **Weekly Teaching:** Sundays at 7:00 PM EST
-- **Q&A Sessions:** Wednesdays at 8:00 PM EST
+### Meeting Room
+When Norman starts a live session, the **Join Live Meeting** button appears at the top of this page. Members meet together with video, audio, and chat.
 
-### How to Join
-1. Wait for Norman to start a meeting from the Admin Console
-2. Use the special meeting link provided
-3. Ensure your profile is complete with a photo
-
-Check back here for schedule updates from Norman.`,
+### Before You Join
+- Complete your profile with a photo
+- Find a quiet space with good internet
+- Come ready to participate respectfully`,
 };
 
-async function main() {
-  const email = process.env.ADMIN_EMAIL ?? "norman@repentance101meet.com";
-  const password = process.env.ADMIN_PASSWORD ?? "NormanAdmin2026!";
-  const name = process.env.ADMIN_NAME ?? "Norman";
-
+async function upsertUser(
+  email: string,
+  password: string,
+  name: string,
+  role: "ADMIN" | "MEMBER",
+  status: "APPROVED" | "PENDING",
+) {
   const passwordHash = await bcrypt.hash(password, 12);
-
-  await prisma.user.upsert({
+  return prisma.user.upsert({
     where: { email },
-    update: { role: "ADMIN", status: "APPROVED", name },
-    create: {
-      email,
-      passwordHash,
-      name,
-      role: "ADMIN",
-      status: "APPROVED",
-    },
+    update: { role, status, name, passwordHash },
+    create: { email, passwordHash, name, role, status },
   });
+}
+
+async function main() {
+  const adminEmail = process.env.ADMIN_EMAIL ?? "norman@repentance101meet.com";
+  const adminPassword = process.env.ADMIN_PASSWORD ?? "NormanAdmin2026!";
+  const adminName = process.env.ADMIN_NAME ?? "Norman Miller";
+
+  const admin = await upsertUser(
+    adminEmail,
+    adminPassword,
+    adminName,
+    "ADMIN",
+    "APPROVED",
+  );
+
+  const demoMember = await upsertUser(
+    DEMO_MEMBER.email,
+    DEMO_MEMBER.password,
+    "Demo Member",
+    "MEMBER",
+    "APPROVED",
+  );
 
   for (const channel of Object.values(CHANNELS)) {
     const content =
@@ -86,8 +106,47 @@ async function main() {
     });
   }
 
-  console.log("Seed complete!");
-  console.log(`Admin login: ${email} / ${password}`);
+  const allChannels = await prisma.channel.findMany();
+  for (const ch of allChannels) {
+    if (ch.type === "PUBLIC") continue;
+    await prisma.channelMembership.upsert({
+      where: {
+        userId_channelId: { userId: demoMember.id, channelId: ch.id },
+      },
+      update: { status: "APPROVED" },
+      create: {
+        userId: demoMember.id,
+        channelId: ch.id,
+        status: "APPROVED",
+      },
+    });
+  }
+
+  // Demo LIVE meeting for testing — token: demolive101
+  await prisma.meeting.upsert({
+    where: { linkToken: "demolive101" },
+    update: {
+      title: "Repentance 101 — Live Teaching (Demo)",
+      status: "LIVE",
+      livekitRoom: "repentance101-demolive101",
+      startedAt: new Date(),
+      createdById: admin.id,
+    },
+    create: {
+      title: "Repentance 101 — Live Teaching (Demo)",
+      linkToken: "demolive101",
+      status: "LIVE",
+      livekitRoom: "repentance101-demolive101",
+      startedAt: new Date(),
+      createdById: admin.id,
+    },
+  });
+
+  console.log("\n=== Seed complete ===\n");
+  console.log("ADMIN:", adminEmail, "/", adminPassword);
+  console.log("DEMO MEMBER:", DEMO_MEMBER.email, "/", DEMO_MEMBER.password);
+  console.log("\nLive Meeting Room: /livestream");
+  console.log("Demo meeting join: /meeting/demolive101");
 }
 
 main()

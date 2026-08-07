@@ -5,6 +5,7 @@ import type { Channel } from "@/generated/prisma/client";
 import { UserAvatar } from "@/components/UserAvatar";
 import { canEditMessage, type Attachment } from "@/lib/utils";
 import { formatDate } from "@/lib/utils";
+import { BrandDivider } from "@/components/BrandDivider";
 
 type Message = {
   id: string;
@@ -118,15 +119,16 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
   return (
     <div className="mx-auto flex h-[calc(100vh-80px)] max-w-4xl flex-col px-4 py-6">
       <div className="mb-4">
-        <h1 className="font-serif text-2xl font-bold">{channel.name}</h1>
-        <p className="text-sm text-stone-500">{channel.description}</p>
+        <h1 className="font-serif text-2xl font-bold text-burgundy">{channel.name}</h1>
+        <BrandDivider className="my-2 max-w-xs" />
+        <p className="text-sm text-burgundy/70">{channel.description}</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto rounded-2xl border border-stone-200 bg-white p-4 shadow-inner">
+      <div className="card-brand flex-1 overflow-y-auto p-4 shadow-inner">
         {loading ? (
-          <p className="text-center text-stone-500">Loading messages...</p>
+          <p className="text-center text-burgundy/60">Loading messages...</p>
         ) : messages.length === 0 ? (
-          <p className="text-center text-stone-500">No messages yet. Start the conversation!</p>
+          <p className="text-center text-burgundy/60">No messages yet. Start the conversation!</p>
         ) : (
           messages.map((msg) => (
             <div key={msg.id} className="mb-4 flex gap-3">
@@ -138,32 +140,32 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
               />
               <div className="flex-1">
                 <div className="flex items-baseline gap-2">
-                  <span className="font-semibold text-stone-900">{msg.user.name}</span>
-                  <span className="text-xs text-stone-400">{formatDate(msg.createdAt)}</span>
+                  <span className="font-semibold text-burgundy">{msg.user.name}</span>
+                  <span className="text-xs text-burgundy/50">{formatDate(msg.createdAt)}</span>
                 </div>
 
                 {msg.deletedAt ? (
-                  <p className="text-sm italic text-stone-400">Message deleted</p>
+                  <p className="text-sm italic text-burgundy/50">Message deleted</p>
                 ) : editingId === msg.id ? (
                   <div className="mt-1">
                     <textarea
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
-                      className="w-full rounded-lg border p-2 text-sm"
+                      className="input-field text-sm"
                       rows={2}
                     />
                     <div className="mt-1 flex gap-2">
                       <button
                         type="button"
                         onClick={() => handleEdit(msg.id)}
-                        className="text-sm text-amber-700 hover:underline"
+                        className="text-sm text-gold-muted hover:underline"
                       >
                         Save
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingId(null)}
-                        className="text-sm text-stone-500 hover:underline"
+                        className="text-sm text-burgundy/50 hover:underline"
                       >
                         Cancel
                       </button>
@@ -172,13 +174,13 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
                 ) : (
                   <>
                     {msg.content && (
-                      <p className="mt-1 whitespace-pre-wrap text-stone-800">{msg.content}</p>
+                      <p className="mt-1 whitespace-pre-wrap text-burgundy/90">{msg.content}</p>
                     )}
                     {msg.attachments?.map((att, i) => (
                       <div key={i} className="mt-2">
                         {att.type === "image" ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={att.url} alt={att.name ?? "attachment"} className="max-h-48 rounded-lg" />
+                          <img src={att.url} alt={att.name ?? "attachment"} className="max-h-48 rounded-lg border border-gold/30" />
                         ) : att.type === "video" ? (
                           <video src={att.url} controls className="max-h-48 rounded-lg" />
                         ) : att.type === "audio" ? (
@@ -188,7 +190,7 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
                             href={att.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-amber-700 hover:underline"
+                            className="text-sm text-gold-muted hover:underline"
                           >
                             {att.name ?? att.url}
                           </a>
@@ -211,14 +213,14 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
                               setEditingId(msg.id);
                               setEditContent(msg.content);
                             }}
-                            className="text-stone-500 hover:text-amber-700"
+                            className="text-burgundy/50 hover:text-gold-muted"
                           >
                             Edit
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDelete(msg.id)}
-                            className="text-stone-500 hover:text-red-600"
+                            className="text-burgundy/50 hover:text-burgundy"
                           >
                             Delete
                           </button>
@@ -244,7 +246,7 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
         />
         <label
           htmlFor="file-upload"
-          className="flex cursor-pointer items-center rounded-lg border border-stone-300 px-3 py-2 text-sm text-stone-600 hover:bg-stone-50"
+          className="flex cursor-pointer items-center rounded-lg border border-gold/40 bg-cream px-3 py-2 text-sm text-burgundy hover:bg-cream-dark"
         >
           📎
         </label>
@@ -253,13 +255,9 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Type a message, paste a link..."
-          className="flex-1 rounded-lg border border-stone-300 px-4 py-2.5 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
+          className="input-field flex-1"
         />
-        <button
-          type="submit"
-          disabled={sending}
-          className="rounded-lg bg-amber-600 px-5 py-2.5 font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
-        >
+        <button type="submit" disabled={sending} className="btn-primary !px-5 disabled:opacity-60">
           Send
         </button>
       </form>

@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MeetingRoomClient } from "@/components/MeetingRoom";
+import { LivestreamRoom } from "@/components/livestream/LivestreamRoom";
 
 type Props = {
   token: string;
@@ -11,9 +12,8 @@ type Props = {
 export function MeetingPageClient({ token }: Props) {
   const router = useRouter();
   const [data, setData] = useState<{
-    token: string;
-    livekitUrl: string;
-    isAdmin: boolean;
+    meeting: { title: string; createdById: string };
+    isHost: boolean;
     user: { id: string; name: string };
   } | null>(null);
   const [error, setError] = useState("");
@@ -34,35 +34,32 @@ export function MeetingPageClient({ token }: Props) {
   if (error) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
-        <h1 className="font-serif text-2xl font-bold text-red-700">Cannot Join Meeting</h1>
-        <p className="mt-2 text-stone-600">{error}</p>
-        <button
-          type="button"
-          onClick={() => router.push("/dashboard")}
-          className="mt-6 rounded-lg bg-amber-600 px-6 py-2 text-white"
-        >
-          Back to Dashboard
-        </button>
+        <h1 className="font-serif text-2xl font-bold text-burgundy">Cannot Join Meeting</h1>
+        <p className="mt-2 text-burgundy/70">{error}</p>
+        <Link href="/livestream" className="btn-primary mt-6">
+          Back to Livestream
+        </Link>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-stone-500">Connecting to meeting...</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
+        <div className="h-10 w-10 animate-pulse rounded-full border-2 border-gold bg-burgundy/20" />
+        <p className="font-serif text-burgundy/70">Connecting to livestream...</p>
       </div>
     );
   }
 
   return (
-    <MeetingRoomClient
-      token={data.token}
-      livekitUrl={data.livekitUrl}
+    <LivestreamRoom
       meetingToken={token}
-      isAdmin={data.isAdmin}
+      meetingTitle={data.meeting.title}
       userId={data.user.id}
       userName={data.user.name}
+      isHost={data.isHost}
+      hostId={data.meeting.createdById}
     />
   );
 }

@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { TEACHER_NAME } from "@/lib/brand";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { BrandDivider } from "@/components/BrandDivider";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -10,9 +12,10 @@ export default async function DashboardPage() {
   if (session.user.status === "PENDING" && session.user.role !== "ADMIN") {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="font-serif text-3xl font-bold">Membership Pending</h1>
-        <p className="mt-4 text-stone-600">
-          Hi {session.user.name}, Norman is reviewing your request. You&apos;ll be
+        <h1 className="font-serif text-3xl font-bold text-burgundy">Membership Pending</h1>
+        <BrandDivider className="mx-auto my-6 max-w-xs" />
+        <p className="text-burgundy/70">
+          Hi {session.user.name}, {TEACHER_NAME} is reviewing your request. You&apos;ll be
           notified once approved.
         </p>
       </div>
@@ -36,23 +39,41 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
-      <h1 className="font-serif text-3xl font-bold">
+      <h1 className="font-serif text-3xl font-bold text-burgundy">
         Welcome, {session.user.name}
       </h1>
-      <p className="mt-2 text-stone-600">
+      <BrandDivider className="my-4 max-w-xs" />
+      <p className="text-burgundy/70">
         {session.user.role === "ADMIN"
           ? "Admin dashboard — manage your ministry from the Admin Console."
           : "Your Repentance 101 member dashboard."}
       </p>
 
+      <section className="mt-8">
+        <Link
+          href="/livestream"
+          className="card-glow hero-brand flex flex-col items-center justify-between gap-4 rounded-2xl p-6 sm:flex-row"
+        >
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-gold-light">
+              Live Meeting Room
+            </p>
+            <p className="mt-1 font-serif text-xl font-bold text-cream">
+              Meet together with {TEACHER_NAME}
+            </p>
+            <p className="mt-1 text-sm text-cream/80">
+              Watch live teachings, chat, and fellowship with the community
+            </p>
+          </div>
+          <span className="btn-primary shrink-0">Open Livestream →</span>
+        </Link>
+      </section>
+
       {liveMeeting && (
-        <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6">
-          <p className="font-semibold text-green-900">Live Meeting in Progress</p>
-          <p className="mt-1 text-green-800">{liveMeeting.title}</p>
-          <Link
-            href={`/meeting/${liveMeeting.linkToken}`}
-            className="mt-4 inline-block rounded-lg bg-green-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-800"
-          >
+        <div className="mt-8 rounded-2xl border-2 border-gold/50 bg-gold/10 p-6">
+          <p className="font-semibold text-burgundy">Live Meeting in Progress</p>
+          <p className="mt-1 text-burgundy/80">{liveMeeting.title}</p>
+          <Link href={`/meeting/${liveMeeting.linkToken}`} className="btn-burgundy mt-4 inline-block !px-5 !py-2.5 text-sm">
             Join Meeting
           </Link>
         </div>
@@ -65,37 +86,34 @@ export default async function DashboardPage() {
           const isApproved = isAdmin || status === "APPROVED";
 
           return (
-            <div
-              key={channel.id}
-              className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
-            >
+            <div key={channel.id} className="card-brand p-6">
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="font-serif text-xl font-semibold">{channel.name}</h2>
-                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600">
+                <h2 className="font-serif text-xl font-semibold text-burgundy">{channel.name}</h2>
+                <span className="rounded-full bg-burgundy/10 px-2 py-0.5 text-xs font-medium text-burgundy">
                   {channel.type === "GENERAL" ? "Chat" : "Private"}
                 </span>
               </div>
-              <p className="text-sm text-stone-600">{channel.description}</p>
+              <p className="text-sm text-burgundy/70">{channel.description}</p>
 
               {isAdmin || isApproved ? (
                 <Link
                   href={`/channels/${channel.slug}`}
-                  className="mt-4 inline-block text-sm font-medium text-amber-700 hover:underline"
+                  className="mt-4 inline-block text-sm font-medium text-gold-muted hover:underline"
                 >
                   Enter Channel →
                 </Link>
               ) : status === "PENDING" ? (
-                <p className="mt-4 text-sm text-amber-700">
-                  Join request pending Norman&apos;s approval
+                <p className="mt-4 text-sm text-gold-muted">
+                  Join request pending {TEACHER_NAME}&apos;s approval
                 </p>
               ) : status === "DENIED" ? (
-                <p className="mt-4 text-sm text-red-600">
-                  Request denied. Contact Norman if you believe this was an error.
+                <p className="mt-4 text-sm text-burgundy">
+                  Request denied. Contact {TEACHER_NAME} if you believe this was an error.
                 </p>
               ) : (
                 <Link
                   href={`/channels/${channel.slug}`}
-                  className="mt-4 inline-block rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+                  className="btn-primary mt-4 inline-block !px-4 !py-2 text-sm"
                 >
                   Request to Join
                 </Link>
@@ -107,10 +125,7 @@ export default async function DashboardPage() {
 
       {session.user.role === "ADMIN" && (
         <div className="mt-10">
-          <Link
-            href="/admin"
-            className="inline-flex rounded-xl bg-stone-900 px-6 py-3 font-semibold text-white hover:bg-stone-800"
-          >
+          <Link href="/admin" className="btn-burgundy inline-flex">
             Open Admin Console →
           </Link>
         </div>

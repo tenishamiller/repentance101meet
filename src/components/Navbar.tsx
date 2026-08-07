@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { Logo } from "@/components/Logo";
 import { UserAvatar } from "@/components/UserAvatar";
 import { SignOutButton } from "@/components/SignOutButton";
 
@@ -7,45 +8,54 @@ export async function Navbar() {
   const session = await auth();
 
   return (
-    <header className="border-b border-stone-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-600 text-sm font-bold text-white">
-            R101
-          </div>
-          <div>
-            <p className="font-serif text-lg font-semibold text-stone-900">
-              Repentance 101
-            </p>
-            <p className="text-xs text-stone-500">Ministry of Norman</p>
-          </div>
-        </Link>
+    <header className="navbar-brand sticky top-0 z-50">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+        <Logo size="md" />
 
-        <nav className="hidden items-center gap-6 text-sm font-medium text-stone-700 md:flex">
-          <Link href="/channels/guidelines" className="hover:text-amber-700">
-            Guidelines
-          </Link>
-          <Link href="/channels/livestream" className="hover:text-amber-700">
-            Livestream
-          </Link>
+        <nav className="hidden items-center gap-1 text-sm font-medium md:flex">
+          {[
+            { href: "/livestream", label: "Live Meeting", highlight: true },
+            { href: "/channels/guidelines", label: "Guidelines" },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={
+                item.highlight
+                  ? "rounded-lg bg-burgundy px-3 py-2 text-sm font-semibold text-cream shadow-sm transition hover:bg-burgundy-dark"
+                  : "rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
+              }
+            >
+              {item.label}
+            </Link>
+          ))}
           {session?.user?.status === "APPROVED" || session?.user?.role === "ADMIN" ? (
             <>
-              <Link href="/dashboard" className="hover:text-amber-700">
+              <Link
+                href="/dashboard"
+                className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
+              >
                 Dashboard
               </Link>
-              <Link href="/channels/general" className="hover:text-amber-700">
-                General Chat
+              <Link
+                href="/channels/general"
+                className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
+              >
+                Chat
               </Link>
             </>
           ) : null}
           {session?.user?.role === "ADMIN" ? (
-            <Link href="/admin" className="font-semibold text-amber-700 hover:text-amber-800">
+            <Link
+              href="/admin"
+              className="rounded-lg border border-gold/40 bg-gold/15 px-3 py-2 font-semibold text-burgundy transition hover:bg-gold/25"
+            >
               Admin
             </Link>
           ) : null}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {session?.user ? (
             <>
               <UserAvatar
@@ -56,7 +66,7 @@ export async function Navbar() {
               />
               <Link
                 href="/settings"
-                className="hidden text-sm text-stone-600 hover:text-amber-700 sm:block"
+                className="hidden rounded-lg px-3 py-2 text-sm text-burgundy/70 transition hover:bg-gold/10 sm:block"
               >
                 Settings
               </Link>
@@ -66,14 +76,11 @@ export async function Navbar() {
             <>
               <Link
                 href="/login"
-                className="rounded-lg px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-burgundy transition hover:bg-gold/10"
               >
                 Login
               </Link>
-              <Link
-                href="/signup"
-                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-              >
+              <Link href="/signup" className="btn-primary !px-4 !py-2 text-sm">
                 Join Ministry
               </Link>
             </>

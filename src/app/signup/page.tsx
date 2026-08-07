@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { TEACHER_NAME } from "@/lib/brand";
+import { BrandDivider } from "@/components/BrandDivider";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -38,67 +41,85 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
-      <h1 className="font-serif text-3xl font-bold text-stone-900">Join Repentance 101</h1>
-      <p className="mt-2 text-stone-600">
-        Create your account. Norman will personally approve your membership.
-      </p>
+    <div className="mx-auto grid min-h-[75vh] max-w-4xl items-center gap-10 px-4 py-12 lg:grid-cols-2">
+      <div className="hidden text-center lg:block">
+        <Image
+          src="/brand/repentance101-logo.png"
+          alt="Repentance 101"
+          width={200}
+          height={200}
+          className="seal-ring mx-auto rounded-full ring-offset-cream"
+        />
+        <h2 className="mt-6 font-serif text-2xl font-bold text-burgundy">Join the Ministry</h2>
+        <BrandDivider className="mx-auto my-4 max-w-[200px]" />
+        <p className="max-w-xs mx-auto text-sm leading-relaxed text-burgundy/70">
+          {TEACHER_NAME} personally approves every member request — a community built on trust and
+          accountability.
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-        {error && (
-          <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
-        )}
-        {success && (
-          <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
-            {success}
+      <div>
+        <h1 className="font-serif text-3xl font-bold text-burgundy">Join Repentance 101</h1>
+        <p className="mt-2 text-burgundy/70">
+          Create your account. {TEACHER_NAME} will personally approve your membership.
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          {error && (
+            <div className="rounded-lg border border-burgundy/20 bg-burgundy/5 px-4 py-3 text-sm text-burgundy">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="rounded-lg border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-burgundy">
+              {success}
+            </div>
+          )}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-burgundy">Full Name</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input-field"
+            />
           </div>
-        )}
-        <div>
-          <label className="mb-1 block text-sm font-medium">Full Name</label>
-          <input
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-4 py-2.5 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Email</label>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-4 py-2.5 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Password (min 8 characters)</label>
-          <input
-            type="password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-stone-300 px-4 py-2.5 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-200"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-amber-600 py-3 font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
-        >
-          {loading ? "Submitting..." : "Request Membership"}
-        </button>
-      </form>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-burgundy">Email</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="input-field"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-burgundy">
+              Password (min 8 characters)
+            </label>
+            <input
+              type="password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="input-field"
+            />
+          </div>
+          <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
+            {loading ? "Submitting..." : "Request Membership"}
+          </button>
+        </form>
 
-      <p className="mt-6 text-center text-sm text-stone-600">
-        Already a member?{" "}
-        <Link href="/login" className="font-medium text-amber-700 hover:underline">
-          Sign in
-        </Link>
-      </p>
+        <p className="mt-6 text-center text-sm text-burgundy/70">
+          Already a member?{" "}
+          <Link href="/login" className="font-medium text-gold-muted hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

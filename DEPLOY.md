@@ -108,10 +108,6 @@ NEXT_PUBLIC_APP_URL   = https://repentance101meet.vercel.app
 ADMIN_EMAIL           = norman@repentance101meet.com
 ADMIN_PASSWORD        = (strong password for Norman)
 ADMIN_NAME            = Norman
-LIVEKIT_API_KEY       = (from livekit.io cloud)
-LIVEKIT_API_SECRET
-LIVEKIT_URL           = wss://your-project.livekit.cloud
-NEXT_PUBLIC_LIVEKIT_URL = wss://your-project.livekit.cloud
 NEXT_PUBLIC_APP_NAME  = Repentance 101
 ```
 
@@ -124,17 +120,7 @@ Then set `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to `https://repentance101meet.
 
 ---
 
-## 4. LiveKit (video meetings)
-
-Supabase handles database and files; **meetings still use LiveKit**:
-
-1. Sign up at [cloud.livekit.io](https://cloud.livekit.io) (free tier available)
-2. Create a project → copy API Key, Secret, and WebSocket URL
-3. Add to Vercel env vars (see above)
-
----
-
-## 5. Preview locally (optional)
+## 4. Preview locally (optional)
 
 With Supabase `.env` filled in:
 
@@ -158,6 +144,6 @@ Open [http://localhost:3000](http://localhost:3000)
 | **GitHub** | Source code + deploy trigger |
 | **Supabase** | PostgreSQL database + file storage |
 | **Vercel** | Next.js hosting |
-| **LiveKit Cloud** | Video meetings & recording |
+| **WebRTC (built-in)** | Norman broadcasts live; members watch in-browser — $0/month |
 
 No Docker required for production.

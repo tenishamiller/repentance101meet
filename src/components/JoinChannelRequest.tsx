@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { Channel } from "@/generated/prisma/client";
+import { TEACHER_NAME } from "@/lib/brand";
+import { BrandDivider } from "@/components/BrandDivider";
 
 type Props = {
   channel: Channel;
@@ -23,7 +25,7 @@ export function JoinChannelRequest({ channel, membershipStatus }: Props) {
 
     if (res.ok) {
       setStatus("PENDING");
-      setMessage("Your join request has been sent to Norman for approval.");
+      setMessage(`Your join request has been sent to ${TEACHER_NAME} for approval.`);
     } else {
       setMessage(data.error ?? "Request failed");
     }
@@ -31,47 +33,38 @@ export function JoinChannelRequest({ channel, membershipStatus }: Props) {
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center px-4 py-16 text-center">
-      <h1 className="font-serif text-3xl font-bold">{channel.name}</h1>
-      <p className="mt-3 text-stone-600">{channel.description}</p>
+      <h1 className="font-serif text-3xl font-bold text-burgundy">{channel.name}</h1>
+      <BrandDivider className="my-4 max-w-xs" />
+      <p className="text-burgundy/70">{channel.description}</p>
 
       {status === "PENDING" ? (
-        <div className="mt-8 rounded-xl bg-amber-50 px-6 py-4 text-amber-900">
+        <div className="mt-8 rounded-xl border border-gold/40 bg-gold/10 px-6 py-4 text-burgundy">
           <p className="font-semibold">Request Pending</p>
           <p className="mt-1 text-sm">
-            Norman will review your request. Check back here for updates.
+            {TEACHER_NAME} will review your request. Check back here for updates.
           </p>
         </div>
       ) : status === "DENIED" ? (
-        <div className="mt-8 rounded-xl bg-red-50 px-6 py-4 text-red-800">
+        <div className="mt-8 rounded-xl border border-burgundy/30 bg-burgundy/5 px-6 py-4 text-burgundy">
           <p className="font-semibold">Request Denied</p>
-          <p className="mt-1 text-sm">Contact Norman if you have questions.</p>
+          <p className="mt-1 text-sm">Contact {TEACHER_NAME} if you have questions.</p>
         </div>
       ) : status === "REMOVED" ? (
         <div className="mt-8 space-y-4">
-          <div className="rounded-xl bg-stone-100 px-6 py-4 text-stone-700">
+          <div className="rounded-xl border border-gold/30 bg-cream-dark px-6 py-4 text-burgundy/80">
             <p>You were removed from this channel.</p>
           </div>
-          <button
-            type="button"
-            onClick={requestJoin}
-            disabled={loading}
-            className="rounded-lg bg-amber-600 px-6 py-3 font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
-          >
+          <button type="button" onClick={requestJoin} disabled={loading} className="btn-primary">
             Request to Join Again
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={requestJoin}
-          disabled={loading}
-          className="mt-8 rounded-lg bg-amber-600 px-8 py-3 font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
-        >
+        <button type="button" onClick={requestJoin} disabled={loading} className="btn-primary mt-8">
           {loading ? "Sending..." : "Request to Join"}
         </button>
       )}
 
-      {message && <p className="mt-4 text-sm text-stone-600">{message}</p>}
+      {message && <p className="mt-4 text-sm text-burgundy/70">{message}</p>}
     </div>
   );
 }
