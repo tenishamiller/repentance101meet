@@ -193,10 +193,20 @@ export function useLivestream({
   );
 
   const addLocalTracks = useCallback((pc: RTCPeerConnection) => {
-    const stream = screenStreamRef.current ?? localStreamRef.current;
-    if (!stream) return;
-    for (const track of stream.getTracks()) {
-      pc.addTrack(track, stream);
+    const baseStream = localStreamRef.current;
+    const outboundStream = baseStream ?? screenStreamRef.current;
+    if (!outboundStream) return;
+
+    const videoTrack =
+      screenStreamRef.current?.getVideoTracks()[0] ??
+      baseStream?.getVideoTracks()[0];
+    const audioTrack = baseStream?.getAudioTracks()[0];
+
+    if (videoTrack && !pc.getSenders().some((sender) => sender.track === videoTrack)) {
+      pc.addTrack(videoTrack, outboundStream);
+    }
+    if (audioTrack && !pc.getSenders().some((sender) => sender.track === audioTrack)) {
+      pc.addTrack(audioTrack, outboundStream);
     }
   }, []);
 
@@ -477,30 +487,38 @@ export function useLivestream({
     const videoTrack = newStream.getVideoTracks()[0];
     if (!videoTrack) return;
 
+    const outboundStream = localStreamRef.current ?? newStream;
+
     for (const pc of peerConnectionsRef.current.values()) {
       const sender = pc.getSenders().find((s) => s.track?.kind === "video");
       if (sender) {
         await sender.replaceTrack(videoTrack);
+      } else if (outboundStream) {
+        pc.addTrack(videoTrack, outboundStream);
       }
     }
     updateRecordingVideoTrack();
   }, [updateRecordingVideoTrack]);
 
+  const stopScreenShare = useCallback(async () => {
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenStreamRef.current = null;
+    if (localStreamRef.current) {
+      attachLocalStream(localStreamRef.current);
+      await replaceVideoOnAllConnections(localStreamRef.current);
+    }
+    setIsScreenSharing(false);
+  }, [attachLocalStream, replaceVideoOnAllConnections]);
+
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {
-      screenStreamRef.current?.getTracks().forEach((t) => t.stop());
-      screenStreamRef.current = null;
-      if (localStreamRef.current) {
-        attachLocalStream(localStreamRef.current);
-        await replaceVideoOnAllConnections(localStreamRef.current);
-      }
-      setIsScreenSharing(false);
+      await stopScreenShare();
       return;
     }
 
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: { displaySurface: "monitor" },
         audio: true,
       });
       screenStreamRef.current = screenStream;
@@ -509,12 +527,12 @@ export function useLivestream({
       setIsScreenSharing(true);
 
       screenStream.getVideoTracks()[0]?.addEventListener("ended", () => {
-        void toggleScreenShare();
+        void stopScreenShare();
       });
     } catch {
-      /* user cancelled screen share picker */
+      setError("Could not share screen. Choose a window or tab when prompted, or try Chrome.");
     }
-  }, [attachLocalStream, isScreenSharing, replaceVideoOnAllConnections]);
+  }, [attachLocalStream, isScreenSharing, replaceVideoOnAllConnections, stopScreenShare]);
 
   const endBroadcast = useCallback(async () => {
     if (!isHost) return null;
