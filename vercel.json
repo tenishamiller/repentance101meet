@@ -1,5 +1,5 @@
 {
-  "buildCommand": "prisma generate && prisma migrate deploy && next build",
+  "buildCommand": "node scripts/vercel-build.mjs",
   "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["iad1"]

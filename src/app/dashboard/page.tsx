@@ -33,9 +33,18 @@ export default async function DashboardPage() {
 
   const privateChannels = channels.filter((c) => c.type !== "PUBLIC");
   const liveMeeting = await prisma.meeting.findFirst({
-    where: { status: "LIVE" },
+    where: { status: "LIVE", kind: "LIVESTREAM" },
     orderBy: { startedAt: "desc" },
   });
+  const privateInvite = session.user.role !== "ADMIN"
+    ? await prisma.meeting.findFirst({
+        where: {
+          kind: "PRIVATE",
+          invitedUserId: session.user.id,
+          status: "LIVE",
+        },
+      })
+    : null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
@@ -49,7 +58,7 @@ export default async function DashboardPage() {
           : "Your Repentance 101 member dashboard."}
       </p>
 
-      <section className="mt-8">
+      <section className="mt-8 grid gap-6 md:grid-cols-2">
         <Link
           href="/livestream"
           className="card-glow hero-brand flex flex-col items-center justify-between gap-4 rounded-2xl p-6 sm:flex-row"
@@ -67,7 +76,40 @@ export default async function DashboardPage() {
           </div>
           <span className="btn-primary shrink-0">Open Livestream →</span>
         </Link>
+
+        <Link
+          href="/personal-ministry"
+          className="card-brand flex flex-col items-center justify-between gap-4 rounded-2xl border-2 border-gold/40 p-6 sm:flex-row"
+        >
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-gold-muted">
+              Personal Ministry
+            </p>
+            <p className="mt-1 font-serif text-xl font-bold text-burgundy">
+              Private one-on-one with {TEACHER_NAME}
+            </p>
+            <p className="mt-1 text-sm text-burgundy/70">
+              {session.user.role === "ADMIN"
+                ? "Invite members for personal pastoral care"
+                : "When Norman invites you, join here privately"}
+            </p>
+          </div>
+          <span className="btn-outline-gold shrink-0">Open →</span>
+        </Link>
       </section>
+
+      {privateInvite && (
+        <div className="mt-8 rounded-2xl border-2 border-burgundy/30 bg-burgundy/5 p-6">
+          <p className="font-semibold text-burgundy">Private Session with {TEACHER_NAME}</p>
+          <p className="mt-1 text-burgundy/80">{privateInvite.title}</p>
+          <Link
+            href={`/personal-ministry/${privateInvite.linkToken}`}
+            className="btn-primary mt-4 inline-block !px-5 !py-2.5 text-sm"
+          >
+            Join Private Session
+          </Link>
+        </div>
+      )}
 
       {liveMeeting && (
         <div className="mt-8 rounded-2xl border-2 border-gold/50 bg-gold/10 p-6">

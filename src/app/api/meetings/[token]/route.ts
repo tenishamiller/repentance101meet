@@ -16,6 +16,13 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return Response.json({ error: "Meeting not found" }, { status: 404 });
   }
 
+  if (meeting.kind === "PRIVATE") {
+    return Response.json(
+      { error: "This is a private ministry session — use Personal Ministry to join" },
+      { status: 403 },
+    );
+  }
+
   if (session.user.status !== "APPROVED" && session.user.role !== "ADMIN") {
     return Response.json({ error: "Account not approved" }, { status: 403 });
   }

@@ -32,6 +32,12 @@ export async function Navbar() {
           {session?.user?.status === "APPROVED" || session?.user?.role === "ADMIN" ? (
             <>
               <Link
+                href="/personal-ministry"
+                className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
+              >
+                Personal Ministry
+              </Link>
+              <Link
                 href="/dashboard"
                 className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
               >

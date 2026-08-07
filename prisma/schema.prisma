@@ -37,6 +37,11 @@ enum MeetingStatus {
   ENDED
 }
 
+enum MeetingKind {
+  LIVESTREAM
+  PRIVATE
+}
+
 model User {
   id           String        @id @default(cuid())
   email        String        @unique
@@ -52,6 +57,7 @@ model User {
   channelMessages     ChannelMessage[]
   meetingMessages     MeetingMessage[]
   meetingsCreated     Meeting[]             @relation("MeetingCreator")
+  privateInvitations  Meeting[]             @relation("PrivateInvitee")
   blocksReceived      BlockList[]           @relation("BlockedUser")
   blocksIssued        BlockList[]           @relation("BlockedBy")
   meetingParticipants MeetingParticipant[]
@@ -114,18 +120,21 @@ model ChannelMessage {
 }
 
 model Meeting {
-  id           String        @id @default(cuid())
-  title        String
-  linkToken    String        @unique @default(cuid())
-  status       MeetingStatus @default(SCHEDULED)
-  recordingUrl String?
-  livekitRoom  String?
-  createdById  String
-  startedAt    DateTime?
-  endedAt      DateTime?
-  createdAt    DateTime      @default(now())
+  id            String        @id @default(cuid())
+  title         String
+  linkToken     String        @unique @default(cuid())
+  kind          MeetingKind   @default(LIVESTREAM)
+  status        MeetingStatus @default(SCHEDULED)
+  recordingUrl  String?
+  livekitRoom   String?
+  createdById   String
+  invitedUserId String?
+  startedAt     DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime      @default(now())
 
   createdBy    User                 @relation("MeetingCreator", fields: [createdById], references: [id])
+  invitedUser  User?                @relation("PrivateInvitee", fields: [invitedUserId], references: [id])
   participants MeetingParticipant[]
   messages     MeetingMessage[]
   signals      MeetingSignal[]
@@ -151,6 +160,7 @@ model MeetingParticipant {
   userId     String
   blocked    Boolean  @default(false)
   handRaised Boolean  @default(false)
+  reaction   String?
   joinedAt   DateTime @default(now())
 
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)

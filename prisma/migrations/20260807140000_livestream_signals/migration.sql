@@ -1,5 +1,5 @@
--- CreateTable
-CREATE TABLE "MeetingSignal" (
+-- CreateTable (idempotent — table may exist from prior db push)
+CREATE TABLE IF NOT EXISTS "MeetingSignal" (
     "id" TEXT NOT NULL,
     "meetingId" TEXT NOT NULL,
     "fromUserId" TEXT NOT NULL,
@@ -12,7 +12,11 @@ CREATE TABLE "MeetingSignal" (
 );
 
 -- CreateIndex
-CREATE INDEX "MeetingSignal_meetingId_createdAt_idx" ON "MeetingSignal"("meetingId", "createdAt");
+CREATE INDEX IF NOT EXISTS "MeetingSignal_meetingId_createdAt_idx" ON "MeetingSignal"("meetingId", "createdAt");
 
 -- AddForeignKey
-ALTER TABLE "MeetingSignal" ADD CONSTRAINT "MeetingSignal_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "Meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$ BEGIN
+    ALTER TABLE "MeetingSignal" ADD CONSTRAINT "MeetingSignal_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "Meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;

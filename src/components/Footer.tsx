@@ -27,6 +27,7 @@ export function Footer() {
               {[
                 { href: "/channels/guidelines", label: "Guidelines" },
                 { href: "/livestream", label: "Live Meeting Room" },
+                { href: "/personal-ministry", label: "Personal Ministry" },
                 { href: "/signup", label: "Join the Ministry" },
                 { href: "/login", label: "Member Login" },
               ].map((link) => (

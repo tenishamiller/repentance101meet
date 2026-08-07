@@ -59,11 +59,11 @@ export default async function LivestreamPage() {
 
   const channel = await prisma.channel.findUnique({ where: { slug: "livestream" } });
   const liveMeeting = await prisma.meeting.findFirst({
-    where: { status: "LIVE" },
+    where: { status: "LIVE", kind: "LIVESTREAM" },
     orderBy: { startedAt: "desc" },
   });
   const upcomingMeetings = await prisma.meeting.findMany({
-    where: { status: { in: ["SCHEDULED", "LIVE"] } },
+    where: { kind: "LIVESTREAM", status: { in: ["SCHEDULED", "LIVE"] } },
     orderBy: { createdAt: "desc" },
     take: 5,
   });

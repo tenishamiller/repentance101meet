@@ -4,15 +4,17 @@ import { useRouter } from "next/navigation";
 import {
   Circle,
   Download,
+  Hand,
   Mic,
   MicOff,
-  MonitorUp,
   MonitorOff,
+  MonitorUp,
   Radio,
+  ThumbsDown,
+  ThumbsUp,
   Users,
   Video,
   VideoOff,
-  Hand,
 } from "lucide-react";
 import { TEACHER_NAME } from "@/lib/brand";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -52,12 +54,16 @@ export function LivestreamRoom({
     viewerCount,
     error,
     handRaised,
+    thumbsUp,
+    thumbsDown,
+    myReaction,
     toggleMute,
     toggleCamera,
     toggleScreenShare,
     beginRecording,
     endBroadcast,
     toggleHand,
+    sendReaction,
     kickViewer,
   } = useLivestream({
     meetingToken,
@@ -184,13 +190,22 @@ export function LivestreamRoom({
                 playsInline
                 className="h-full w-full object-contain"
               />
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted
+                className={`absolute bottom-4 right-4 h-24 w-32 rounded-xl border-2 border-gold/50 object-cover shadow-2xl sm:h-28 sm:w-40 ${
+                  isCameraOff ? "opacity-40" : ""
+                }`}
+              />
               {!isLive && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
                   <Radio className="h-10 w-10 animate-pulse text-gold" />
                   <p className="font-serif text-lg font-semibold text-cream">
                     Connecting to {TEACHER_NAME}...
                   </p>
-                  <p className="text-sm text-gold-light/70">Waiting for the live stream</p>
+                  <p className="text-sm text-gold-light/70">Allow camera & mic to participate</p>
                 </div>
               )}
             </>
@@ -229,7 +244,11 @@ export function LivestreamRoom({
                 {isScreenSharing ? " · screen visible to all" : ""}
               </p>
             ) : (
-              <p className="text-xs text-gold-light/80">Watching {TEACHER_NAME}</p>
+              <p className="text-xs text-gold-light/80">
+                With {TEACHER_NAME}
+                {isMuted ? " · muted" : ""}
+                {isCameraOff ? " · camera off" : ""}
+              </p>
             )}
           </div>
         </div>
@@ -269,22 +288,58 @@ export function LivestreamRoom({
             </>
           ) : (
             <>
+              <ControlButton
+                onClick={toggleMute}
+                active={!isMuted}
+                label={isMuted ? "Unmute" : "Mute"}
+                icon={isMuted ? MicOff : Mic}
+              />
+              <ControlButton
+                onClick={toggleCamera}
+                active={!isCameraOff}
+                label={isCameraOff ? "Camera On" : "Camera Off"}
+                icon={isCameraOff ? VideoOff : Video}
+              />
+              <button
+                type="button"
+                onClick={() => void sendReaction("react-up")}
+                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+                  myReaction === "UP"
+                    ? "bg-gold text-burgundy-deep"
+                    : "border border-gold/40 bg-burgundy text-gold-light hover:bg-burgundy-dark"
+                }`}
+              >
+                <ThumbsUp className="h-4 w-4" />
+                <span className="hidden sm:inline">Like</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void sendReaction("react-down")}
+                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+                  myReaction === "DOWN"
+                    ? "border border-gold/50 bg-burgundy-dark text-cream"
+                    : "border border-gold/40 bg-burgundy text-gold-light hover:bg-burgundy-dark"
+                }`}
+              >
+                <ThumbsDown className="h-4 w-4" />
+                <span className="hidden sm:inline">Dislike</span>
+              </button>
               <button
                 type="button"
                 onClick={toggleHand}
-                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold ${
+                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold ${
                   handRaised
                     ? "bg-gold text-burgundy-deep"
                     : "border border-gold/40 bg-burgundy text-gold-light hover:bg-burgundy-dark"
                 }`}
               >
                 <Hand className="h-4 w-4" />
-                {handRaised ? "Hand Raised" : "Raise Hand"}
+                <span className="hidden sm:inline">{handRaised ? "Hand Raised" : "Raise Hand"}</span>
               </button>
               <button
                 type="button"
                 onClick={() => router.push("/livestream")}
-                className="rounded-full border border-gold/40 px-5 py-2.5 text-sm font-semibold text-gold-light hover:bg-burgundy"
+                className="rounded-full border border-gold/40 px-4 py-2.5 text-sm font-semibold text-gold-light hover:bg-burgundy"
               >
                 Leave
               </button>
@@ -298,6 +353,22 @@ export function LivestreamRoom({
         {isHost && (
           <div className="border-b border-gold/20 bg-burgundy p-4">
             <MemberJoinLink meetingToken={meetingToken} variant="room" />
+            {(thumbsUp > 0 || thumbsDown > 0) && (
+              <div className="mb-3 flex gap-3 text-sm">
+                {thumbsUp > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gold/20 px-3 py-1 font-semibold text-gold-light">
+                    <ThumbsUp className="h-3.5 w-3.5" />
+                    {thumbsUp}
+                  </span>
+                )}
+                {thumbsDown > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-burgundy-dark px-3 py-1 font-semibold text-cream/80">
+                    <ThumbsDown className="h-3.5 w-3.5" />
+                    {thumbsDown}
+                  </span>
+                )}
+              </div>
+            )}
             <h3 className="mb-3 flex items-center gap-2 font-serif text-sm font-semibold text-gold-light">
               <Users className="h-4 w-4 text-gold" />
               Viewers ({viewerCount})
@@ -319,6 +390,12 @@ export function LivestreamRoom({
                       />
                       <span className="text-sm text-cream">{p.user.name}</span>
                       {p.handRaised && <span title="Hand raised">✋</span>}
+                      {p.reaction === "UP" && (
+                        <ThumbsUp className="h-3.5 w-3.5 text-gold" aria-label="Thumbs up" />
+                      )}
+                      {p.reaction === "DOWN" && (
+                        <ThumbsDown className="h-3.5 w-3.5 text-cream/70" aria-label="Thumbs down" />
+                      )}
                     </div>
                     <button
                       type="button"

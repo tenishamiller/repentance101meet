@@ -10,6 +10,7 @@ export async function GET() {
   }
 
   const meetings = await prisma.meeting.findMany({
+    where: { kind: "LIVESTREAM" },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
     data: {
       title: title ?? "Repentance 101 Teaching",
       linkToken,
+      kind: "LIVESTREAM",
       livekitRoom: roomId,
       createdById: session.user.id,
       status: "SCHEDULED",

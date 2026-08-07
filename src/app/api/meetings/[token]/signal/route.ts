@@ -8,12 +8,24 @@ async function getMeetingContext(token: string, userId: string) {
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
   if (!meeting) return { error: "Meeting not found", status: 404 as const };
 
+  if (meeting.kind === "PRIVATE") {
+    const isHost = meeting.createdById === userId;
+    const isInvitee = meeting.invitedUserId === userId;
+    if (!isHost && !isInvitee) {
+      return { error: "Not authorized for this private session", status: 403 as const };
+    }
+  }
+
   const participant = await prisma.meetingParticipant.findUnique({
     where: { meetingId_userId: { meetingId: meeting.id, userId } },
   });
 
   if (participant?.blocked) {
     return { error: "You are blocked from this meeting", status: 403 as const };
+  }
+
+  if (!participant && meeting.kind === "PRIVATE") {
+    return { error: "Join the session first", status: 403 as const };
   }
 
   return { meeting, participant };
@@ -60,8 +72,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return Response.json({ error: ctx.error }, { status: ctx.status });
   }
 
-  if (ctx.meeting.status !== "LIVE" && session.user.role !== "ADMIN") {
-    return Response.json({ error: "Meeting is not live" }, { status: 403 });
+  if (ctx.meeting.status !== "LIVE") {
+    const isHost = ctx.meeting.createdById === session.user.id;
+    const canSignalWhileScheduled =
+      ctx.meeting.kind === "PRIVATE" && isHost && ctx.meeting.status === "SCHEDULED";
+    if (!canSignalWhileScheduled && session.user.role !== "ADMIN") {
+      return Response.json({ error: "Meeting is not live" }, { status: 403 });
+    }
   }
 
   const { type, toUserId, payload } = await request.json();

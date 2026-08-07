@@ -23,8 +23,13 @@ export async function GET(_request: Request, { params }: RouteParams) {
     orderBy: { joinedAt: "asc" },
   });
 
+  const thumbsUp = participants.filter((p) => p.reaction === "UP").length;
+  const thumbsDown = participants.filter((p) => p.reaction === "DOWN").length;
+
   return Response.json({
     hostId: meeting.createdById,
     participants,
+    thumbsUp,
+    thumbsDown,
   });
 }

@@ -16,6 +16,7 @@ import {
 type Participant = {
   user: { id: string; name: string; avatarUrl: string | null; role: string };
   handRaised: boolean;
+  reaction?: string | null;
 };
 
 type UseLivestreamOptions = {
@@ -25,6 +26,7 @@ type UseLivestreamOptions = {
   userName: string;
   isHost: boolean;
   hostId: string;
+  mode?: "livestream" | "private";
   onKicked?: () => void;
   onMeetingEnded?: () => void;
   onRecordingSaved?: (url: string) => void;
@@ -36,10 +38,13 @@ export function useLivestream({
   userId,
   isHost,
   hostId,
+  mode = "livestream",
   onKicked,
   onMeetingEnded,
   onRecordingSaved,
 }: UseLivestreamOptions) {
+  const isPrivate = mode === "private";
+  const publishMedia = isHost || isPrivate || mode === "livestream";
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -47,6 +52,7 @@ export function useLivestream({
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const signalCursorRef = useRef<string>(new Date(0).toISOString());
   const connectedViewersRef = useRef<Set<string>>(new Set());
+  const viewerAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
@@ -63,6 +69,9 @@ export function useLivestream({
   const [viewerCount, setViewerCount] = useState(0);
   const [error, setError] = useState("");
   const [handRaised, setHandRaised] = useState(false);
+  const [thumbsUp, setThumbsUp] = useState(0);
+  const [thumbsDown, setThumbsDown] = useState(0);
+  const [myReaction, setMyReaction] = useState<string | null>(null);
 
   const buildRecordingStream = useCallback(() => {
     const audioTrack = localStreamRef.current?.getAudioTracks()[0];
@@ -180,6 +189,29 @@ export function useLivestream({
       peerConnectionsRef.current.set(viewerId, pc);
       addLocalTracks(pc);
 
+      if (isPrivate || mode === "livestream") {
+        pc.ontrack = (event) => {
+          const [stream] = event.streams;
+          if (!stream) return;
+
+          if (isPrivate && remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = stream;
+            setIsLive(true);
+            return;
+          }
+
+          if (mode === "livestream") {
+            let audio = viewerAudioRefs.current.get(viewerId);
+            if (!audio) {
+              audio = document.createElement("audio");
+              audio.autoplay = true;
+              viewerAudioRefs.current.set(viewerId, audio);
+            }
+            audio.srcObject = stream;
+          }
+        };
+      }
+
       pc.onicecandidate = (event) => {
         if (event.candidate) {
           void sendSignal("ice", viewerId, { candidate: event.candidate.toJSON() });
@@ -198,7 +230,7 @@ export function useLivestream({
       await sendSignal("offer", viewerId, { sdp: offer });
       connectedViewersRef.current.add(viewerId);
     },
-    [addLocalTracks, sendSignal],
+    [addLocalTracks, isPrivate, mode, sendSignal],
   );
 
   const handleHostSignal = useCallback(
@@ -246,6 +278,10 @@ export function useLivestream({
           pc = createPeerConnection();
           peerConnectionsRef.current.set(hostId, pc);
 
+          if (isPrivate || mode === "livestream") {
+            addLocalTracks(pc);
+          }
+
           pc.ontrack = (event) => {
             const [stream] = event.streams;
             if (stream && remoteVideoRef.current) {
@@ -277,7 +313,7 @@ export function useLivestream({
         }
       }
     },
-    [hostId, onKicked, onMeetingEnded, sendSignal, userId],
+    [addLocalTracks, hostId, isPrivate, mode, onKicked, onMeetingEnded, sendSignal, userId],
   );
 
   const pollSignals = useCallback(async () => {
@@ -302,11 +338,18 @@ export function useLivestream({
     if (!res.ok) return;
     const data = await res.json();
     setParticipants(data.participants);
+    setThumbsUp(data.thumbsUp ?? 0);
+    setThumbsDown(data.thumbsDown ?? 0);
+    const me = (data.participants as Participant[]).find((p) => p.user.id === userId);
+    if (me) {
+      setHandRaised(me.handRaised);
+      setMyReaction(me.reaction ?? null);
+    }
     const viewers = (data.participants as Participant[]).filter(
       (p) => p.user.id !== data.hostId,
     );
     setViewerCount(viewers.length);
-  }, [meetingToken]);
+  }, [meetingToken, userId]);
 
   const startBroadcast = useCallback(async () => {
     try {
@@ -335,6 +378,10 @@ export function useLivestream({
     }
     peerConnectionsRef.current.clear();
     connectedViewersRef.current.clear();
+    viewerAudioRefs.current.forEach((a) => {
+      a.srcObject = null;
+    });
+    viewerAudioRefs.current.clear();
 
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -344,11 +391,18 @@ export function useLivestream({
   }, []);
 
   useEffect(() => {
-    if (isHost) {
-      void startBroadcast();
-    } else {
-      void sendSignal("viewer-ready", hostId);
+    async function connect() {
+      if (isHost) {
+        await startBroadcast();
+      } else if (publishMedia) {
+        await startBroadcast();
+        await sendSignal("viewer-ready", hostId);
+      } else {
+        await sendSignal("viewer-ready", hostId);
+      }
     }
+
+    void connect();
 
     const signalInterval = setInterval(() => void pollSignals(), 1000);
     const participantInterval = setInterval(() => void fetchParticipants(), 4000);
@@ -363,6 +417,7 @@ export function useLivestream({
     fetchParticipants,
     hostId,
     isHost,
+    publishMedia,
     pollSignals,
     sendSignal,
     startBroadcast,
@@ -508,6 +563,22 @@ export function useLivestream({
     [fetchParticipants, meetingToken, sendSignal],
   );
 
+  const sendReaction = useCallback(
+    async (action: "react-up" | "react-down") => {
+      const res = await fetch(`/api/meetings/${meetingToken}/chat`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, action }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMyReaction(data.reaction ?? null);
+      }
+      void fetchParticipants();
+    },
+    [fetchParticipants, meetingToken, userId],
+  );
+
   return {
     localVideoRef,
     remoteVideoRef,
@@ -521,12 +592,16 @@ export function useLivestream({
     viewerCount,
     error,
     handRaised,
+    thumbsUp,
+    thumbsDown,
+    myReaction,
     toggleMute,
     toggleCamera,
     toggleScreenShare,
     beginRecording,
     endBroadcast,
     toggleHand,
+    sendReaction,
     kickViewer,
   };
 }

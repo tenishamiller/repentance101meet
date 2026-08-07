@@ -127,6 +127,7 @@ async function main() {
     where: { linkToken: "demolive101" },
     update: {
       title: "Repentance 101 — Live Teaching (Demo)",
+      kind: "LIVESTREAM",
       status: "LIVE",
       livekitRoom: "repentance101-demolive101",
       startedAt: new Date(),
@@ -135,10 +136,32 @@ async function main() {
     create: {
       title: "Repentance 101 — Live Teaching (Demo)",
       linkToken: "demolive101",
+      kind: "LIVESTREAM",
       status: "LIVE",
       livekitRoom: "repentance101-demolive101",
       startedAt: new Date(),
       createdById: admin.id,
+    },
+  });
+
+  await prisma.meeting.upsert({
+    where: { linkToken: "demoprivate101" },
+    update: {
+      title: "Personal Ministry — Demo Session",
+      kind: "PRIVATE",
+      status: "SCHEDULED",
+      invitedUserId: demoMember.id,
+      createdById: admin.id,
+      livekitRoom: "repentance101-demoprivate101",
+    },
+    create: {
+      title: "Personal Ministry — Demo Session",
+      linkToken: "demoprivate101",
+      kind: "PRIVATE",
+      status: "SCHEDULED",
+      invitedUserId: demoMember.id,
+      createdById: admin.id,
+      livekitRoom: "repentance101-demoprivate101",
     },
   });
 
@@ -147,6 +170,8 @@ async function main() {
   console.log("DEMO MEMBER:", DEMO_MEMBER.email, "/", DEMO_MEMBER.password);
   console.log("\nLive Meeting Room: /livestream");
   console.log("Demo meeting join: /meeting/demolive101");
+  console.log("Personal Ministry: /personal-ministry");
+  console.log("Demo private session: /personal-ministry/demoprivate101");
 }
 
 main()

@@ -89,6 +89,30 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return Response.json({ success: true });
   }
 
+  if (action === "react-up" || action === "react-down" || action === "react-clear") {
+    const participant = await prisma.meetingParticipant.findUnique({
+      where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
+    });
+
+    if (!participant || participant.blocked) {
+      return Response.json({ error: "Not in meeting" }, { status: 403 });
+    }
+
+    let reaction: string | null = null;
+    if (action === "react-up") {
+      reaction = participant.reaction === "UP" ? null : "UP";
+    } else if (action === "react-down") {
+      reaction = participant.reaction === "DOWN" ? null : "DOWN";
+    }
+
+    await prisma.meetingParticipant.update({
+      where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
+      data: { reaction },
+    });
+
+    return Response.json({ success: true, reaction });
+  }
+
   if (session.user.role !== "ADMIN") {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
