@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 type LogoProps = {
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   showText?: boolean;
   className?: string;
   href?: string;
@@ -12,9 +12,10 @@ type LogoProps = {
 };
 
 const sizes = {
-  sm: { img: 40, text: "text-base" },
-  md: { img: 48, text: "text-lg" },
-  lg: { img: 88, text: "text-2xl" },
+  sm: { img: 52, text: "text-base" },
+  md: { img: 72, text: "text-xl" },
+  lg: { img: 96, text: "text-2xl" },
+  xl: { img: 120, text: "text-2xl" },
 };
 
 export function Logo({
@@ -30,13 +31,13 @@ export function Logo({
     <div className={cn("flex items-center gap-3", className)}>
       <div
         className={cn(
-          "relative shrink-0 overflow-hidden rounded-full shadow-md",
+          "relative shrink-0 overflow-hidden rounded-full shadow-lg",
           inverted ? "seal-ring ring-offset-burgundy-deep" : "seal-ring ring-offset-cream",
         )}
       >
         <Image
           src="/brand/repentance101-logo.png"
-          alt="Repentance 101 — Norman Miller Ministry"
+          alt="Repentance 101 Ministry"
           width={s.img}
           height={s.img}
           className="object-cover"
@@ -44,25 +45,15 @@ export function Logo({
         />
       </div>
       {showText && (
-        <div>
-          <p
-            className={cn(
-              "font-serif font-bold leading-tight tracking-tight",
-              s.text,
-              inverted ? "text-cream" : "text-burgundy",
-            )}
-          >
-            Repentance 101
-          </p>
-          <p
-            className={cn(
-              "text-xs font-medium tracking-wide",
-              inverted ? "text-gold-light/90" : "text-gold-muted",
-            )}
-          >
-            Norman Miller
-          </p>
-        </div>
+        <p
+          className={cn(
+            "font-serif font-bold leading-tight tracking-tight",
+            s.text,
+            inverted ? "text-cream" : "text-burgundy",
+          )}
+        >
+          Repentance 101
+        </p>
       )}
     </div>
   );

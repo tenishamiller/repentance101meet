@@ -58,7 +58,7 @@ export function Footer() {
         <div className="flex flex-col items-center justify-between gap-4 text-xs text-gold-light/60 sm:flex-row">
           <p className="flex items-center gap-1.5">
             <Heart className="h-3.5 w-3.5 text-gold" />
-            repentance101meet.com
+            repentance101ministry.com
           </p>
           <p className="flex items-center gap-1.5">
             <Mail className="h-3.5 w-3.5 text-gold" />

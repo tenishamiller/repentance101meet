@@ -1,4 +1,4 @@
-# Repentance 101 — repentance101meet.com
+# Repentance 101 — repentance101ministry.com
 
 Ministry platform for **Norman's** teaching ministry: member approvals, channels, live meetings, and community chat.
 
@@ -31,5 +31,5 @@ Ministry platform for **Norman's** teaching ministry: member approvals, channels
 
 ## Admin login (after seed)
 
-- Email: `norman@repentance101meet.com`
+- Email: `norman@repentance101ministry.com`
 - Password: value of `ADMIN_PASSWORD` in your `.env`

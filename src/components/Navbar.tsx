@@ -9,8 +9,8 @@ export async function Navbar() {
 
   return (
     <header className="navbar-brand sticky top-0 z-50">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        <Logo size="md" />
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
+        <Logo size="xl" />
 
         <nav className="hidden items-center gap-1 text-sm font-medium md:flex">
           {[

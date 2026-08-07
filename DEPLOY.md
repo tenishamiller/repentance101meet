@@ -103,9 +103,9 @@ DIRECT_URL            = (Supabase direct URL)
 NEXT_PUBLIC_SUPABASE_URL
 SUPABASE_SERVICE_ROLE_KEY
 AUTH_SECRET           = (run: openssl rand -base64 32)
-NEXTAUTH_URL          = https://repentance101meet.vercel.app  (your Vercel URL)
-NEXT_PUBLIC_APP_URL   = https://repentance101meet.vercel.app
-ADMIN_EMAIL           = norman@repentance101meet.com
+NEXTAUTH_URL          = https://repentance101ministry.com
+NEXT_PUBLIC_APP_URL   = https://repentance101ministry.com
+ADMIN_EMAIL           = norman@repentance101ministry.com
 ADMIN_PASSWORD        = (strong password for Norman)
 ADMIN_NAME            = Norman
 NEXT_PUBLIC_APP_NAME  = Repentance 101
@@ -113,10 +113,11 @@ NEXT_PUBLIC_APP_NAME  = Repentance 101
 
 Click **Deploy**. Vercel runs `prisma migrate deploy` during build.
 
-### Custom domain (repentance101meet.com)
-Vercel → Project → **Domains** → add `repentance101meet.com`  
-Update DNS at your registrar as Vercel instructs.  
-Then set `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to `https://repentance101meet.com`.
+### Custom domain (repentance101ministry.com)
+Vercel → Project → **Domains** → add `repentance101ministry.com` and `www.repentance101ministry.com`  
+At your registrar, add DNS record: **A** `@` → `76.76.21.21` (or point nameservers to Vercel).  
+For **www**: **CNAME** `www` → `cname.vercel-dns.com`  
+Then set `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to `https://repentance101ministry.com`.
 
 ---
 
@@ -132,7 +133,7 @@ npm run dev
 Open [http://localhost:3000](http://localhost:3000)
 
 **Norman admin login** (after seed):
-- Email: `norman@repentance101meet.com`
+- Email: `norman@repentance101ministry.com`
 - Password: whatever you set in `ADMIN_PASSWORD`
 
 ---

@@ -8,7 +8,7 @@ Repentance 101 is a **completely separate product** from BraidAppt. Nothing is s
 |------|----------------|-----------|
 | **GitHub repo** | `tenishamiller/repentance101meet` | `tenishamiller/braidappt` |
 | **Vercel project** | `repentance101meet` (personal account) | `braidappt` (braid-appt team) |
-| **Domain** | `repentance101meet.com` | `braidappt.com` |
+| **Domain** | `repentance101ministry.com` | `braidappt.com` |
 | **Supabase project** | `repentance101meet` (dedicated DB) | separate project |
 | **Database tables** | Own Prisma schema, own users | unrelated |
 | **File storage** | Own `uploads` bucket | unrelated |

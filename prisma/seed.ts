@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { CHANNELS } from "@/lib/utils";
 
 const DEMO_MEMBER = {
-  email: "demo@repentance101meet.com",
+  email: "demo@repentance101ministry.com",
   password: "DemoMember2026!",
 };
 
@@ -60,7 +60,7 @@ async function upsertUser(
 }
 
 async function main() {
-  const adminEmail = process.env.ADMIN_EMAIL ?? "norman@repentance101meet.com";
+  const adminEmail = process.env.ADMIN_EMAIL ?? "norman@repentance101ministry.com";
   const adminPassword = process.env.ADMIN_PASSWORD ?? "NormanAdmin2026!";
   const adminName = process.env.ADMIN_NAME ?? "Norman Miller";
 
