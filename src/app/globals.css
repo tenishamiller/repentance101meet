@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+:root {
+  --background: #fafaf9;
+  --foreground: #1c1917;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.prose-ministry h1,
+.prose-ministry h2,
+.prose-ministry h3 {
+  font-family: var(--font-serif);
+}
+
+.prose-ministry {
+  line-height: 1.7;
+}
+
+.prose-ministry h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.prose-ministry h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.prose-ministry h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.prose-ministry p,
+.prose-ministry li {
+  margin-bottom: 0.5rem;
+}
+
+.prose-ministry ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.prose-ministry strong {
+  font-weight: 600;
+}
