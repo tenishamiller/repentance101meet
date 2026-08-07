@@ -48,15 +48,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id!;
-        token.role = (user as { role?: string }).role ?? "MEMBER";
-        token.status = (user as { status?: string }).status ?? "PENDING";
+        token.role = ((user as { role?: string }).role ?? "MEMBER") as "ADMIN" | "MEMBER";
+        token.status = ((user as { status?: string }).status ?? "PENDING") as
+          | "PENDING"
+          | "APPROVED"
+          | "REJECTED";
         token.avatarUrl = (user as { avatarUrl?: string | null }).avatarUrl;
       }
 
       if (trigger === "update" && session) {
         token.name = session.name ?? token.name;
         token.avatarUrl = session.avatarUrl ?? token.avatarUrl;
-        token.status = session.status ?? token.status;
+        token.status = (session.status ?? token.status) as
+          | "PENDING"
+          | "APPROVED"
+          | "REJECTED"
+          | undefined;
       }
 
       return token;
