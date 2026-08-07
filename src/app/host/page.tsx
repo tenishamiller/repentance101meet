@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { getSession, signIn, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { Shield } from "lucide-react";
 
 export default function HostLoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -21,28 +19,25 @@ export default function HostLoginPage() {
     setLoading(true);
     setError("");
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+      });
 
-    if (result?.error) {
+      if (result?.error || result?.ok === false) {
+        setError("Invalid email or password.");
+        setLoading(false);
+        return;
+      }
+
+      // Full page navigation — avoids getSession() hanging after signIn
+      window.location.assign("/admin");
+    } catch {
+      setError("Could not sign in. Please try again.");
       setLoading(false);
-      setError("Invalid email or password.");
-      return;
     }
-
-    const session = await getSession();
-    if (session?.user?.role !== "ADMIN") {
-      await signOut({ redirect: false });
-      setLoading(false);
-      setError("This portal is for ministry hosts only.");
-      return;
-    }
-
-    router.push("/admin");
-    router.refresh();
   }
 
   return (
@@ -79,6 +74,7 @@ export default function HostLoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input-field"
+              placeholder="norman@repentance101ministry.com"
             />
           </div>
           <div>
