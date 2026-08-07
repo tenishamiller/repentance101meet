@@ -57,7 +57,7 @@ async function upsertUser(
 async function main() {
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
-  const adminName = process.env.ADMIN_NAME ?? "Norman Miller";
+  const adminName = process.env.ADMIN_NAME ?? "Ministry Admin";
 
   if (!adminEmail || !adminPassword) {
     throw new Error("Set ADMIN_EMAIL and ADMIN_PASSWORD in .env before running seed.");

@@ -1,8 +1,6 @@
-/** Canonical teacher name — use sparingly; prefer MINISTRY_NAME / generic copy elsewhere */
-export const TEACHER_NAME = "Norman Miller";
-export const TEACHER_FIRST = "Norman";
+/** Ministry brand name */
 export const MINISTRY_NAME = "Repentance 101";
-/** Generic copy when the leader's name isn't needed */
+/** Generic copy when referring to the host/leader */
 export const MINISTRY_LEADER = "ministry leadership";
 
 /** Logo-matched palette — maroon seal, gold accents, cream parchment */

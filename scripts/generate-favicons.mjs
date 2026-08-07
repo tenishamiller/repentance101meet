@@ -12,6 +12,7 @@ const appDir = join(root, "src", "app");
 const publicDir = join(root, "public");
 
 await sharp(logo).resize(32, 32, { fit: "cover" }).png().toFile(join(appDir, "icon.png"));
+await sharp(logo).resize(32, 32, { fit: "cover" }).png().toFile(join(appDir, "favicon.ico"));
 await sharp(logo)
   .resize(180, 180, { fit: "cover" })
   .png()

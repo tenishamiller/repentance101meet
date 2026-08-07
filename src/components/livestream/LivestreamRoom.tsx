@@ -80,7 +80,7 @@ export function LivestreamRoom({
   return (
     <div className="flex h-[calc(100vh-80px)] flex-col bg-burgundy-deep lg:flex-row">
       <div className="flex flex-1 flex-col">
-        {/* Norman's host command bar — logo burgundy & gold */}
+        {/* Host command bar — logo burgundy & gold */}
         {isHost && (
           <div className="border-b-2 border-gold/40 bg-gradient-to-r from-burgundy-deep via-burgundy to-burgundy-dark px-4 py-4 shadow-lg">
             {!isRecording ? (

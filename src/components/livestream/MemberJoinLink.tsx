@@ -84,7 +84,7 @@ export function MemberJoinLink({
     );
   }
 
-  /* room — Norman sees this while broadcasting */
+  /* room — host sees this while broadcasting */
   return (
     <div className="mb-4 rounded-xl border-2 border-gold/50 bg-gradient-to-br from-burgundy to-burgundy-dark p-4 shadow-md">
       <div className="flex items-start justify-between gap-2">

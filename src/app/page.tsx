@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { auth } from "@/lib/auth";
-import { MINISTRY_NAME, TEACHER_NAME } from "@/lib/brand";
+import { MINISTRY_NAME, MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import {
   BookOpen,
@@ -33,7 +33,7 @@ export default async function HomePage() {
             </h1>
             <BrandDivider light className="my-4 max-w-xs" />
             <p className="text-xl font-medium text-gold-light">
-              with {TEACHER_NAME}
+              Biblical teaching & fellowship
             </p>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-cream/90">
               Live teachings, guided channels, accountability partners, and biblical
@@ -54,7 +54,7 @@ export default async function HomePage() {
                 <div className="rounded-2xl border border-gold/30 bg-burgundy-dark/50 px-6 py-4 backdrop-blur">
                   <p className="font-semibold text-cream">Welcome, {session.user.name}!</p>
                   <p className="mt-1 text-gold-light">
-                    {TEACHER_NAME} is reviewing your membership request.
+                    {MINISTRY_LEADER} is reviewing your membership request.
                   </p>
                 </div>
               ) : (
@@ -70,7 +70,7 @@ export default async function HomePage() {
               <div className="absolute inset-0 scale-110 rounded-full bg-gold/25 blur-2xl" />
               <Image
                 src="/brand/repentance101-logo.png"
-                alt={`${MINISTRY_NAME} logo — ${TEACHER_NAME}`}
+                alt={`${MINISTRY_NAME} ministry logo`}
                 width={240}
                 height={240}
                 className="relative seal-ring rounded-full ring-offset-burgundy-deep shadow-2xl"

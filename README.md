@@ -1,6 +1,6 @@
 # Repentance 101 — repentance101ministry.com
 
-Ministry platform for **Norman's** teaching ministry: member approvals, channels, live meetings, and community chat.
+Ministry platform for **Repentance 101**: member approvals, channels, live meetings, and community chat.
 
 **Deploy stack:** GitHub → Vercel · Database & storage → Supabase · Livestream → built-in WebRTC (free, no third-party video)
 
@@ -23,15 +23,15 @@ Ministry platform for **Norman's** teaching ministry: member approvals, channels
 
 ## Features
 
-- Member signup with Norman's admin approval
-- Public channels: Guidelines & Livestream info (editable by Norman)
+- Member signup with admin approval
+- Public channels: Guidelines & Livestream info (editable by the host)
 - Private channels: Resource, Accountability, Tough Q&A, General Chat
-- Custom WebRTC livestream (Norman broadcasts, members watch) with chat, raise hand, block list
+- Custom WebRTC livestream (host broadcasts, members participate) with chat, raise hand, block list
 - Profiles with avatars (Supabase Storage)
 
 ## Host admin login
 
-Norman uses the private host portal (not linked on the public site):
+The host uses the private host portal (not linked on the public site):
 
 **https://repentance101ministry.com/host**
 

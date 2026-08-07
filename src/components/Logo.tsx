@@ -3,7 +3,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 type LogoProps = {
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg";
   showText?: boolean;
   className?: string;
   href?: string;
@@ -12,10 +12,9 @@ type LogoProps = {
 };
 
 const sizes = {
-  sm: { img: 52, text: "text-base" },
-  md: { img: 72, text: "text-xl" },
-  lg: { img: 96, text: "text-2xl" },
-  xl: { img: 120, text: "text-2xl" },
+  sm: { img: 40, text: "text-base" },
+  md: { img: 48, text: "text-lg" },
+  lg: { img: 88, text: "text-2xl" },
 };
 
 export function Logo({

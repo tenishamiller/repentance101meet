@@ -161,9 +161,9 @@ NEXTAUTH_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_NAME="Repentance 101"
 
-ADMIN_EMAIL="norman@repentance101ministry.com"
-ADMIN_PASSWORD="NormanAdmin2026!"
-ADMIN_NAME="Norman"
+ADMIN_EMAIL="host@repentance101ministry.com"
+ADMIN_PASSWORD="your-secure-admin-password"
+ADMIN_NAME="Ministry Admin"
 
 # LiveKit — create a separate project at cloud.livekit.io for this ministry
 LIVEKIT_API_KEY=""

@@ -2,7 +2,7 @@
 
 > **Important:** This ministry site is **100% separate from BraidAppt**. See [ISOLATION.md](./ISOLATION.md).
 
-Follow these steps to get Repentance 101 live so you can see it and share with Norman.
+Follow these steps to get Repentance 101 live.
 
 ---
 
@@ -59,7 +59,7 @@ DIRECT_URL="postgresql://postgres.[ref]:[password]@aws-0-us-east-1.pooler.supaba
 - `NEXT_PUBLIC_SUPABASE_URL` = Project URL
 - `SUPABASE_SERVICE_ROLE_KEY` = service_role key (keep secret)
 
-### Run migrations & seed Norman's admin account
+### Run migrations & seed the host admin account
 
 On your machine, create `.env` from `.env.example`, fill in Supabase values, then:
 
@@ -105,9 +105,9 @@ SUPABASE_SERVICE_ROLE_KEY
 AUTH_SECRET           = (run: openssl rand -base64 32)
 NEXTAUTH_URL          = https://repentance101ministry.com
 NEXT_PUBLIC_APP_URL   = https://repentance101ministry.com
-ADMIN_EMAIL           = norman@repentance101ministry.com
-ADMIN_PASSWORD        = (strong password for Norman)
-ADMIN_NAME            = Norman
+ADMIN_EMAIL           = host@repentance101ministry.com
+ADMIN_PASSWORD        = (strong password for the host)
+ADMIN_NAME            = Ministry Admin
 NEXT_PUBLIC_APP_NAME  = Repentance 101
 ```
 
@@ -146,6 +146,6 @@ Open [http://localhost:3000](http://localhost:3000)
 | **GitHub** | Source code + deploy trigger |
 | **Supabase** | PostgreSQL database + file storage |
 | **Vercel** | Next.js hosting |
-| **WebRTC (built-in)** | Norman broadcasts live; members watch in-browser — $0/month |
+| **WebRTC (built-in)** | Host broadcasts live; members join in-browser — $0/month |
 
 No Docker required for production.
