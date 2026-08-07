@@ -2,20 +2,20 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LivestreamRoom } from "@/components/livestream/LivestreamRoom";
+import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
 
 type Props = {
   token: string;
 };
 
 export function MeetingPageClient({ token }: Props) {
-  const router = useRouter();
   const [data, setData] = useState<{
     meeting: { title: string; createdById: string };
     isHost: boolean;
     user: { id: string; name: string };
   } | null>(null);
+  const [endedMeeting, setEndedMeeting] = useState<{ title: string } | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -23,6 +23,10 @@ export function MeetingPageClient({ token }: Props) {
       .then(async (res) => {
         const json = await res.json();
         if (!res.ok) {
+          if (json.code === "MEETING_ENDED" && json.meeting?.title) {
+            setEndedMeeting({ title: json.meeting.title });
+            return;
+          }
           setError(json.error ?? "Cannot join meeting");
           return;
         }
@@ -30,6 +34,10 @@ export function MeetingPageClient({ token }: Props) {
       })
       .catch(() => setError("Failed to connect"));
   }, [token]);
+
+  if (endedMeeting) {
+    return <MeetingEndedScreen meetingTitle={endedMeeting.title} variant="viewer" />;
+  }
 
   if (error) {
     return (

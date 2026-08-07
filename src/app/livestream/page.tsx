@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { MINISTRY_NAME, MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
+import { LivestreamEndedBanner } from "@/components/livestream/LivestreamEndedBanner";
 import {
   Calendar,
   LogIn,
@@ -72,6 +74,10 @@ export default async function LivestreamPage() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
+      <Suspense fallback={null}>
+        <LivestreamEndedBanner />
+      </Suspense>
+
       {/* Live meeting room — main focus */}
       <section className="hero-brand relative overflow-hidden rounded-3xl p-8 text-cream shadow-2xl md:p-12">
         <div className="pointer-events-none absolute -right-10 top-0 h-48 w-48 rounded-full bg-gold/15 blur-3xl" />

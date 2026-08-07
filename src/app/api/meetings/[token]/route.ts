@@ -36,6 +36,16 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }
 
   if (meeting.status !== "LIVE" && session.user.role !== "ADMIN") {
+    if (meeting.status === "ENDED") {
+      return Response.json(
+        {
+          error: "This meeting has ended",
+          code: "MEETING_ENDED",
+          meeting: { title: meeting.title, status: meeting.status },
+        },
+        { status: 410 },
+      );
+    }
     return Response.json({ error: "Meeting is not live yet" }, { status: 403 });
   }
 

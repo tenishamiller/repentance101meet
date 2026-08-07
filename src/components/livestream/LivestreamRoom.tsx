@@ -20,6 +20,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { useLivestream } from "@/hooks/useLivestream";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
+import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
 
 type Props = {
   meetingToken: string;
@@ -64,6 +65,7 @@ export function LivestreamRoom({
     toggleHand,
     sendReaction,
     kickViewer,
+    meetingEnded,
   } = useLivestream({
     meetingToken,
     meetingTitle,
@@ -72,8 +74,17 @@ export function LivestreamRoom({
     isHost,
     hostId,
     onKicked: () => router.push("/livestream?removed=1"),
-    onMeetingEnded: () => router.push("/livestream?ended=1"),
   });
+
+  if (meetingEnded) {
+    return (
+      <MeetingEndedScreen
+        meetingTitle={meetingTitle}
+        variant={isHost ? "host" : "viewer"}
+        onContinue={() => router.push(isHost ? "/admin?recording=1" : "/livestream")}
+      />
+    );
+  }
 
   const raisedHands = participants.filter((p) => p.handRaised && p.user.id !== hostId);
 
@@ -130,7 +141,6 @@ export function LivestreamRoom({
                       disabled={isSavingRecording}
                       onClick={async () => {
                         await endBroadcast();
-                        router.push("/admin?recording=1");
                       }}
                       className="inline-flex items-center gap-2 rounded-lg border border-gold bg-cream/10 px-3 py-2 text-xs font-bold text-gold-light transition hover:bg-gold/20 disabled:opacity-60 sm:text-sm"
                     >

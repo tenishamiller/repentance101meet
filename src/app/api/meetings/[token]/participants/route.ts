@@ -28,6 +28,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   return Response.json({
     hostId: meeting.createdById,
+    meetingStatus: meeting.status,
     participants,
     thumbsUp,
     thumbsDown,

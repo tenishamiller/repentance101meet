@@ -72,6 +72,11 @@ export function useLivestream({
   const [thumbsUp, setThumbsUp] = useState(0);
   const [thumbsDown, setThumbsDown] = useState(0);
   const [myReaction, setMyReaction] = useState<string | null>(null);
+  const [meetingEnded, setMeetingEnded] = useState(false);
+
+  const meetingEndedRef = useRef(false);
+  const stopAllRef = useRef<() => void>(() => {});
+  const handleMeetingEndedRef = useRef<() => void>(() => {});
 
   const onKickedRef = useRef(onKicked);
   const onMeetingEndedRef = useRef(onMeetingEnded);
@@ -291,12 +296,13 @@ export function useLivestream({
   const handleViewerSignal = useCallback(
     async (signal: MeetingSignalMessage) => {
       if (signal.type === "kick" && signal.toUserId === userId) {
+        stopAllRef.current();
         onKickedRef.current?.();
         return;
       }
 
       if (signal.type === "host-ended") {
-        onMeetingEndedRef.current?.();
+        handleMeetingEndedRef.current();
         return;
       }
 
@@ -344,6 +350,8 @@ export function useLivestream({
   );
 
   const pollSignals = useCallback(async () => {
+    if (meetingEndedRef.current) return;
+
     const res = await fetch(
       `/api/meetings/${meetingToken}/signal?since=${encodeURIComponent(signalCursorRef.current)}`,
     );
@@ -361,9 +369,17 @@ export function useLivestream({
   }, [handleHostSignal, handleViewerSignal, isHost, meetingToken]);
 
   const fetchParticipants = useCallback(async () => {
+    if (meetingEndedRef.current) return;
+
     const res = await fetch(`/api/meetings/${meetingToken}/participants`);
     if (!res.ok) return;
     const data = await res.json();
+
+    if (data.meetingStatus === "ENDED") {
+      handleMeetingEndedRef.current();
+      return;
+    }
+
     setParticipants(data.participants);
     setThumbsUp(data.thumbsUp ?? 0);
     setThumbsDown(data.thumbsDown ?? 0);
@@ -420,7 +436,18 @@ export function useLivestream({
     localStreamRef.current = null;
     screenStreamRef.current = null;
     recordingStreamRef.current = null;
+    setIsLive(false);
   }, []);
+
+  const handleMeetingEnded = useCallback(() => {
+    if (meetingEndedRef.current) return;
+    meetingEndedRef.current = true;
+    stopAll();
+    setMeetingEnded(true);
+  }, [stopAll]);
+
+  stopAllRef.current = stopAll;
+  handleMeetingEndedRef.current = handleMeetingEnded;
 
   useEffect(() => {
     let cancelled = false;
@@ -567,6 +594,8 @@ export function useLivestream({
 
     stopAll();
     setIsSavingRecording(false);
+    meetingEndedRef.current = true;
+    setMeetingEnded(true);
     return recordingUrl;
   }, [
     isHost,
@@ -644,5 +673,6 @@ export function useLivestream({
     toggleHand,
     sendReaction,
     kickViewer,
+    meetingEnded,
   };
 }
