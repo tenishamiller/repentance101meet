@@ -24,6 +24,11 @@ export async function PATCH(request: NextRequest) {
 
   const { userId, status } = await request.json();
 
+  const allowed = ["PENDING", "APPROVED", "REJECTED"];
+  if (!allowed.includes(status)) {
+    return Response.json({ error: "Invalid status" }, { status: 400 });
+  }
+
   const user = await prisma.user.update({
     where: { id: userId },
     data: { status },

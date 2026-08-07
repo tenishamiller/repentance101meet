@@ -10,6 +10,7 @@ export async function GET() {
   const [
     pendingMembers,
     pendingChannelRequests,
+    deniedChannelRequests,
     activeBlocks,
     liveMeetings,
     recentMeetings,
@@ -29,6 +30,15 @@ export async function GET() {
         channel: { select: { id: true, name: true, slug: true } },
       },
       orderBy: { createdAt: "desc" },
+    }),
+    prisma.channelMembership.findMany({
+      where: { status: "DENIED" },
+      include: {
+        user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        channel: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
     }),
     prisma.blockList.findMany({
       where: { unblockedAt: null },
@@ -73,6 +83,7 @@ export async function GET() {
   return Response.json({
     pendingMembers,
     pendingChannelRequests,
+    deniedChannelRequests,
     activeBlocks,
     liveMeetings,
     recentMeetings,

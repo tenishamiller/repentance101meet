@@ -10,6 +10,11 @@ export async function PATCH(request: NextRequest) {
 
   const { membershipId, status } = await request.json();
 
+  const allowed = ["PENDING", "APPROVED", "DENIED"];
+  if (!allowed.includes(status)) {
+    return Response.json({ error: "Invalid status" }, { status: 400 });
+  }
+
   const membership = await prisma.channelMembership.update({
     where: { id: membershipId },
     data: { status },

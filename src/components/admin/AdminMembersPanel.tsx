@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Search, UserCheck, UserX } from "lucide-react";
+import { Search } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatDate } from "@/lib/utils";
-import type { Member, PendingMember } from "./types";
+import { MEMBER_STATUS_OPTIONS, StatusToggle } from "./StatusToggle";
+import type { Member, MemberStatus, PendingMember } from "./types";
 
 type Props = {
   pendingMembers: PendingMember[];
   allMembers: Member[];
-  onApprove: (userId: string) => void;
-  onReject: (userId: string) => void;
+  onStatusChange: (userId: string, status: MemberStatus) => void;
   onBlock: (userId: string) => void;
 };
 
@@ -23,14 +23,11 @@ const STATUS_STYLE: Record<string, string> = {
 export function AdminMembersPanel({
   pendingMembers,
   allMembers,
-  onApprove,
-  onReject,
+  onStatusChange,
   onBlock,
 }: Props) {
   const [filter, setFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "APPROVED" | "PENDING" | "REJECTED">(
-    "ALL",
-  );
+  const [statusFilter, setStatusFilter] = useState<"ALL" | MemberStatus>("ALL");
 
   const filtered = allMembers.filter((m) => {
     const q = filter.toLowerCase();
@@ -42,13 +39,12 @@ export function AdminMembersPanel({
 
   return (
     <div className="space-y-8 animate-fade-up">
-      {/* Pending */}
       <section className="card-brand p-6">
         <h2 className="mb-1 font-serif text-xl font-semibold text-burgundy">
           Pending Memberships
         </h2>
         <p className="mb-4 text-sm text-burgundy/60">
-          New signups must be approved before they can access channels and meetings.
+          Approve or deny new signups. Use the status toggle to change your decision anytime.
         </p>
         {pendingMembers.length === 0 ? (
           <p className="rounded-xl bg-cream-dark px-4 py-6 text-center text-burgundy/60">
@@ -69,31 +65,17 @@ export function AdminMembersPanel({
                     <p className="text-xs text-burgundy/50">Signed up {formatDate(m.createdAt)}</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onApprove(m.id)}
-                    className="btn-primary inline-flex items-center gap-1.5 !px-4 !py-2 text-sm"
-                  >
-                    <UserCheck className="h-4 w-4" />
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onReject(m.id)}
-                    className="btn-outline-gold inline-flex items-center gap-1.5 !px-4 !py-2 text-sm"
-                  >
-                    <UserX className="h-4 w-4" />
-                    Deny
-                  </button>
-                </div>
+                <StatusToggle
+                  value="PENDING"
+                  options={MEMBER_STATUS_OPTIONS}
+                  onChange={(status) => onStatusChange(m.id, status)}
+                />
               </div>
             ))}
           </div>
         )}
       </section>
 
-      {/* Directory */}
       <section className="card-brand p-6">
         <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">Member Directory</h2>
 
@@ -116,7 +98,7 @@ export function AdminMembersPanel({
             <option value="ALL">All statuses</option>
             <option value="APPROVED">Approved</option>
             <option value="PENDING">Pending</option>
-            <option value="REJECTED">Rejected</option>
+            <option value="REJECTED">Denied</option>
           </select>
         </div>
 
@@ -124,13 +106,13 @@ export function AdminMembersPanel({
           <p className="text-burgundy/60">No members match your search.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-left text-sm">
+            <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="border-b border-gold/20 text-burgundy/60">
                   <th className="pb-3 pr-4 font-semibold">Member</th>
                   <th className="pb-3 pr-4 font-semibold">Status</th>
                   <th className="pb-3 pr-4 font-semibold">Joined</th>
-                  <th className="pb-3 font-semibold">Actions</th>
+                  <th className="pb-3 font-semibold">Decision</th>
                 </tr>
               </thead>
               <tbody>
@@ -149,30 +131,18 @@ export function AdminMembersPanel({
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[m.status] ?? ""}`}
                       >
-                        {m.status}
+                        {m.status === "REJECTED" ? "DENIED" : m.status}
                       </span>
                     </td>
                     <td className="py-3 pr-4 text-burgundy/60">{formatDate(m.createdAt)}</td>
                     <td className="py-3">
-                      <div className="flex flex-wrap gap-1.5">
-                        {m.status === "PENDING" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => onApprove(m.id)}
-                              className="rounded-lg bg-gold/20 px-2.5 py-1 text-xs font-semibold text-burgundy hover:bg-gold/30"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => onReject(m.id)}
-                              className="rounded-lg border border-burgundy/20 px-2.5 py-1 text-xs font-semibold text-burgundy hover:bg-burgundy/5"
-                            >
-                              Deny
-                            </button>
-                          </>
-                        )}
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <StatusToggle
+                          value={m.status as MemberStatus}
+                          options={MEMBER_STATUS_OPTIONS}
+                          onChange={(status) => onStatusChange(m.id, status)}
+                          size="sm"
+                        />
                         {m.status === "APPROVED" && (
                           <button
                             type="button"

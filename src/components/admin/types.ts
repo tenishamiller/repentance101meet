@@ -16,8 +16,12 @@ export type PendingMember = {
 };
 
 export type Member = PendingMember & {
-  status: string;
+  status: MemberStatus;
 };
+
+export type MemberStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export type ChannelMembershipStatus = "PENDING" | "APPROVED" | "DENIED";
 
 export type ChannelRequest = {
   id: string;
@@ -66,6 +70,7 @@ export type ChannelSummary = {
 export type DashboardStats = {
   pendingMembers: PendingMember[];
   pendingChannelRequests: ChannelRequest[];
+  deniedChannelRequests: ChannelRequest[];
   activeBlocks: Block[];
   liveMeetings: Meeting[];
   recentMeetings: Meeting[];

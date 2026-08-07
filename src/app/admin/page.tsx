@@ -12,9 +12,11 @@ import { AdminContentPanel } from "@/components/admin/AdminContentPanel";
 import type {
   AdminTab,
   Block,
+  ChannelMembershipStatus,
   ChannelSummary,
   DashboardStats,
   Member,
+  MemberStatus,
   Meeting,
 } from "@/components/admin/types";
 
@@ -66,25 +68,16 @@ export default function AdminPage() {
     return () => clearInterval(interval);
   }, [fetchAll]);
 
-  async function approveMember(userId: string) {
+  async function setMemberStatus(userId: string, status: MemberStatus) {
     await fetch("/api/admin/members", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, status: "APPROVED" }),
+      body: JSON.stringify({ userId, status }),
     });
     void fetchAll();
   }
 
-  async function rejectMember(userId: string) {
-    await fetch("/api/admin/members", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, status: "REJECTED" }),
-    });
-    void fetchAll();
-  }
-
-  async function handleChannelRequest(membershipId: string, status: "APPROVED" | "DENIED") {
+  async function setChannelRequestStatus(membershipId: string, status: ChannelMembershipStatus) {
     await fetch("/api/admin/channel-requests", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -171,8 +164,7 @@ export default function AdminPage() {
         <AdminMembersPanel
           pendingMembers={stats.pendingMembers}
           allMembers={allMembers}
-          onApprove={approveMember}
-          onReject={rejectMember}
+          onStatusChange={(userId, status) => void setMemberStatus(userId, status)}
           onBlock={(userId) => void blockUser(userId)}
         />
       )}
@@ -180,9 +172,9 @@ export default function AdminPage() {
       {tab === "channels" && (
         <AdminChannelsPanel
           pendingRequests={stats.pendingChannelRequests}
+          deniedRequests={stats.deniedChannelRequests}
           channels={channels}
-          onApproveRequest={(id) => void handleChannelRequest(id, "APPROVED")}
-          onDenyRequest={(id) => void handleChannelRequest(id, "DENIED")}
+          onStatusChange={(id, status) => void setChannelRequestStatus(id, status)}
           onRemoveMember={removeFromChannel}
         />
       )}
