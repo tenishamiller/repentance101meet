@@ -132,9 +132,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
-**Norman admin login** (after seed):
-- Email: `norman@repentance101ministry.com`
-- Password: whatever you set in `ADMIN_PASSWORD`
+**Host admin login** (after seed — private URL, not on public nav):
+
+- **https://repentance101ministry.com/host** (or `http://localhost:3000/host` locally)
+- Use `ADMIN_EMAIL` and `ADMIN_PASSWORD` from your environment
 
 ---
 

@@ -3,17 +3,12 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { CHANNELS } from "@/lib/utils";
 
-const DEMO_MEMBER = {
-  email: "demo@repentance101ministry.com",
-  password: "DemoMember2026!",
-};
-
 const defaultContent = {
   guidelines: `# Welcome to Repentance 101
 
 ## Ministry Guidelines
 
-Thank you for your interest in joining Repentance 101, taught by Norman Miller.
+Thank you for your interest in joining our community.
 
 ### Before You Join
 - Come with a humble heart ready to learn
@@ -26,17 +21,17 @@ Thank you for your interest in joining Repentance 101, taught by Norman Miller.
 - Accountability with your assigned partner when applicable
 - Prayerful preparation before each teaching session
 
-Norman Miller will review all membership requests personally.`,
+Membership requests are reviewed personally.`,
   livestream: `# Livestream Schedule
 
-## Weekly with Norman Miller
+## Weekly Sessions
 
 ### Regular Sessions
 - **Sunday Teaching** — 7:00 PM EST
 - **Wednesday Q&A** — 8:00 PM EST
 
 ### Meeting Room
-When Norman starts a live session, the **Join Live Meeting** button appears at the top of this page. Members meet together with video, audio, and chat.
+When a live session starts, the **Join Live Meeting** button appears at the top of this page.
 
 ### Before You Join
 - Complete your profile with a photo
@@ -60,25 +55,15 @@ async function upsertUser(
 }
 
 async function main() {
-  const adminEmail = process.env.ADMIN_EMAIL ?? "norman@repentance101ministry.com";
-  const adminPassword = process.env.ADMIN_PASSWORD ?? "NormanAdmin2026!";
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
   const adminName = process.env.ADMIN_NAME ?? "Norman Miller";
 
-  const admin = await upsertUser(
-    adminEmail,
-    adminPassword,
-    adminName,
-    "ADMIN",
-    "APPROVED",
-  );
+  if (!adminEmail || !adminPassword) {
+    throw new Error("Set ADMIN_EMAIL and ADMIN_PASSWORD in .env before running seed.");
+  }
 
-  const demoMember = await upsertUser(
-    DEMO_MEMBER.email,
-    DEMO_MEMBER.password,
-    "Demo Member",
-    "MEMBER",
-    "APPROVED",
-  );
+  await upsertUser(adminEmail, adminPassword, adminName, "ADMIN", "APPROVED");
 
   for (const channel of Object.values(CHANNELS)) {
     const content =
@@ -106,72 +91,9 @@ async function main() {
     });
   }
 
-  const allChannels = await prisma.channel.findMany();
-  for (const ch of allChannels) {
-    if (ch.type === "PUBLIC") continue;
-    await prisma.channelMembership.upsert({
-      where: {
-        userId_channelId: { userId: demoMember.id, channelId: ch.id },
-      },
-      update: { status: "APPROVED" },
-      create: {
-        userId: demoMember.id,
-        channelId: ch.id,
-        status: "APPROVED",
-      },
-    });
-  }
-
-  // Demo LIVE meeting for testing — token: demolive101
-  await prisma.meeting.upsert({
-    where: { linkToken: "demolive101" },
-    update: {
-      title: "Repentance 101 — Live Teaching (Demo)",
-      kind: "LIVESTREAM",
-      status: "LIVE",
-      livekitRoom: "repentance101-demolive101",
-      startedAt: new Date(),
-      createdById: admin.id,
-    },
-    create: {
-      title: "Repentance 101 — Live Teaching (Demo)",
-      linkToken: "demolive101",
-      kind: "LIVESTREAM",
-      status: "LIVE",
-      livekitRoom: "repentance101-demolive101",
-      startedAt: new Date(),
-      createdById: admin.id,
-    },
-  });
-
-  await prisma.meeting.upsert({
-    where: { linkToken: "demoprivate101" },
-    update: {
-      title: "Personal Ministry — Demo Session",
-      kind: "PRIVATE",
-      status: "SCHEDULED",
-      invitedUserId: demoMember.id,
-      createdById: admin.id,
-      livekitRoom: "repentance101-demoprivate101",
-    },
-    create: {
-      title: "Personal Ministry — Demo Session",
-      linkToken: "demoprivate101",
-      kind: "PRIVATE",
-      status: "SCHEDULED",
-      invitedUserId: demoMember.id,
-      createdById: admin.id,
-      livekitRoom: "repentance101-demoprivate101",
-    },
-  });
-
-  console.log("\n=== Seed complete ===\n");
-  console.log("ADMIN:", adminEmail, "/", adminPassword);
-  console.log("DEMO MEMBER:", DEMO_MEMBER.email, "/", DEMO_MEMBER.password);
-  console.log("\nLive Meeting Room: /livestream");
-  console.log("Demo meeting join: /meeting/demolive101");
-  console.log("Personal Ministry: /personal-ministry");
-  console.log("Demo private session: /personal-ministry/demoprivate101");
+  console.log("\n=== Seed complete ===");
+  console.log("Host admin login:", "/host");
+  console.log("Member login:", "/login");
 }
 
 main()

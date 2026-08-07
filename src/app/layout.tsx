@@ -20,10 +20,6 @@ const sourceSans = Source_Sans_3({
 export const metadata: Metadata = {
   title: MINISTRY_NAME,
   description: `Join ${MINISTRY_NAME} — live meetings, channels, and community for biblical repentance and fellowship.`,
-  icons: {
-    icon: "/brand/repentance101-logo.png",
-    apple: "/brand/repentance101-logo.png",
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { signIn } from "next-auth/react";
+import { getSession, signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
+import { Shield } from "lucide-react";
 
-export default function LoginPage() {
+export default function HostLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,37 +27,44 @@ export default function LoginPage() {
       redirect: false,
     });
 
-    setLoading(false);
-
     if (result?.error) {
-      setError("Invalid email or password, or account not approved.");
+      setLoading(false);
+      setError("Invalid email or password.");
       return;
     }
 
-    router.push("/dashboard");
+    const session = await getSession();
+    if (session?.user?.role !== "ADMIN") {
+      await signOut({ redirect: false });
+      setLoading(false);
+      setError("This portal is for ministry hosts only.");
+      return;
+    }
+
+    router.push("/admin");
     router.refresh();
   }
 
   return (
-    <div className="mx-auto grid min-h-[75vh] max-w-4xl items-center gap-10 px-4 py-12 lg:grid-cols-2">
-      <div className="hidden text-center lg:block">
-        <Image
-          src="/brand/repentance101-logo.png"
-          alt="Repentance 101"
-          width={200}
-          height={200}
-          className="seal-ring mx-auto rounded-full ring-offset-cream"
-        />
-        <h2 className="mt-6 font-serif text-2xl font-bold text-burgundy">Repentance 101</h2>
-        <BrandDivider className="mx-auto my-4 max-w-[200px]" />
-        <p className="text-burgundy/70">{MINISTRY_NAME}</p>
-      </div>
+    <div className="mx-auto grid min-h-[75vh] max-w-lg items-center px-4 py-12">
+      <div className="card-brand p-8 shadow-lg">
+        <div className="mb-6 text-center">
+          <Image
+            src="/brand/repentance101-logo.png"
+            alt={MINISTRY_NAME}
+            width={96}
+            height={96}
+            className="seal-ring mx-auto rounded-full ring-offset-cream"
+          />
+          <h1 className="mt-4 font-serif text-2xl font-bold text-burgundy">Host Portal</h1>
+          <BrandDivider className="mx-auto my-3 max-w-[180px]" />
+          <p className="flex items-center justify-center gap-2 text-sm text-burgundy/70">
+            <Shield className="h-4 w-4 text-gold-muted" />
+            {MINISTRY_NAME} — admin console
+          </p>
+        </div>
 
-      <div>
-        <h1 className="font-serif text-3xl font-bold text-burgundy">Welcome Back</h1>
-        <p className="mt-2 text-burgundy/70">Sign in to your member account</p>
-
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="rounded-lg border border-burgundy/20 bg-burgundy/5 px-4 py-3 text-sm text-burgundy">
               {error}
@@ -85,15 +93,16 @@ export default function LoginPage() {
             />
           </div>
           <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "Signing in..." : "Enter Admin Console"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-burgundy/70">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-gold-muted hover:underline">
-            Request membership
+        <p className="mt-6 text-center text-xs text-burgundy/50">
+          Members{" "}
+          <Link href="/login" className="font-medium text-gold-muted hover:underline">
+            sign in here
           </Link>
+          .
         </p>
       </div>
     </div>

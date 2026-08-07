@@ -27,7 +27,8 @@ export async function middleware(request: NextRequest) {
   );
 
   if (isProtected && !token) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginPath = path.startsWith("/admin") ? "/host" : "/login";
+    return NextResponse.redirect(new URL(loginPath, request.url));
   }
 
   if (path.startsWith("/admin") && token?.role !== "ADMIN") {

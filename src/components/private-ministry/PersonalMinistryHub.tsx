@@ -33,10 +33,12 @@ type PrivateSession = {
 
 type Props = {
   isAdmin: boolean;
-  userName: string;
+  userName?: string;
+  /** When true, renders inside admin console without outer page chrome */
+  embedded?: boolean;
 };
 
-export function PersonalMinistryHub({ isAdmin, userName }: Props) {
+export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }: Props) {
   const [sessions, setSessions] = useState<PrivateSession[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +97,8 @@ export function PersonalMinistryHub({ isAdmin, userName }: Props) {
   );
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
+    <div className={embedded ? "" : "mx-auto max-w-5xl px-4 py-10"}>
+      {!embedded && (
       <section className="hero-brand relative overflow-hidden rounded-3xl p-8 text-cream shadow-2xl md:p-12">
         <div className="pointer-events-none absolute -right-10 top-0 h-48 w-48 rounded-full bg-gold/15 blur-3xl" />
         <div className="relative">
@@ -122,9 +125,24 @@ export function PersonalMinistryHub({ isAdmin, userName }: Props) {
           )}
         </div>
       </section>
+      )}
+
+      {embedded && (
+        <section className="card-brand mb-8 p-6">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-gold-muted">
+            <Shield className="h-3.5 w-3.5" />
+            Private · One-on-One
+          </div>
+          <h2 className="font-serif text-2xl font-bold text-burgundy">Personal Ministry</h2>
+          <p className="mt-2 text-sm text-burgundy/70">
+            Invite a member for private video — pastoral care, prayer, and counsel. Separate from
+            the public live teaching room.
+          </p>
+        </section>
+      )}
 
       {isAdmin && (
-        <section className="card-brand mt-8 p-6">
+        <section className={`card-brand p-6 ${embedded ? "" : "mt-8"}`}>
           <h2 className="mb-2 flex items-center gap-2 font-serif text-xl font-bold text-burgundy">
             <UserPlus className="h-5 w-5 text-gold-muted" />
             Invite a Member
@@ -176,7 +194,7 @@ export function PersonalMinistryHub({ isAdmin, userName }: Props) {
         </section>
       )}
 
-      <section className="mt-8">
+      <section className={embedded ? "mt-0" : "mt-8"}>
         <h2 className="mb-4 flex items-center gap-2 font-serif text-2xl font-bold text-burgundy">
           <Calendar className="h-5 w-5 text-gold-muted" />
           {isAdmin ? "Your Private Sessions" : "Your Invitations"}
@@ -273,7 +291,7 @@ export function PersonalMinistryHub({ isAdmin, userName }: Props) {
         )}
       </section>
 
-      {!isAdmin && (
+      {!isAdmin && !embedded && (
         <p className="mt-8 text-center text-sm text-burgundy/60">
           Welcome, {userName}. This space is only for sessions you&apos;re personally invited to — separate from the public live teaching at{" "}
           <Link href="/livestream" className="font-medium text-burgundy underline">

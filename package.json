@@ -12,6 +12,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:setup": "prisma db push && tsx prisma/seed.ts",
     "db:deploy": "prisma migrate deploy",
+    "generate:favicons": "node scripts/generate-favicons.mjs",
     "setup:supabase": "node scripts/setup-supabase.mjs",
     "deploy": "node scripts/deploy-vercel.mjs",
     "postinstall": "prisma generate"
@@ -49,6 +50,7 @@
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.11",
     "typescript": "^5"

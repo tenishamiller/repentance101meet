@@ -29,7 +29,10 @@ Ministry platform for **Norman's** teaching ministry: member approvals, channels
 - Custom WebRTC livestream (Norman broadcasts, members watch) with chat, raise hand, block list
 - Profiles with avatars (Supabase Storage)
 
-## Admin login (after seed)
+## Host admin login
 
-- Email: `norman@repentance101ministry.com`
-- Password: value of `ADMIN_PASSWORD` in your `.env`
+Norman uses the private host portal (not linked on the public site):
+
+**https://repentance101ministry.com/host**
+
+Credentials come from `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your Vercel environment — never commit or display them on the site.

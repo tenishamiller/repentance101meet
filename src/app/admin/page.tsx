@@ -1,82 +1,70 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { MINISTRY_NAME } from "@/lib/brand";
-import { BrandDivider } from "@/components/BrandDivider";
-import { UserAvatar } from "@/components/UserAvatar";
-import { formatDate } from "@/lib/utils";
-import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
-
-type PendingMember = {
-  id: string;
-  name: string;
-  email: string;
-  createdAt: string;
-  avatarUrl: string | null;
-};
-
-type ChannelRequest = {
-  id: string;
-  user: { id: string; name: string; email: string; avatarUrl: string | null };
-  channel: { name: string; slug: string };
-};
-
-type Block = {
-  id: string;
-  unblockedAt: string | null;
-  user: { id: string; name: string; email: string };
-};
-
-type Meeting = {
-  id: string;
-  title: string;
-  linkToken: string;
-  status: string;
-  recordingUrl: string | null;
-  createdAt: string;
-};
+import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminOverview } from "@/components/admin/AdminOverview";
+import { AdminMembersPanel } from "@/components/admin/AdminMembersPanel";
+import { AdminChannelsPanel } from "@/components/admin/AdminChannelsPanel";
+import { AdminLivestreamPanel } from "@/components/admin/AdminLivestreamPanel";
+import { AdminPrivateMinistryPanel } from "@/components/admin/AdminPrivateMinistryPanel";
+import { AdminBlocksPanel } from "@/components/admin/AdminBlocksPanel";
+import { AdminContentPanel } from "@/components/admin/AdminContentPanel";
+import type {
+  AdminTab,
+  Block,
+  ChannelSummary,
+  DashboardStats,
+  Member,
+  Meeting,
+} from "@/components/admin/types";
 
 export default function AdminPage() {
-  const [pendingMembers, setPendingMembers] = useState<PendingMember[]>([]);
-  const [channelRequests, setChannelRequests] = useState<ChannelRequest[]>([]);
+  const [tab, setTab] = useState<AdminTab>("overview");
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [channels, setChannels] = useState<ChannelSummary[]>([]);
   const [newMeetingTitle, setNewMeetingTitle] = useState("Repentance 101 Teaching");
-  const [generatedLink, setGeneratedLink] = useState("");
   const [generatedLinkToken, setGeneratedLinkToken] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"overview" | "meetings" | "blocks">("overview");
 
-  const fetchData = useCallback(async () => {
-    const [dashRes, meetRes, blockRes] = await Promise.all([
+  const fetchAll = useCallback(async () => {
+    const [dashRes, membersRes, blocksRes, meetingsRes, channelsRes] = await Promise.all([
       fetch("/api/admin/dashboard"),
-      fetch("/api/admin/meetings"),
+      fetch("/api/admin/members"),
       fetch("/api/admin/blocks"),
+      fetch("/api/admin/meetings"),
+      fetch("/api/admin/channels"),
     ]);
 
     if (dashRes.ok) {
-      const dash = await dashRes.json();
-      setPendingMembers(dash.pendingMembers);
-      setChannelRequests(dash.pendingChannelRequests);
+      setStats(await dashRes.json());
     }
-    if (meetRes.ok) {
-      const meet = await meetRes.json();
-      setMeetings(meet.meetings);
+    if (membersRes.ok) {
+      const data = await membersRes.json();
+      setAllMembers(data.members);
     }
-    if (blockRes.ok) {
-      const block = await blockRes.json();
-      setBlocks(block.blocks);
+    if (blocksRes.ok) {
+      const data = await blocksRes.json();
+      setBlocks(data.blocks);
+    }
+    if (meetingsRes.ok) {
+      const data = await meetingsRes.json();
+      setMeetings(data.meetings);
+    }
+    if (channelsRes.ok) {
+      const data = await channelsRes.json();
+      setChannels(data.channels);
     }
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 10000);
+    void fetchAll();
+    const interval = setInterval(() => void fetchAll(), 10000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchAll]);
 
   async function approveMember(userId: string) {
     await fetch("/api/admin/members", {
@@ -84,7 +72,7 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, status: "APPROVED" }),
     });
-    fetchData();
+    void fetchAll();
   }
 
   async function rejectMember(userId: string) {
@@ -93,7 +81,7 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId, status: "REJECTED" }),
     });
-    fetchData();
+    void fetchAll();
   }
 
   async function handleChannelRequest(membershipId: string, status: "APPROVED" | "DENIED") {
@@ -102,7 +90,7 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ membershipId, status }),
     });
-    fetchData();
+    void fetchAll();
   }
 
   async function removeFromChannel(membershipId: string) {
@@ -111,7 +99,7 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ membershipId }),
     });
-    fetchData();
+    void fetchAll();
   }
 
   async function createMeeting() {
@@ -122,9 +110,8 @@ export default function AdminPage() {
     });
     const data = await res.json();
     if (res.ok) {
-      setGeneratedLink(data.joinUrl);
       setGeneratedLinkToken(data.meeting.linkToken);
-      fetchData();
+      void fetchAll();
     }
   }
 
@@ -134,7 +121,16 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ meetingId, action }),
     });
-    fetchData();
+    void fetchAll();
+  }
+
+  async function blockUser(userId: string, reason?: string) {
+    await fetch("/api/admin/blocks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, reason: reason || undefined }),
+    });
+    void fetchAll();
   }
 
   async function unblockUser(blockId: string) {
@@ -143,329 +139,80 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ blockId }),
     });
-    fetchData();
+    void fetchAll();
   }
 
-  if (loading) {
+  if (loading || !stats) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-burgundy/60">Loading admin console...</p>
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-12 w-12 animate-pulse rounded-full bg-gold/30" />
+          <p className="font-serif text-burgundy/60">Loading admin console...</p>
+        </div>
       </div>
     );
   }
 
+  const badges: Partial<Record<AdminTab, number>> = {
+    members: stats.pendingMembers.length,
+    channels: stats.pendingChannelRequests.length,
+    blocks: stats.activeBlocks.length,
+  };
+
+  const approvedMembers = allMembers.filter((m) => m.status === "APPROVED");
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
-      <section className="hero-brand mb-10 overflow-hidden rounded-3xl px-6 py-8 md:px-10 md:py-10">
-        <div className="flex flex-col items-center gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-5">
-            <Image
-              src="/brand/repentance101-logo.png"
-              alt="Repentance 101"
-              width={80}
-              height={80}
-              className="seal-ring shrink-0 rounded-full ring-offset-burgundy-deep"
-            />
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-gold-light">
-                Admin · {MINISTRY_NAME}
-              </p>
-              <h1 className="font-serif text-3xl font-bold text-cream md:text-4xl">
-                Admin Console
-              </h1>
-              <p className="mt-1 text-gold-light/90">Manage Repentance 101 ministry</p>
-            </div>
-          </div>
-          <Link
-            href="/dashboard"
-            className="btn-secondary shrink-0 !border-gold/50 !text-gold-light"
-          >
-            ← Dashboard
-          </Link>
-        </div>
-        <BrandDivider light className="my-6" />
-        <div className="flex flex-wrap gap-2">
-          {(["overview", "meetings", "blocks"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold capitalize transition ${
-                tab === t
-                  ? "bg-gold text-burgundy-deep shadow-md"
-                  : "border border-gold/30 text-gold-light hover:bg-gold/10"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </section>
-
+    <AdminShell activeTab={tab} onTabChange={setTab} badges={badges}>
       {tab === "overview" && (
-        <div className="space-y-8">
-          <section className="card-brand p-6">
-            <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">
-              Pending Memberships ({pendingMembers.length})
-            </h2>
-            {pendingMembers.length === 0 ? (
-              <p className="text-burgundy/60">No pending membership requests.</p>
-            ) : (
-              <div className="space-y-3">
-                {pendingMembers.map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex items-center justify-between rounded-xl border border-gold/20 bg-cream-dark p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <UserAvatar userId={m.id} name={m.name} avatarUrl={m.avatarUrl} size="sm" />
-                      <div>
-                        <p className="font-semibold text-burgundy">{m.name}</p>
-                        <p className="text-sm text-burgundy/60">{m.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => approveMember(m.id)}
-                        className="btn-primary !px-4 !py-2 text-sm"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => rejectMember(m.id)}
-                        className="btn-outline-gold !px-4 !py-2 text-sm"
-                      >
-                        Deny
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="card-brand p-6">
-            <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">
-              Channel Join Requests ({channelRequests.length})
-            </h2>
-            {channelRequests.length === 0 ? (
-              <p className="text-burgundy/60">No pending channel requests.</p>
-            ) : (
-              <div className="space-y-3">
-                {channelRequests.map((req) => (
-                  <div
-                    key={req.id}
-                    className="flex items-center justify-between rounded-xl border border-gold/20 bg-cream-dark p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <UserAvatar
-                        userId={req.user.id}
-                        name={req.user.name}
-                        avatarUrl={req.user.avatarUrl}
-                        size="sm"
-                      />
-                      <div>
-                        <p className="font-semibold text-burgundy">{req.user.name}</p>
-                        <p className="text-sm text-burgundy/60">
-                          Wants to join: <strong>{req.channel.name}</strong>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleChannelRequest(req.id, "APPROVED")}
-                        className="btn-primary !px-4 !py-2 text-sm"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleChannelRequest(req.id, "DENIED")}
-                        className="btn-outline-gold !px-4 !py-2 text-sm"
-                      >
-                        Deny
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="card-brand p-6">
-            <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">Edit Public Content</h2>
-            <div className="flex gap-4">
-              <Link
-                href="/channels/guidelines"
-                className="rounded-lg border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-medium text-burgundy hover:bg-gold/20"
-              >
-                Edit Guidelines
-              </Link>
-              <Link
-                href="/channels/livestream"
-                className="rounded-lg border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-medium text-burgundy hover:bg-gold/20"
-              >
-                Edit Livestream Info
-              </Link>
-            </div>
-          </section>
-        </div>
+        <AdminOverview stats={stats} onGoTo={setTab} />
       )}
 
-      {tab === "meetings" && (
-        <div className="space-y-8">
-          <section className="card-brand p-6">
-            <h2 className="mb-2 font-serif text-2xl font-bold text-burgundy">
-              Generate Member Join Link
-            </h2>
-            <p className="mb-6 text-burgundy/70">
-              Create a special link for your teaching session. Share it with approved
-              members — they use it to watch live, chat, and raise their hand.
-            </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <input
-                type="text"
-                value={newMeetingTitle}
-                onChange={(e) => setNewMeetingTitle(e.target.value)}
-                className="input-field flex-1"
-                placeholder="e.g. Repentance 101 — Sunday Teaching"
-              />
-              <button
-                type="button"
-                onClick={createMeeting}
-                className="btn-primary shrink-0 !px-8 !py-3 font-serif text-base"
-              >
-                Generate Member Link
-              </button>
-            </div>
-          </section>
-
-          {generatedLinkToken && (
-            <MemberJoinLink
-              meetingToken={generatedLinkToken}
-              title="Your Member Join Link"
-              variant="hero"
-            />
-          )}
-
-          <section className="card-brand p-6">
-            <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">Your Meetings</h2>
-            <div className="space-y-4">
-              {meetings.length === 0 && (
-                <p className="text-burgundy/60">No meetings yet — generate a member link above.</p>
-              )}
-              {meetings.map((m) => (
-                <div key={m.id} className="rounded-xl border border-gold/30 bg-cream-dark p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex-1">
-                      <p className="font-serif text-lg font-semibold text-burgundy">{m.title}</p>
-                      <p className="mt-1 text-sm text-burgundy/60">
-                        Status:{" "}
-                        <span
-                          className={
-                            m.status === "LIVE"
-                              ? "font-bold text-gold-muted"
-                              : "font-medium text-burgundy"
-                          }
-                        >
-                          {m.status === "LIVE" ? "● LIVE NOW" : m.status}
-                        </span>
-                        {" · "}
-                        {formatDate(m.createdAt)}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {m.status === "SCHEDULED" && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => meetingAction(m.id, "start")}
-                            className="btn-primary !px-4 !py-2 text-sm"
-                          >
-                            Start Meeting
-                          </button>
-                          <Link
-                            href={`/meeting/${m.linkToken}`}
-                            className="btn-outline-gold !px-4 !py-2 text-sm"
-                          >
-                            Open as Host
-                          </Link>
-                        </>
-                      )}
-                      {m.status === "LIVE" && (
-                        <>
-                          <Link
-                            href={`/meeting/${m.linkToken}`}
-                            className="btn-burgundy !px-4 !py-2 text-sm"
-                          >
-                            Go Live (Host)
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => meetingAction(m.id, "end")}
-                            className="rounded-lg border border-burgundy/30 bg-burgundy/10 px-4 py-2 text-sm font-medium text-burgundy hover:bg-burgundy/20"
-                          >
-                            End from Admin
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <MemberJoinLink meetingToken={m.linkToken} variant="row" />
-
-                  {m.recordingUrl && m.status === "ENDED" && (
-                    <a
-                      href={m.recordingUrl}
-                      download
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gold px-4 py-2.5 text-sm font-bold text-burgundy-deep shadow hover:bg-gold-light"
-                    >
-                      ⬇ Download Recording (MP4/WebM)
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        </div>
+      {tab === "members" && (
+        <AdminMembersPanel
+          pendingMembers={stats.pendingMembers}
+          allMembers={allMembers}
+          onApprove={approveMember}
+          onReject={rejectMember}
+          onBlock={(userId) => void blockUser(userId)}
+        />
       )}
+
+      {tab === "channels" && (
+        <AdminChannelsPanel
+          pendingRequests={stats.pendingChannelRequests}
+          channels={channels}
+          onApproveRequest={(id) => void handleChannelRequest(id, "APPROVED")}
+          onDenyRequest={(id) => void handleChannelRequest(id, "DENIED")}
+          onRemoveMember={removeFromChannel}
+        />
+      )}
+
+      {tab === "livestream" && (
+        <AdminLivestreamPanel
+          meetings={meetings}
+          recordings={stats.recordings}
+          newMeetingTitle={newMeetingTitle}
+          onTitleChange={setNewMeetingTitle}
+          onCreateMeeting={() => void createMeeting()}
+          generatedLinkToken={generatedLinkToken}
+          onMeetingAction={meetingAction}
+        />
+      )}
+
+      {tab === "private" && <AdminPrivateMinistryPanel />}
 
       {tab === "blocks" && (
-        <section className="card-brand p-6">
-          <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">Block List</h2>
-          {blocks.filter((b) => !b.unblockedAt).length === 0 ? (
-            <p className="text-burgundy/60">No active blocks.</p>
-          ) : (
-            <div className="space-y-3">
-              {blocks
-                .filter((b) => !b.unblockedAt)
-                .map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex items-center justify-between rounded-xl border border-gold/20 bg-cream-dark p-4"
-                  >
-                    <div>
-                      <p className="font-semibold text-burgundy">{b.user.name}</p>
-                      <p className="text-sm text-burgundy/60">{b.user.email}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => unblockUser(b.id)}
-                      className="btn-burgundy !px-4 !py-2 text-sm"
-                    >
-                      Unblock
-                    </button>
-                  </div>
-                ))}
-            </div>
-          )}
-        </section>
+        <AdminBlocksPanel
+          blocks={blocks}
+          approvedMembers={approvedMembers}
+          onUnblock={unblockUser}
+          onBlock={(userId, reason) => void blockUser(userId, reason)}
+        />
       )}
-    </div>
+
+      {tab === "content" && (
+        <AdminContentPanel channels={channels} onRefresh={fetchAll} />
+      )}
+    </AdminShell>
   );
 }

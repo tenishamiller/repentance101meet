@@ -13,6 +13,10 @@ export async function GET() {
     activeBlocks,
     liveMeetings,
     recentMeetings,
+    approvedMemberCount,
+    totalMemberCount,
+    livePrivateSessions,
+    recordings,
   ] = await Promise.all([
     prisma.user.findMany({
       where: { status: "PENDING", role: "MEMBER" },
@@ -33,11 +37,36 @@ export async function GET() {
       },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.meeting.findMany({ where: { status: "LIVE" } }),
     prisma.meeting.findMany({
-      where: { status: "ENDED" },
+      where: { status: "LIVE" },
+      include: {
+        invitedUser: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.meeting.findMany({
+      where: { status: "ENDED", kind: "LIVESTREAM" },
       orderBy: { endedAt: "desc" },
       take: 10,
+    }),
+    prisma.user.count({ where: { role: "MEMBER", status: "APPROVED" } }),
+    prisma.user.count({ where: { role: "MEMBER" } }),
+    prisma.meeting.findMany({
+      where: { status: "LIVE", kind: "PRIVATE" },
+      include: {
+        invitedUser: { select: { id: true, name: true, avatarUrl: true } },
+      },
+    }),
+    prisma.meeting.findMany({
+      where: { recordingUrl: { not: null }, kind: "LIVESTREAM" },
+      orderBy: { endedAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        title: true,
+        recordingUrl: true,
+        endedAt: true,
+        createdAt: true,
+      },
     }),
   ]);
 
@@ -47,5 +76,9 @@ export async function GET() {
     activeBlocks,
     liveMeetings,
     recentMeetings,
+    approvedMemberCount,
+    totalMemberCount,
+    livePrivateSessions,
+    recordings,
   });
 }
