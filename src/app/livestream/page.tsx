@@ -2,7 +2,6 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { MINISTRY_NAME, MINISTRY_LEADER } from "@/lib/brand";
-import { LivestreamScheduleEditor } from "@/components/LivestreamScheduleEditor";
 import { BrandDivider } from "@/components/BrandDivider";
 import {
   Calendar,
@@ -70,7 +69,6 @@ export default async function LivestreamPage() {
 
   const isApproved =
     session?.user?.status === "APPROVED" || session?.user?.role === "ADMIN";
-  const isAdmin = session?.user?.role === "ADMIN";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -135,12 +133,6 @@ export default async function LivestreamPage() {
                 </p>
               </div>
             )}
-
-            {isAdmin && (
-              <Link href="/admin" className="btn-secondary inline-flex items-center gap-2 !px-6 !py-4">
-                Start Meeting (Admin)
-              </Link>
-            )}
           </div>
 
           {liveMeeting && (
@@ -159,16 +151,9 @@ export default async function LivestreamPage() {
             <h2 className="font-serif text-2xl font-bold text-burgundy">Schedule & Information</h2>
           </div>
 
-          {isAdmin && channel ? (
-            <LivestreamScheduleEditor
-              channelSlug="livestream"
-              initialContent={channel.content ?? ""}
-            />
-          ) : (
-            <div className="card-brand prose-ministry p-8">
-              {renderMarkdown(channel?.content ?? "Schedule coming soon.")}
-            </div>
-          )}
+          <div className="card-brand prose-ministry p-8">
+            {renderMarkdown(channel?.content ?? "Schedule coming soon.")}
+          </div>
         </div>
 
         <div className="space-y-6 lg:col-span-2">

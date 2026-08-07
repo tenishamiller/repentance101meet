@@ -17,7 +17,7 @@ export default async function ChannelPage({ params }: Props) {
   if (!channel) notFound();
 
   if (channel.type === "PUBLIC") {
-    return <PublicChannelView channel={channel} isAdmin={session?.user?.role === "ADMIN"} />;
+    return <PublicChannelView channel={channel} />;
   }
 
   if (!session) redirect("/login");

@@ -134,14 +134,6 @@ export function AdminChannelsPanel({
                     <MessageSquare className="h-3.5 w-3.5" />
                     Open Channel
                   </Link>
-                  {isPublic && (
-                    <Link
-                      href={href}
-                      className="rounded-lg bg-gold/15 px-3 py-1.5 text-xs font-semibold text-burgundy hover:bg-gold/25"
-                    >
-                      Edit Content
-                    </Link>
-                  )}
                 </div>
 
                 {ch.type !== "PUBLIC" && ch.approvedMembers.length > 0 && (
