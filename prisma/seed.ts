@@ -39,6 +39,12 @@ When a live session starts, the **Join Live Meeting** button appears at the top 
 - Come ready to participate respectfully`,
 };
 
+const DEMO_MEMBER = {
+  email: "demo@repentance101ministry.com",
+  password: "DemoMember2026!",
+  name: "Demo Member",
+};
+
 async function ensureAdmin(email: string, password: string, name: string) {
   const normalizedEmail = email.toLowerCase();
   const passwordHash = await bcrypt.hash(password, 12);
@@ -90,9 +96,9 @@ async function upsertUser(
 ) {
   const passwordHash = await bcrypt.hash(password, 12);
   return prisma.user.upsert({
-    where: { email },
+    where: { email: email.toLowerCase() },
     update: { role, status, name, passwordHash },
-    create: { email, passwordHash, name, role, status },
+    create: { email: email.toLowerCase(), passwordHash, name, role, status },
   });
 }
 
@@ -106,6 +112,14 @@ async function main() {
   }
 
   await ensureAdmin(adminEmail, adminPassword, adminName);
+
+  await upsertUser(
+    DEMO_MEMBER.email,
+    DEMO_MEMBER.password,
+    DEMO_MEMBER.name,
+    "MEMBER",
+    "APPROVED",
+  );
 
   for (const channel of Object.values(CHANNELS)) {
     const content =
@@ -135,6 +149,7 @@ async function main() {
 
   console.log("\n=== Seed complete ===");
   console.log("Host admin:", adminEmail.toLowerCase(), "→ /host");
+  console.log("Demo member:", DEMO_MEMBER.email, "→ /login");
   console.log("Member login:", "/login");
 }
 
