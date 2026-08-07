@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DEMO_ACCOUNTS } from "@/lib/demo";
+import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { Video, User, Shield } from "lucide-react";
 
@@ -62,7 +63,7 @@ export default function LoginPage() {
         />
         <h2 className="mt-6 font-serif text-2xl font-bold text-burgundy">Repentance 101</h2>
         <BrandDivider className="mx-auto my-4 max-w-[200px]" />
-        <p className="text-burgundy/70">Norman Miller · Teaching Ministry</p>
+        <p className="text-burgundy/70">{MINISTRY_NAME}</p>
       </div>
 
       <div>

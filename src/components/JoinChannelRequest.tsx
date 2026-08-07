@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Channel } from "@/generated/prisma/client";
-import { TEACHER_NAME } from "@/lib/brand";
+import { MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 
 type Props = {
@@ -25,7 +25,7 @@ export function JoinChannelRequest({ channel, membershipStatus }: Props) {
 
     if (res.ok) {
       setStatus("PENDING");
-      setMessage(`Your join request has been sent to ${TEACHER_NAME} for approval.`);
+      setMessage("Your join request has been sent for approval.");
     } else {
       setMessage(data.error ?? "Request failed");
     }
@@ -41,13 +41,13 @@ export function JoinChannelRequest({ channel, membershipStatus }: Props) {
         <div className="mt-8 rounded-xl border border-gold/40 bg-gold/10 px-6 py-4 text-burgundy">
           <p className="font-semibold">Request Pending</p>
           <p className="mt-1 text-sm">
-            {TEACHER_NAME} will review your request. Check back here for updates.
+            Your request will be reviewed by {MINISTRY_LEADER}. Check back here for updates.
           </p>
         </div>
       ) : status === "DENIED" ? (
         <div className="mt-8 rounded-xl border border-burgundy/30 bg-burgundy/5 px-6 py-4 text-burgundy">
           <p className="font-semibold">Request Denied</p>
-          <p className="mt-1 text-sm">Contact {TEACHER_NAME} if you have questions.</p>
+          <p className="mt-1 text-sm">Contact {MINISTRY_LEADER} if you have questions.</p>
         </div>
       ) : status === "REMOVED" ? (
         <div className="mt-8 space-y-4">

@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { TEACHER_NAME } from "@/lib/brand";
+import { MINISTRY_NAME } from "@/lib/brand";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -45,7 +45,7 @@ export const CHANNELS = {
     slug: "livestream",
     name: "Livestream Information",
     type: "PUBLIC" as const,
-    description: `Livestream schedule and information from ${TEACHER_NAME}`,
+    description: `Livestream schedule and information for ${MINISTRY_NAME}`,
   },
   resource: {
     slug: "resource",

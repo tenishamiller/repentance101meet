@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Heart, Mail } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { BrandDivider } from "@/components/BrandDivider";
-import { TEACHER_NAME } from "@/lib/brand";
+import { MINISTRY_NAME } from "@/lib/brand";
 
 export function Footer() {
   return (
@@ -15,7 +15,7 @@ export function Footer() {
             <Logo size="sm" href={undefined} inverted className="mb-4" />
             <p className="text-sm leading-relaxed text-gold-light/80">
               A teaching ministry devoted to biblical repentance, community accountability,
-              and walking in truth together — led by {TEACHER_NAME}.
+              and walking in truth together.
             </p>
           </div>
 
@@ -62,7 +62,7 @@ export function Footer() {
           </p>
           <p className="flex items-center gap-1.5">
             <Mail className="h-3.5 w-3.5 text-gold" />
-            Ministry led by {TEACHER_NAME}
+            {MINISTRY_NAME} Ministry
           </p>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { TEACHER_NAME } from "@/lib/brand";
+import { MINISTRY_NAME, MINISTRY_LEADER } from "@/lib/brand";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -15,7 +15,7 @@ export default async function DashboardPage() {
         <h1 className="font-serif text-3xl font-bold text-burgundy">Membership Pending</h1>
         <BrandDivider className="mx-auto my-6 max-w-xs" />
         <p className="text-burgundy/70">
-          Hi {session.user.name}, {TEACHER_NAME} is reviewing your request. You&apos;ll be
+          Hi {session.user.name}, your membership request is being reviewed. You&apos;ll be
           notified once approved.
         </p>
       </div>
@@ -68,7 +68,7 @@ export default async function DashboardPage() {
               Live Meeting Room
             </p>
             <p className="mt-1 font-serif text-xl font-bold text-cream">
-              Meet together with {TEACHER_NAME}
+              Meet together live
             </p>
             <p className="mt-1 text-sm text-cream/80">
               Watch live teachings, chat, and fellowship with the community
@@ -86,12 +86,12 @@ export default async function DashboardPage() {
               Personal Ministry
             </p>
             <p className="mt-1 font-serif text-xl font-bold text-burgundy">
-              Private one-on-one with {TEACHER_NAME}
+              Private one-on-one pastoral care
             </p>
             <p className="mt-1 text-sm text-burgundy/70">
               {session.user.role === "ADMIN"
                 ? "Invite members for personal pastoral care"
-                : "When Norman invites you, join here privately"}
+                : "When you're invited, join here privately"}
             </p>
           </div>
           <span className="btn-outline-gold shrink-0">Open →</span>
@@ -100,7 +100,7 @@ export default async function DashboardPage() {
 
       {privateInvite && (
         <div className="mt-8 rounded-2xl border-2 border-burgundy/30 bg-burgundy/5 p-6">
-          <p className="font-semibold text-burgundy">Private Session with {TEACHER_NAME}</p>
+          <p className="font-semibold text-burgundy">Private session available</p>
           <p className="mt-1 text-burgundy/80">{privateInvite.title}</p>
           <Link
             href={`/personal-ministry/${privateInvite.linkToken}`}
@@ -146,11 +146,11 @@ export default async function DashboardPage() {
                 </Link>
               ) : status === "PENDING" ? (
                 <p className="mt-4 text-sm text-gold-muted">
-                  Join request pending {TEACHER_NAME}&apos;s approval
+                  Join request pending approval
                 </p>
               ) : status === "DENIED" ? (
                 <p className="mt-4 text-sm text-burgundy">
-                  Request denied. Contact {TEACHER_NAME} if you believe this was an error.
+                  Request denied. Contact {MINISTRY_LEADER} if you believe this was an error.
                 </p>
               ) : (
                 <Link

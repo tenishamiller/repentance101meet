@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { TEACHER_NAME } from "@/lib/brand";
+import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatDate } from "@/lib/utils";
@@ -168,7 +168,7 @@ export default function AdminPage() {
             />
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-gold-light">
-                {TEACHER_NAME} · Admin
+                Admin · {MINISTRY_NAME}
               </p>
               <h1 className="font-serif text-3xl font-bold text-cream md:text-4xl">
                 Admin Console
@@ -322,7 +322,7 @@ export default function AdminPage() {
               Generate Member Join Link
             </h2>
             <p className="mb-6 text-burgundy/70">
-              Create a special link for {TEACHER_NAME}&apos;s teaching session. Share it with approved
+              Create a special link for your teaching session. Share it with approved
               members — they use it to watch live, chat, and raise their hand.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">

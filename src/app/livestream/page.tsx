@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { TEACHER_NAME, MINISTRY_NAME } from "@/lib/brand";
+import { MINISTRY_NAME, MINISTRY_LEADER } from "@/lib/brand";
 import { LivestreamScheduleEditor } from "@/components/LivestreamScheduleEditor";
 import { BrandDivider } from "@/components/BrandDivider";
 import {
@@ -98,11 +98,11 @@ export default async function LivestreamPage() {
           </div>
 
           <h1 className="font-serif text-3xl font-bold md:text-5xl">
-            Meet Together with {TEACHER_NAME}
+            Live Meeting Room
           </h1>
           <BrandDivider light className="my-4 max-w-md" />
           <p className="max-w-2xl text-lg text-cream/90">
-            Watch {TEACHER_NAME}&apos;s live teaching — video stream, fellowship chat, and raise your
+            Watch live teachings — video stream, fellowship chat, and raise your
             hand to participate with the {MINISTRY_NAME} community.
           </p>
 
@@ -121,7 +121,7 @@ export default async function LivestreamPage() {
               <div className="rounded-xl border border-gold/40 bg-burgundy-dark/50 px-6 py-4">
                 <p className="font-semibold text-gold-light">Membership approval required</p>
                 <p className="mt-1 text-sm text-cream/80">
-                  {TEACHER_NAME} must approve your account before you can enter the meeting room.
+                  Membership approval required before you can enter the meeting room.
                 </p>
               </div>
             ) : (
@@ -131,7 +131,7 @@ export default async function LivestreamPage() {
                   No live meeting right now
                 </p>
                 <p className="mt-1 text-sm text-cream/80">
-                  Check the schedule below. {TEACHER_NAME} will start the room from the Admin Console when it&apos;s time.
+                  Check the schedule below. The host will start the room from the Admin Console when it&apos;s time.
                 </p>
               </div>
             )}
@@ -182,7 +182,7 @@ export default async function LivestreamPage() {
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-burgundy text-xs font-bold text-gold-light">
                   1
                 </span>
-                Create an account and get approved by {TEACHER_NAME}
+                Create an account and get approved to join
               </li>
               <li className="flex gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-burgundy text-xs font-bold text-gold-light">
@@ -210,7 +210,7 @@ export default async function LivestreamPage() {
                       {m.status === "LIVE" ? (
                         <span className="font-semibold text-gold-muted">● Live now</span>
                       ) : (
-                        "Scheduled — waiting for Norman to start"
+                        "Scheduled — waiting for the host to start"
                       )}
                     </p>
                   </li>

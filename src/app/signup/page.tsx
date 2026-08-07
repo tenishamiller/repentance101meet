@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { TEACHER_NAME } from "@/lib/brand";
+import { MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 
 export default function SignupPage() {
@@ -53,7 +53,7 @@ export default function SignupPage() {
         <h2 className="mt-6 font-serif text-2xl font-bold text-burgundy">Join the Ministry</h2>
         <BrandDivider className="mx-auto my-4 max-w-[200px]" />
         <p className="max-w-xs mx-auto text-sm leading-relaxed text-burgundy/70">
-          {TEACHER_NAME} personally approves every member request — a community built on trust and
+          Every membership request is personally reviewed — a community built on trust and
           accountability.
         </p>
       </div>
@@ -61,7 +61,7 @@ export default function SignupPage() {
       <div>
         <h1 className="font-serif text-3xl font-bold text-burgundy">Join Repentance 101</h1>
         <p className="mt-2 text-burgundy/70">
-          Create your account. {TEACHER_NAME} will personally approve your membership.
+          Create your account. {MINISTRY_LEADER} will review your membership request.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">

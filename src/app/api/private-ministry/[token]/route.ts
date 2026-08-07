@@ -42,7 +42,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   if (privateSession.status !== "LIVE" && !isHost) {
     return Response.json(
-      { error: "Norman has not started this session yet — check back soon" },
+      { error: "The host has not started this session yet — check back soon" },
       { status: 403 },
     );
   }

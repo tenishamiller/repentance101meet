@@ -3,7 +3,7 @@ import { Crimson_Pro, Source_Sans_3 } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { MINISTRY_NAME, TEACHER_NAME } from "@/lib/brand";
+import { MINISTRY_NAME } from "@/lib/brand";
 import "./globals.css";
 
 const crimson = Crimson_Pro({
@@ -18,8 +18,8 @@ const sourceSans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: `${MINISTRY_NAME} | ${TEACHER_NAME}`,
-  description: `Join ${MINISTRY_NAME} — a teaching ministry led by ${TEACHER_NAME}. Live meetings, channels, and community.`,
+  title: MINISTRY_NAME,
+  description: `Join ${MINISTRY_NAME} — live meetings, channels, and community for biblical repentance and fellowship.`,
   icons: {
     icon: "/brand/repentance101-logo.png",
     apple: "/brand/repentance101-logo.png",

@@ -84,7 +84,7 @@ export default async function HomePage() {
       {/* Feature strip */}
       <section className="mt-10 grid gap-4 sm:grid-cols-3">
         {[
-          { icon: Video, label: "Live Meetings", desc: `${TEACHER_NAME}'s teaching sessions` },
+          { icon: Video, label: "Live Meetings", desc: "Live teaching sessions with the community" },
           { icon: HandHeart, label: "Accountability", desc: "Grow together in truth" },
           { icon: MessageCircle, label: "Community Chat", desc: "Connect between meetings" },
         ].map(({ icon: Icon, label, desc }) => (
@@ -106,7 +106,7 @@ export default async function HomePage() {
           <h2 className="font-serif text-3xl font-bold text-burgundy">Ministry Channels</h2>
           <BrandDivider className="mx-auto mt-4 max-w-xs" />
           <p className="mt-4 text-burgundy/70">
-            Explore publicly or join member-only spaces approved by {TEACHER_NAME}
+            Explore publicly or join member-only spaces after approval
           </p>
         </div>
 
@@ -114,7 +114,7 @@ export default async function HomePage() {
           {[
             {
               title: "Live Meeting Room",
-              desc: "Watch Norman Miller teach live — stream & fellowship chat.",
+              desc: "Watch live teachings — stream & fellowship chat.",
               href: "/livestream",
               public: true,
               icon: Video,
@@ -128,7 +128,7 @@ export default async function HomePage() {
             },
             {
               title: "Livestream Schedule",
-              desc: `Times and details for ${TEACHER_NAME}'s teachings.`,
+              desc: "Times and details for upcoming teachings.",
               href: "/livestream",
               public: true,
               icon: Radio,

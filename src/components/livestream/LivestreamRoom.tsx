@@ -16,7 +16,6 @@ import {
   Video,
   VideoOff,
 } from "lucide-react";
-import { TEACHER_NAME } from "@/lib/brand";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useLivestream } from "@/hooks/useLivestream";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
@@ -87,7 +86,7 @@ export function LivestreamRoom({
             {!isRecording ? (
               <div className="mx-auto max-w-3xl text-center">
                 <p className="mb-2 font-serif text-sm font-semibold uppercase tracking-widest text-gold-light">
-                  {TEACHER_NAME} — before you teach
+                  Before you teach
                 </p>
                 <button
                   type="button"
@@ -203,7 +202,7 @@ export function LivestreamRoom({
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
                   <Radio className="h-10 w-10 animate-pulse text-gold" />
                   <p className="font-serif text-lg font-semibold text-cream">
-                    Connecting to {TEACHER_NAME}...
+                    Connecting to live stream...
                   </p>
                   <p className="text-sm text-gold-light/70">Allow camera & mic to participate</p>
                 </div>
@@ -245,7 +244,7 @@ export function LivestreamRoom({
               </p>
             ) : (
               <p className="text-xs text-gold-light/80">
-                With {TEACHER_NAME}
+                Live meeting
                 {isMuted ? " · muted" : ""}
                 {isCameraOff ? " · camera off" : ""}
               </p>

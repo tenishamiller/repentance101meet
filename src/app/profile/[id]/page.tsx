@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import { prisma } from "@/lib/db";
 import { getInitials } from "@/lib/utils";
-import { TEACHER_NAME, MINISTRY_NAME } from "@/lib/brand";
+import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 
 type Props = {
@@ -40,7 +40,7 @@ export default async function ProfilePage({ params }: Props) {
       <BrandDivider className="mx-auto my-4 max-w-[120px]" />
       {user.role === "ADMIN" && (
         <p className="text-sm font-medium text-gold-muted">
-          Teacher — {MINISTRY_NAME} ({TEACHER_NAME})
+          Teacher — {MINISTRY_NAME}
         </p>
       )}
       <p className="mt-4 text-sm text-burgundy/60">

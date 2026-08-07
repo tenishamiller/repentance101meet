@@ -12,7 +12,6 @@ import {
   Video,
   VideoOff,
 } from "lucide-react";
-import { TEACHER_NAME } from "@/lib/brand";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useLivestream } from "@/hooks/useLivestream";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
@@ -60,14 +59,14 @@ export function PrivateMinistryRoom({
     meetingToken,
     meetingTitle,
     userId,
-    userName: isHost ? TEACHER_NAME : peer.name,
+    userName: isHost ? "Host" : peer.name,
     isHost,
     hostId,
     mode: "private",
     onMeetingEnded: () => router.push("/personal-ministry?ended=1"),
   });
 
-  const peerLabel = isHost ? peer.name : TEACHER_NAME;
+  const peerLabel = isHost ? peer.name : "Session host";
 
   return (
     <div className="flex h-[calc(100vh-80px)] flex-col bg-burgundy-deep lg:flex-row">
@@ -205,7 +204,7 @@ export function PrivateMinistryRoom({
             <div>
               <p className="font-serif font-semibold text-cream">{peerLabel}</p>
               <p className="text-xs text-gold-light/70">
-                {isHost ? "Member you're ministering to" : "Your pastor"}
+                {isHost ? "Member you're ministering to" : "Your session host"}
               </p>
             </div>
           </div>

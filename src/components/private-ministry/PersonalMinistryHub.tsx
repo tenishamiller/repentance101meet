@@ -10,7 +10,6 @@ import {
   UserPlus,
   Video,
 } from "lucide-react";
-import { TEACHER_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatDate } from "@/lib/utils";
@@ -108,8 +107,8 @@ export function PersonalMinistryHub({ isAdmin, userName }: Props) {
           <BrandDivider light className="my-4 max-w-md" />
           <p className="max-w-2xl text-lg text-cream/90">
             {isAdmin
-              ? `Invite a member for a private video call — personal pastoral care, prayer, and counsel with ${TEACHER_NAME}. Separate from the public live teaching room.`
-              : `Private one-on-one time with ${TEACHER_NAME}. When he invites you, your session will appear below.`}
+              ? "Invite a member for a private video call — personal pastoral care, prayer, and counsel. Separate from the public live teaching room."
+              : "Private one-on-one time with ministry leadership. When you're invited, your session will appear below."}
           </p>
 
           {!isAdmin && liveInvite && (
@@ -118,7 +117,7 @@ export function PersonalMinistryHub({ isAdmin, userName }: Props) {
               className="btn-primary mt-8 inline-flex items-center gap-2 !px-8 !py-4 !text-lg"
             >
               <Video className="h-6 w-6" />
-              Join Session with {TEACHER_NAME}
+              Join Private Session
             </Link>
           )}
         </div>
@@ -191,7 +190,7 @@ export function PersonalMinistryHub({ isAdmin, userName }: Props) {
             <p className="mt-3 font-serif text-burgundy">
               {isAdmin
                 ? "No private sessions yet — invite a member above."
-                : `${TEACHER_NAME} has not scheduled a private session with you yet.`}
+                : "No private sessions scheduled for you yet."}
             </p>
           </div>
         ) : (
@@ -213,7 +212,7 @@ export function PersonalMinistryHub({ isAdmin, userName }: Props) {
                       <p className="mt-1 text-sm text-burgundy/60">
                         {isAdmin && s.invitedUser
                           ? `With ${s.invitedUser.name}`
-                          : `With ${TEACHER_NAME}`}
+                          : "With session host"}
                         {" · "}
                         {formatDate(s.createdAt)}
                       </p>
@@ -222,7 +221,7 @@ export function PersonalMinistryHub({ isAdmin, userName }: Props) {
                           <span className="font-bold text-gold-muted">● Live now — ready to join</span>
                         ) : s.status === "SCHEDULED" ? (
                           <span className="text-burgundy/70">
-                            {isAdmin ? "Scheduled — click Start when ready" : "Waiting for Norman to start"}
+                            {isAdmin ? "Scheduled — click Start when ready" : "Waiting for the host to start"}
                           </span>
                         ) : (
                           <span className="text-burgundy/50">Ended</span>
@@ -276,8 +275,7 @@ export function PersonalMinistryHub({ isAdmin, userName }: Props) {
 
       {!isAdmin && (
         <p className="mt-8 text-center text-sm text-burgundy/60">
-          Welcome, {userName}. This space is only for sessions {TEACHER_NAME} personally invites you
-          to — separate from the public live teaching at{" "}
+          Welcome, {userName}. This space is only for sessions you&apos;re personally invited to — separate from the public live teaching at{" "}
           <Link href="/livestream" className="font-medium text-burgundy underline">
             Live Meeting
           </Link>
