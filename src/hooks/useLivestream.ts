@@ -73,6 +73,26 @@ export function useLivestream({
   const [thumbsDown, setThumbsDown] = useState(0);
   const [myReaction, setMyReaction] = useState<string | null>(null);
 
+  const onKickedRef = useRef(onKicked);
+  const onMeetingEndedRef = useRef(onMeetingEnded);
+  const onRecordingSavedRef = useRef(onRecordingSaved);
+  onKickedRef.current = onKicked;
+  onMeetingEndedRef.current = onMeetingEnded;
+  onRecordingSavedRef.current = onRecordingSaved;
+
+  const attachRemoteStream = useCallback((stream: MediaStream) => {
+    if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== stream) {
+      remoteVideoRef.current.srcObject = stream;
+    }
+    setIsLive(true);
+  }, []);
+
+  const attachLocalStream = useCallback((stream: MediaStream) => {
+    if (localVideoRef.current && localVideoRef.current.srcObject !== stream) {
+      localVideoRef.current.srcObject = stream;
+    }
+  }, []);
+
   const buildRecordingStream = useCallback(() => {
     const audioTrack = localStreamRef.current?.getAudioTracks()[0];
     const videoTrack =
@@ -126,13 +146,12 @@ export function useLivestream({
     const oldVideo = stream.getVideoTracks()[0];
     if (oldVideo) {
       stream.removeTrack(oldVideo);
-      oldVideo.stop();
     }
 
     const newVideo =
       screenStreamRef.current?.getVideoTracks()[0] ??
       localStreamRef.current?.getVideoTracks()[0];
-    if (newVideo) {
+    if (newVideo && !stream.getVideoTracks().includes(newVideo)) {
       stream.addTrack(newVideo);
     }
   }, []);
@@ -195,8 +214,7 @@ export function useLivestream({
           if (!stream) return;
 
           if (isPrivate && remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = stream;
-            setIsLive(true);
+            attachRemoteStream(stream);
             return;
           }
 
@@ -230,7 +248,7 @@ export function useLivestream({
       await sendSignal("offer", viewerId, { sdp: offer });
       connectedViewersRef.current.add(viewerId);
     },
-    [addLocalTracks, isPrivate, mode, sendSignal],
+    [addLocalTracks, attachRemoteStream, isPrivate, mode, sendSignal],
   );
 
   const handleHostSignal = useCallback(
@@ -263,12 +281,12 @@ export function useLivestream({
   const handleViewerSignal = useCallback(
     async (signal: MeetingSignalMessage) => {
       if (signal.type === "kick" && signal.toUserId === userId) {
-        onKicked?.();
+        onKickedRef.current?.();
         return;
       }
 
       if (signal.type === "host-ended") {
-        onMeetingEnded?.();
+        onMeetingEndedRef.current?.();
         return;
       }
 
@@ -284,9 +302,8 @@ export function useLivestream({
 
           pc.ontrack = (event) => {
             const [stream] = event.streams;
-            if (stream && remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = stream;
-              setIsLive(true);
+            if (stream) {
+              attachRemoteStream(stream);
             }
           };
 
@@ -313,7 +330,7 @@ export function useLivestream({
         }
       }
     },
-    [addLocalTracks, hostId, isPrivate, mode, onKicked, onMeetingEnded, sendSignal, userId],
+    [addLocalTracks, attachRemoteStream, hostId, isPrivate, mode, sendSignal, userId],
   );
 
   const pollSignals = useCallback(async () => {
@@ -352,20 +369,25 @@ export function useLivestream({
   }, [meetingToken, userId]);
 
   const startBroadcast = useCallback(async () => {
+    const existing = localStreamRef.current;
+    if (existing?.active) {
+      attachLocalStream(existing);
+      setIsLive(true);
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: { echoCancellation: true, noiseSuppression: true },
       });
       localStreamRef.current = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
+      attachLocalStream(stream);
       setIsLive(true);
     } catch {
       setError("Camera or microphone access was denied. Please allow access and reload.");
     }
-  }, []);
+  }, [attachLocalStream]);
 
   const stopAll = useCallback(() => {
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -391,38 +413,44 @@ export function useLivestream({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function connect() {
-      if (isHost) {
+      if (isHost || publishMedia) {
         await startBroadcast();
-      } else if (publishMedia) {
-        await startBroadcast();
-        await sendSignal("viewer-ready", hostId);
-      } else {
+      }
+
+      if (!cancelled && !isHost) {
         await sendSignal("viewer-ready", hostId);
       }
     }
 
     void connect();
 
-    const signalInterval = setInterval(() => void pollSignals(), 1000);
-    const participantInterval = setInterval(() => void fetchParticipants(), 4000);
-    void fetchParticipants();
+    return () => {
+      cancelled = true;
+      stopAll();
+    };
+  }, [hostId, isHost, meetingToken, publishMedia, sendSignal, startBroadcast, stopAll]);
+
+  const pollSignalsRef = useRef(pollSignals);
+  const fetchParticipantsRef = useRef(fetchParticipants);
+  pollSignalsRef.current = pollSignals;
+  fetchParticipantsRef.current = fetchParticipants;
+
+  useEffect(() => {
+    const signalInterval = setInterval(() => void pollSignalsRef.current(), 1000);
+    const participantInterval = setInterval(
+      () => void fetchParticipantsRef.current(),
+      4000,
+    );
+    void fetchParticipantsRef.current();
 
     return () => {
       clearInterval(signalInterval);
       clearInterval(participantInterval);
-      stopAll();
     };
-  }, [
-    fetchParticipants,
-    hostId,
-    isHost,
-    publishMedia,
-    pollSignals,
-    sendSignal,
-    startBroadcast,
-    stopAll,
-  ]);
+  }, [meetingToken]);
 
   const toggleMute = useCallback(() => {
     const stream = localStreamRef.current;
@@ -463,9 +491,7 @@ export function useLivestream({
       screenStreamRef.current?.getTracks().forEach((t) => t.stop());
       screenStreamRef.current = null;
       if (localStreamRef.current) {
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = localStreamRef.current;
-        }
+        attachLocalStream(localStreamRef.current);
         await replaceVideoOnAllConnections(localStreamRef.current);
       }
       setIsScreenSharing(false);
@@ -478,9 +504,7 @@ export function useLivestream({
         audio: true,
       });
       screenStreamRef.current = screenStream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = screenStream;
-      }
+      attachLocalStream(screenStream);
       await replaceVideoOnAllConnections(screenStream);
       setIsScreenSharing(true);
 
@@ -490,7 +514,7 @@ export function useLivestream({
     } catch {
       /* user cancelled screen share picker */
     }
-  }, [isScreenSharing, replaceVideoOnAllConnections]);
+  }, [attachLocalStream, isScreenSharing, replaceVideoOnAllConnections]);
 
   const endBroadcast = useCallback(async () => {
     if (!isHost) return null;
@@ -509,7 +533,7 @@ export function useLivestream({
       try {
         const result = await uploadRecordingBlob(meetingToken, blob, filename);
         recordingUrl = result.publicUrl;
-        onRecordingSaved?.(result.publicUrl);
+        onRecordingSavedRef.current?.(result.publicUrl);
       } catch {
         setError(
           "Recording downloaded to your device. Cloud upload failed — try again from Admin or check Supabase storage.",
@@ -530,7 +554,6 @@ export function useLivestream({
     isHost,
     meetingTitle,
     meetingToken,
-    onRecordingSaved,
     sendSignal,
     stopAll,
     stopRecording,
