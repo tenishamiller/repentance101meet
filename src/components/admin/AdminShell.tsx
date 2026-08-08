@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
   Ban,
   BookOpen,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
+import { UserAvatar } from "@/components/UserAvatar";
 import type { AdminTab } from "./types";
 
 const NAV: { id: AdminTab; label: string; icon: typeof Home; description: string }[] = [
@@ -35,19 +36,26 @@ type Props = {
 };
 
 export function AdminShell({ activeTab, onTabChange, badges, children }: Props) {
+  const { data: session } = useSession();
+  const admin = session?.user;
+
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-8">
       {/* Header */}
       <section className="hero-brand mb-8 overflow-hidden rounded-3xl px-6 py-8 md:px-10">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-5">
-            <Image
-              src="/brand/repentance101-logo.png"
-              alt="Repentance 101"
-              width={88}
-              height={88}
-              className="seal-ring shrink-0 rounded-full ring-offset-burgundy-deep"
-            />
+            {admin ? (
+              <UserAvatar
+                userId={admin.id}
+                name={admin.name ?? "Admin"}
+                avatarUrl={admin.avatarUrl}
+                size="lg"
+                className="ring-offset-burgundy-deep ring-4"
+              />
+            ) : (
+              <div className="h-16 w-16 shrink-0 animate-pulse rounded-full bg-gold/20" />
+            )}
             <div>
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-gold-light">
                 <Shield className="h-3.5 w-3.5" />

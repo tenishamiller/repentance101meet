@@ -35,6 +35,10 @@ export function formatRequestDateTime(date: Date | string) {
   }).format(new Date(date));
 }
 
+export function formatMemberSince(date: Date | string) {
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(new Date(date));
+}
+
 export const EDIT_WINDOW_MS = 5 * 60 * 1000;
 
 export function canEditMessage(createdAt: Date | string) {

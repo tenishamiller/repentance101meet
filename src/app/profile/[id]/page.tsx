@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
+import { formatMemberSince } from "@/lib/utils";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -11,6 +13,7 @@ type Props = {
 
 export default async function ProfilePage({ params }: Props) {
   const { id } = await params;
+  const session = await auth();
 
   const user = await prisma.user.findUnique({
     where: { id },
@@ -18,6 +21,8 @@ export default async function ProfilePage({ params }: Props) {
   });
 
   if (!user) notFound();
+
+  const isOwnProfile = session?.user?.id === user.id;
 
   return (
     <div className="mx-auto max-w-md px-4 py-16 text-center">
@@ -37,12 +42,13 @@ export default async function ProfilePage({ params }: Props) {
         <p className="text-sm font-medium text-gold-muted">Teacher — {MINISTRY_NAME}</p>
       )}
       <p className="mt-4 text-sm text-burgundy/60">
-        Member since{" "}
-        {new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(user.createdAt)}
+        Member since {formatMemberSince(user.createdAt)}
       </p>
-      <Link href="/settings" className="btn-outline-gold mt-8 inline-block">
-        Edit your profile photo
-      </Link>
+      {isOwnProfile && (
+        <Link href="/settings" className="btn-outline-gold mt-8 inline-block">
+          Edit your profile photo
+        </Link>
+      )}
     </div>
   );
 }
