@@ -92,16 +92,14 @@ export function ChannelMessageItem({
           <div className={cn("mb-1 flex flex-wrap items-center gap-2", isOwn && "justify-end")}>
             <span className="font-semibold text-burgundy">{message.user.name}</span>
             <span className="text-xs text-burgundy/45">{formatMessageTime(message.createdAt)}</span>
-            {edited && !message.deletedAt && (
+            {edited && (
               <span className="rounded-full bg-burgundy/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-burgundy/50">
                 Edited
               </span>
             )}
           </div>
 
-          {message.deletedAt ? (
-            <p className="text-sm italic text-burgundy/45">Message removed</p>
-          ) : isEditing ? (
+          {isEditing ? (
             <div>
               <textarea
                 value={editContent}
@@ -176,7 +174,7 @@ export function ChannelMessageItem({
             </>
           )}
 
-          {!message.deletedAt && !isEditing && (showActions || showReactBar) && (
+          {!isEditing && (showActions || showReactBar) && (
             <div
               className={cn(
                 "absolute -top-3 flex items-center gap-1 rounded-full border border-gold/30 bg-cream px-1 py-1 shadow-md",
@@ -214,14 +212,14 @@ export function ChannelMessageItem({
             </div>
           )}
 
-          {showReactBar && !message.deletedAt && (
+          {showReactBar && (
             <div className="absolute -bottom-12 z-10 rounded-xl border border-gold/30 bg-cream p-1 shadow-lg">
               <QuickEmojiBar onSelect={onToggleReaction} />
             </div>
           )}
         </div>
 
-        {reactionEntries.length > 0 && !message.deletedAt && (
+        {reactionEntries.length > 0 && (
           <div className={cn("mt-2 flex flex-wrap gap-1.5", isOwn && "justify-end")}>
             {reactionEntries.map(([emoji, users]) => {
               const reacted = users.includes(userId);
@@ -246,7 +244,7 @@ export function ChannelMessageItem({
           </div>
         )}
 
-        {editRemaining && !message.deletedAt && !isEditing && (
+        {editRemaining && !isEditing && (
           <p className={cn("mt-1 text-[11px] text-burgundy/40", isOwn && "text-right")}>
             {editRemaining}
           </p>

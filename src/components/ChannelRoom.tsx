@@ -143,6 +143,7 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
   }
 
   async function handleDelete(messageId: string) {
+    setMessages((prev) => prev.filter((message) => message.id !== messageId));
     await fetch(`/api/channels/${channel.slug}/messages/${messageId}`, {
       method: "DELETE",
     });

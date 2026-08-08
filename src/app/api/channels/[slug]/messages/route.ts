@@ -35,7 +35,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }
 
   const messages = await prisma.channelMessage.findMany({
-    where: { channelId: channel.id },
+    where: { channelId: channel.id, deletedAt: null },
     include: {
       user: { select: { id: true, name: true, avatarUrl: true } },
     },

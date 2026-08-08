@@ -113,9 +113,8 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     return Response.json({ error: "Delete window expired (5 minutes)" }, { status: 400 });
   }
 
-  await prisma.channelMessage.update({
+  await prisma.channelMessage.delete({
     where: { id: messageId },
-    data: { deletedAt: new Date(), content: "" },
   });
 
   return Response.json({ success: true });
