@@ -1,0 +1,163 @@
+"use client";
+
+import { Pencil, Trash2, Video } from "lucide-react";
+import Link from "next/link";
+import { UserAvatar } from "@/components/UserAvatar";
+import { isMessageEdited } from "@/lib/channel-messages";
+import { canEditMessage, cn } from "@/lib/utils";
+import { formatRequestDateTime } from "@/lib/utils";
+
+export type MembershipMessageData = {
+  id: string;
+  content: string;
+  type: "TEXT" | "ONBOARDING_INVITE" | "SYSTEM";
+  createdAt: string;
+  updatedAt: string;
+  sender: { id: string; name: string; avatarUrl: string | null; role: string };
+  meeting?: {
+    id: string;
+    linkToken: string;
+    title: string;
+    status: string;
+    isOnboardingApproval: boolean;
+  } | null;
+};
+
+type Props = {
+  message: MembershipMessageData;
+  isOwn: boolean;
+  sessionUserId: string;
+  editingId: string | null;
+  editContent: string;
+  onEditContentChange: (value: string) => void;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onSaveEdit: () => void;
+  onDelete: () => void;
+};
+
+export function MembershipMessageBubble({
+  message,
+  isOwn,
+  editingId,
+  editContent,
+  onEditContentChange,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onDelete,
+}: Props) {
+  const isText = message.type === "TEXT";
+  const canModify = isText && canEditMessage(message.createdAt);
+  const isEditing = editingId === message.id;
+  const edited = isMessageEdited(message.createdAt, message.updatedAt);
+
+  return (
+    <div className={cn("group flex gap-3", isOwn && "flex-row-reverse")}>
+      <UserAvatar
+        userId={message.sender.id}
+        name={message.sender.name}
+        avatarUrl={message.sender.avatarUrl}
+        size="md"
+      />
+      <div className={cn("max-w-[min(100%,36rem)]", isOwn && "items-end")}>
+        <div
+          className={cn(
+            "rounded-2xl px-4 py-3",
+            message.type === "ONBOARDING_INVITE"
+              ? "border-2 border-gold bg-gold/15"
+              : message.type === "SYSTEM"
+                ? "border border-gold/30 bg-cream-dark"
+                : message.sender.role === "ADMIN"
+                  ? "border border-gold/25 bg-white"
+                  : "border border-gold/20 bg-cream",
+          )}
+        >
+          {message.type === "ONBOARDING_INVITE" && (
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-burgundy">
+              Membership Approval — Required One-on-One
+            </p>
+          )}
+
+          {isEditing ? (
+            <div>
+              <textarea
+                value={editContent}
+                onChange={(e) => onEditContentChange(e.target.value)}
+                className="input-field text-sm"
+                rows={3}
+              />
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={onSaveEdit}
+                  className="rounded-lg bg-burgundy px-3 py-1.5 text-sm font-medium text-cream"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={onCancelEdit}
+                  className="rounded-lg border border-gold/30 px-3 py-1.5 text-sm text-burgundy"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="whitespace-pre-wrap text-sm text-burgundy/90">{message.content}</p>
+          )}
+
+          {message.meeting && (
+            <Link
+              href={`/personal-ministry/${message.meeting.linkToken}`}
+              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-burgundy px-4 py-2 text-sm font-semibold text-cream hover:bg-burgundy-dark"
+            >
+              <Video className="h-4 w-4" />
+              {message.meeting.status === "LIVE"
+                ? "Join One-on-One Now"
+                : "Open One-on-One Session"}
+            </Link>
+          )}
+
+          <div className={cn("mt-2 flex flex-wrap items-center gap-2", isOwn && "justify-end")}>
+            <p className="text-[11px] text-burgundy/45">
+              {formatRequestDateTime(message.createdAt)}
+            </p>
+            {edited && (
+              <span className="text-[10px] font-medium uppercase tracking-wide text-burgundy/45">
+                Edited
+              </span>
+            )}
+          </div>
+        </div>
+
+        {isText && canModify && isOwn && !isEditing && (
+          <div
+            className={cn(
+              "mt-1 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
+              isOwn && "justify-end",
+            )}
+          >
+            <button
+              type="button"
+              onClick={onStartEdit}
+              className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
+            >
+              <Pencil className="h-3 w-3" />
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
+            >
+              <Trash2 className="h-3 w-3" />
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

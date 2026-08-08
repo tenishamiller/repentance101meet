@@ -15,7 +15,6 @@ export function MobileNavDrawer() {
   const isApproved =
     session?.user?.status === "APPROVED" || session?.user?.role === "ADMIN";
   const isAdmin = session?.user?.role === "ADMIN";
-
   const links = [
     { href: "/livestream", label: "Live Meeting", highlight: true },
     { href: "/channels/guidelines", label: "Guidelines" },

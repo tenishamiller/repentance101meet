@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Circle,
-  Download,
   Hand,
   MessageCircle,
   Mic,
@@ -12,6 +11,7 @@ import {
   MonitorOff,
   MonitorUp,
   Radio,
+  Square,
   ThumbsDown,
   ThumbsUp,
   Users,
@@ -98,6 +98,9 @@ export function LivestreamRoom({
     videoInputDevices,
     selectedVideoDeviceId,
     switchVideoDevice,
+    switchFacingMode,
+    refreshVideoInputDevices,
+    isRefreshingDevices,
     participants,
     galleryMembers,
     viewerCount,
@@ -243,26 +246,28 @@ export function LivestreamRoom({
                     Record
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    disabled={isSavingRecording}
-                    onClick={async () => {
-                      await endBroadcast();
-                    }}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gold bg-cream/10 px-3 py-2 text-xs font-bold text-gold-light transition hover:bg-gold/20 disabled:opacity-60 sm:text-sm"
-                  >
+                  <span className="inline-flex items-center gap-2 rounded-lg border border-gold/50 bg-gold/15 px-3 py-2 text-xs font-bold text-gold-light sm:text-sm">
                     <Circle className="h-3 w-3 fill-gold text-gold" />
                     <RecordingTimer elapsedSeconds={recordingElapsedSeconds} />
-                    <span className="text-gold-light/50">·</span>
-                    <Download className="h-4 w-4" />
-                    {isSavingRecording ? "Saving..." : "End & Download"}
-                  </button>
+                  </span>
                 )}
+                <button
+                  type="button"
+                  disabled={isSavingRecording}
+                  onClick={() => void endBroadcast()}
+                  className="inline-flex items-center gap-2 rounded-lg border-2 border-gold/60 bg-burgundy-dark px-3 py-2 text-xs font-bold text-cream transition hover:bg-burgundy disabled:opacity-60 sm:text-sm"
+                >
+                  <Square className="h-4 w-4 fill-current" />
+                  {isSavingRecording ? "Ending..." : "End Livestream"}
+                </button>
                 <CameraDeviceSelect
                   devices={videoInputDevices}
                   selectedDeviceId={selectedVideoDeviceId}
                   onChange={(deviceId) => void switchVideoDevice(deviceId)}
-                  disabled={!isLive}
+                  onRefresh={() => void refreshVideoInputDevices()}
+                  onFlip={() => void switchFacingMode()}
+                  showFlip={isMobile}
+                  refreshing={isRefreshingDevices}
                 />
                 <VideoLayoutSelect
                   mode="host"
@@ -388,7 +393,10 @@ export function LivestreamRoom({
                 devices={videoInputDevices}
                 selectedDeviceId={selectedVideoDeviceId}
                 onChange={(deviceId) => void switchVideoDevice(deviceId)}
-                disabled={!isLive || !memberVideoEnabled}
+                onRefresh={() => void refreshVideoInputDevices()}
+                onFlip={() => void switchFacingMode()}
+                showFlip={isMobile}
+                refreshing={isRefreshingDevices}
               />
               <VideoLayoutSelect
                 mode="member"

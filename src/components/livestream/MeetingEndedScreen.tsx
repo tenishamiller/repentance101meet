@@ -42,25 +42,28 @@ export function MeetingEndedScreen({
           <>
             <strong className="text-cream">{meetingTitle}</strong> has ended.{" "}
             {recordingSaveStatus === "saved" ? (
-              <>Your recording was saved to the Recording Library and downloaded to your device.</>
+              <>
+                Your recording was saved to the Recording Library. Download it anytime from Admin →
+                Livestream.
+              </>
             ) : recordingSaveStatus === "upload-failed" ? (
               <>
-                Your recording downloaded to your device, but the cloud upload failed — check Admin
-                → Recording Library or try again after verifying Supabase storage.
+                The recording could not be saved to the library — check Admin → Recording Library or
+                verify Supabase storage, then try recording again next session.
               </>
             ) : recordingSaveStatus === "empty" ? (
               <>
-                No recording file was created. Next time, record for at least a few seconds, then
-                use <strong className="text-cream">End &amp; Download</strong> in the meeting room.
+                Recording was too short to save. Next time, record for at least a few seconds before
+                ending the livestream.
               </>
             ) : recordingSaveStatus === "not-recorded" ? (
               <>
-                No recording was saved. Click <strong className="text-cream">Record</strong> during
-                the session, then finish with{" "}
-                <strong className="text-cream">End &amp; Download</strong> (not Admin → End Session).
+                No recording was saved because Record was not used. Click{" "}
+                <strong className="text-cream">Record</strong> during a session to add it to your
+                library when you end the livestream.
               </>
             ) : (
-              <>Your recording download should begin automatically if you were recording.</>
+              <>The livestream has ended for everyone.</>
             )}
           </>
         ) : (

@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Circle,
-  Download,
   Heart,
   MessageCircle,
   Mic,
   MicOff,
   PhoneOff,
   Shield,
+  Square,
   Video,
   VideoOff,
 } from "lucide-react";
@@ -86,6 +86,9 @@ export function PrivateMinistryRoom({
     videoInputDevices,
     selectedVideoDeviceId,
     switchVideoDevice,
+    switchFacingMode,
+    refreshVideoInputDevices,
+    isRefreshingDevices,
     error,
     toggleMute,
     toggleCamera,
@@ -195,8 +198,8 @@ export function PrivateMinistryRoom({
                   onClick={() => void handleEndSession()}
                   className="inline-flex items-center gap-2 rounded-lg border-2 border-gold bg-burgundy-dark px-4 py-2 text-sm font-bold text-cream hover:bg-burgundy disabled:opacity-60"
                 >
-                  <Download className="h-4 w-4" />
-                  {isSavingRecording ? "Saving..." : "End Session"}
+                  <Square className="h-4 w-4 fill-current" />
+                  {isSavingRecording ? "Ending..." : "End Session"}
                 </button>
               </div>
             </div>
@@ -274,7 +277,10 @@ export function PrivateMinistryRoom({
             devices={videoInputDevices}
             selectedDeviceId={selectedVideoDeviceId}
             onChange={(deviceId) => void switchVideoDevice(deviceId)}
-            disabled={!isLive}
+            onRefresh={() => void refreshVideoInputDevices()}
+            onFlip={() => void switchFacingMode()}
+            showFlip={isMobile}
+            refreshing={isRefreshingDevices}
           />
           <VideoLayoutSelect
             mode="member"

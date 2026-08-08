@@ -16,11 +16,14 @@ import {
   buildRecordingFilename,
   getRecordingMimeType,
   RECORDING_CONTENT_TYPE,
-  triggerBrowserDownload,
   uploadRecordingBlob,
 } from "@/lib/recording";
 import { RecordingCompositor } from "@/lib/recording-compositor";
-import { listVideoInputDevices } from "@/lib/media-devices";
+import {
+  listVideoInputDevices,
+  loadPreferredCameraDeviceId,
+  savePreferredCameraDeviceId,
+} from "@/lib/media-devices";
 
 export type RecordingSaveStatus = "saved" | "upload-failed" | "empty" | "not-recorded";
 
@@ -121,9 +124,11 @@ export function useLivestream({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [videoInputDevices, setVideoInputDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedVideoDeviceId, setSelectedVideoDeviceId] = useState("");
+  const [isRefreshingDevices, setIsRefreshingDevices] = useState(false);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
 
   const selectedVideoDeviceIdRef = useRef("");
+  const facingModeRef = useRef<"user" | "environment">("user");
   const recordingStartedAtRef = useRef<number | null>(null);
 
   const memberVideoEnabledRef = useRef(true);
@@ -146,6 +151,7 @@ export function useLivestream({
   const useCompositorRecording = isHost && mode === "livestream";
 
   const refreshVideoInputDevices = useCallback(async () => {
+    setIsRefreshingDevices(true);
     try {
       const devices = await listVideoInputDevices();
       setVideoInputDevices(devices);
@@ -161,15 +167,23 @@ export function useLivestream({
       }
     } catch {
       /* ignore — device list unavailable */
+    } finally {
+      setIsRefreshingDevices(false);
     }
   }, []);
 
   const syncVideoDeviceFromStream = useCallback(
     (stream: MediaStream) => {
-      const deviceId = stream.getVideoTracks()[0]?.getSettings().deviceId;
+      const track = stream.getVideoTracks()[0];
+      const deviceId = track?.getSettings().deviceId;
+      const facingMode = track?.getSettings().facingMode;
+      if (facingMode === "user" || facingMode === "environment") {
+        facingModeRef.current = facingMode;
+      }
       if (deviceId) {
         selectedVideoDeviceIdRef.current = deviceId;
         setSelectedVideoDeviceId(deviceId);
+        savePreferredCameraDeviceId(deviceId);
       }
       void refreshVideoInputDevices();
     },
@@ -965,6 +979,14 @@ export function useLivestream({
   }, [isHost, mode]);
 
   useEffect(() => {
+    const savedDeviceId = loadPreferredCameraDeviceId();
+    if (savedDeviceId) {
+      selectedVideoDeviceIdRef.current = savedDeviceId;
+      setSelectedVideoDeviceId(savedDeviceId);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!publishMedia || typeof navigator === "undefined" || !navigator.mediaDevices) return;
 
     const handleDeviceChange = () => {
@@ -1103,68 +1125,123 @@ export function useLivestream({
     [renegotiateAllViewers],
   );
 
+  const applyNewVideoTrack = useCallback(
+    async (newTrack: MediaStreamTrack) => {
+      let stream = localStreamRef.current;
+      if (!stream) {
+        stream = new MediaStream();
+        localStreamRef.current = stream;
+      }
+
+      const keepCameraOff = isCameraOff;
+      for (const oldTrack of stream.getVideoTracks()) {
+        stream.removeTrack(oldTrack);
+        oldTrack.stop();
+      }
+
+      newTrack.enabled = !keepCameraOff;
+      stream.addTrack(newTrack);
+      setLocalStream(stream);
+      setIsCameraOff(keepCameraOff);
+
+      const settings = newTrack.getSettings();
+      if (settings.facingMode === "user" || settings.facingMode === "environment") {
+        facingModeRef.current = settings.facingMode;
+      }
+      if (settings.deviceId) {
+        selectedVideoDeviceIdRef.current = settings.deviceId;
+        setSelectedVideoDeviceId(settings.deviceId);
+        savePreferredCameraDeviceId(settings.deviceId);
+      }
+
+      if (!isScreenSharing) {
+        attachLocalStream(stream);
+        await replaceVideoOnAllConnections(stream);
+        if (compositorRef.current && localVideoRef.current) {
+          compositorRef.current.setMainVideo(localVideoRef.current);
+        }
+      } else {
+        updateRecordingVideoTrack();
+      }
+
+      syncViewerMediaRef.current();
+      void refreshVideoInputDevices();
+      setError("");
+    },
+    [
+      attachLocalStream,
+      isCameraOff,
+      isScreenSharing,
+      refreshVideoInputDevices,
+      replaceVideoOnAllConnections,
+      updateRecordingVideoTrack,
+    ],
+  );
+
+  const requestVideoTrack = useCallback(
+    async (constraints: MediaTrackConstraints) => {
+      const preview = await navigator.mediaDevices.getUserMedia({
+        video: constraints,
+        audio: false,
+      });
+      const newTrack = preview.getVideoTracks()[0];
+      if (!newTrack) {
+        preview.getTracks().forEach((track) => track.stop());
+        throw new Error("No camera track");
+      }
+      for (const track of preview.getAudioTracks()) {
+        track.stop();
+      }
+      return newTrack;
+    },
+    [],
+  );
+
   const switchVideoDevice = useCallback(
     async (deviceId: string) => {
       if (!deviceId || deviceId === selectedVideoDeviceIdRef.current) return;
 
       selectedVideoDeviceIdRef.current = deviceId;
       setSelectedVideoDeviceId(deviceId);
+      savePreferredCameraDeviceId(deviceId);
 
       try {
-        const preview = await navigator.mediaDevices.getUserMedia({
-          video: {
+        let newTrack: MediaStreamTrack;
+        try {
+          newTrack = await requestVideoTrack({
             deviceId: { exact: deviceId },
             width: { ideal: 1280 },
             height: { ideal: 720 },
-          },
-          audio: false,
-        });
-        const newTrack = preview.getVideoTracks()[0];
-        if (!newTrack) {
-          throw new Error("No camera track");
+          });
+        } catch {
+          newTrack = await requestVideoTrack({
+            deviceId: { ideal: deviceId },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          });
         }
-
-        let stream = localStreamRef.current;
-        if (!stream) {
-          stream = new MediaStream();
-          localStreamRef.current = stream;
-        }
-
-        const keepCameraOff = isCameraOff;
-        for (const oldTrack of stream.getVideoTracks()) {
-          stream.removeTrack(oldTrack);
-          oldTrack.stop();
-        }
-
-        newTrack.enabled = !keepCameraOff;
-        stream.addTrack(newTrack);
-        setLocalStream(stream);
-        setIsCameraOff(keepCameraOff);
-
-        if (!isScreenSharing) {
-          attachLocalStream(stream);
-          await replaceVideoOnAllConnections(stream);
-          if (compositorRef.current && localVideoRef.current) {
-            compositorRef.current.setMainVideo(localVideoRef.current);
-          }
-        } else {
-          updateRecordingVideoTrack();
-        }
-
-        syncViewerMediaRef.current();
-        setError("");
+        await applyNewVideoTrack(newTrack);
       } catch {
         setError("Could not switch to that camera. Try another device or check browser permissions.");
       }
     },
-    [
-      attachLocalStream,
-      isCameraOff,
-      isScreenSharing,
-      replaceVideoOnAllConnections,
-      updateRecordingVideoTrack,
-    ],
+    [applyNewVideoTrack, requestVideoTrack],
   );
+
+  const switchFacingMode = useCallback(async () => {
+    const nextFacing = facingModeRef.current === "user" ? "environment" : "user";
+    try {
+      const newTrack = await requestVideoTrack({
+        facingMode: { ideal: nextFacing },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      });
+      facingModeRef.current = nextFacing;
+      await applyNewVideoTrack(newTrack);
+    } catch {
+      setError("Could not switch cameras. Try choosing a device from the list or refresh devices.");
+    }
+  }, [applyNewVideoTrack, requestVideoTrack]);
 
   const stopScreenShare = useCallback(async () => {
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -1224,32 +1301,28 @@ export function useLivestream({
 
     if (blob && blob.size > 0) {
       const filename = buildRecordingFilename(meetingTitle, RECORDING_CONTENT_TYPE);
-      triggerBrowserDownload(blob, filename);
 
       try {
         const result = await uploadRecordingBlob(meetingToken, blob, filename);
         recordingUrl = result.publicUrl;
         onRecordingSavedRef.current?.(result.publicUrl);
         setRecordingSaveMessage("saved");
+        setError("");
       } catch (uploadError) {
         console.error("Recording upload failed:", uploadError);
         const message =
           uploadError instanceof Error ? uploadError.message : "Upload failed";
         setRecordingSaveMessage("upload-failed");
         setError(
-          `Recording downloaded to your device, but cloud save failed: ${message}. Check Supabase storage, then try again.`,
+          `Recording could not be saved to the library: ${message}. Check Supabase storage and try again.`,
         );
       }
     } else if (wasRecording) {
       setRecordingSaveMessage("empty");
-      setError(
-        "No recording file was created. Record for at least a few seconds, then use End & Download (not Admin → End Session).",
-      );
+      setError("");
     } else {
       setRecordingSaveMessage("not-recorded");
-      setError(
-        "No recording — click Record before you finish, then use End & Download in the meeting room.",
-      );
+      setError("");
     }
 
     await fetch(`/api/meetings/${meetingToken}/recording`, {
@@ -1369,6 +1442,9 @@ export function useLivestream({
     videoInputDevices,
     selectedVideoDeviceId,
     switchVideoDevice,
+    switchFacingMode,
+    refreshVideoInputDevices,
+    isRefreshingDevices,
     participants,
     galleryMembers,
     viewerCount,

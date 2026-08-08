@@ -1,41 +1,79 @@
 "use client";
 
-import { Camera } from "lucide-react";
+import { Camera, RefreshCw, SwitchCamera } from "lucide-react";
 import { videoDeviceLabel } from "@/lib/media-devices";
 
 type Props = {
   devices: MediaDeviceInfo[];
   selectedDeviceId: string;
   onChange: (deviceId: string) => void;
+  onRefresh?: () => void;
+  onFlip?: () => void;
+  showFlip?: boolean;
   disabled?: boolean;
+  refreshing?: boolean;
 };
 
 export function CameraDeviceSelect({
   devices,
   selectedDeviceId,
   onChange,
+  onRefresh,
+  onFlip,
+  showFlip = false,
   disabled = false,
+  refreshing = false,
 }: Props) {
-  if (devices.length <= 1) {
-    return null;
-  }
+  const selectValue =
+    selectedDeviceId && devices.some((device) => device.deviceId === selectedDeviceId)
+      ? selectedDeviceId
+      : devices[0]?.deviceId ?? "";
 
   return (
-    <label className="inline-flex items-center gap-2 rounded-lg border border-gold/40 bg-burgundy px-2 py-1.5 text-xs text-gold-light sm:text-sm">
+    <div className="inline-flex items-center gap-1 rounded-lg border border-gold/40 bg-burgundy px-2 py-1.5 text-xs text-gold-light sm:text-sm">
       <Camera className="h-4 w-4 shrink-0 text-gold" aria-hidden />
-      <span className="sr-only">Camera device</span>
+      <span className="hidden font-semibold text-gold-light/90 sm:inline">Camera</span>
       <select
-        value={selectedDeviceId || devices[0]?.deviceId || ""}
-        disabled={disabled}
+        value={selectValue}
+        disabled={disabled || devices.length === 0}
         onChange={(event) => onChange(event.target.value)}
-        className="max-w-[11rem] cursor-pointer bg-transparent text-xs font-semibold text-cream outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:max-w-[14rem] sm:text-sm"
+        aria-label="Choose camera"
+        className="max-w-[9rem] cursor-pointer bg-transparent text-xs font-semibold text-cream outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:max-w-[14rem] sm:text-sm"
       >
-        {devices.map((device, index) => (
-          <option key={device.deviceId} value={device.deviceId} className="text-burgundy">
-            {videoDeviceLabel(device, index)}
-          </option>
-        ))}
+        {devices.length === 0 ? (
+          <option value="">No camera found</option>
+        ) : (
+          devices.map((device, index) => (
+            <option key={device.deviceId} value={device.deviceId} className="text-burgundy">
+              {videoDeviceLabel(device, index)}
+            </option>
+          ))
+        )}
       </select>
-    </label>
+      {onRefresh ? (
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={disabled || refreshing}
+          title="Refresh camera list"
+          aria-label="Refresh camera list"
+          className="rounded-md p-1 text-gold transition hover:bg-gold/15 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
+      ) : null}
+      {showFlip && onFlip ? (
+        <button
+          type="button"
+          onClick={onFlip}
+          disabled={disabled}
+          title="Switch front/back camera"
+          aria-label="Switch front or back camera"
+          className="rounded-md p-1 text-gold transition hover:bg-gold/15 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <SwitchCamera className="h-4 w-4" />
+        </button>
+      ) : null}
+    </div>
   );
 }

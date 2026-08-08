@@ -228,7 +228,7 @@ export function AdminLivestreamPanel({
                         type="button"
                         onClick={() => {
                           const ok = window.confirm(
-                            "End this session from Admin?\n\nThis stops the livestream for everyone but does NOT save a recording. To save to the Recording Library, use End & Download in the meeting room while recording.",
+                            "End this session from Admin?\n\nThis stops the livestream for everyone but does NOT save a recording. To save to the Recording Library, click Record in the meeting room, then End Livestream when finished.",
                           );
                           if (ok) onMeetingAction(m.id, "end");
                         }}
@@ -263,15 +263,15 @@ export function AdminLivestreamPanel({
         <h2 className="mb-1 font-serif text-xl font-semibold text-burgundy">Recording Library</h2>
         <p className="mb-4 text-sm text-burgundy/60">
           Cloud recordings appear here after you <strong className="font-semibold text-burgundy">Record</strong> during
-          a live session and finish with <strong className="font-semibold text-burgundy">End &amp; Download</strong> in
+          a live session and finish with <strong className="font-semibold text-burgundy">End Livestream</strong> in
           the meeting room. Ending from Admin alone does not save a recording.
         </p>
         {recordings.length === 0 ? (
           <div className="rounded-xl bg-cream-dark px-4 py-6 text-center">
             <p className="font-medium text-burgundy/70">No recordings in the library yet.</p>
             <p className="mt-2 text-sm text-burgundy/55">
-              Your browser also downloads a copy when you use End &amp; Download — check your Downloads folder if
-              you recorded but nothing appears here (upload may have failed).
+              If you recorded but nothing appears here, the upload may have failed — check your
+              storage settings and try again next session.
             </p>
           </div>
         ) : (

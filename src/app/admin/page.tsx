@@ -10,6 +10,7 @@ import { AdminLivestreamPanel } from "@/components/admin/AdminLivestreamPanel";
 import { AdminPrivateMinistryPanel } from "@/components/admin/AdminPrivateMinistryPanel";
 import { AdminBlocksPanel } from "@/components/admin/AdminBlocksPanel";
 import { AdminContentPanel } from "@/components/admin/AdminContentPanel";
+import { MembershipMessageCenter } from "@/components/messages/MembershipMessageCenter";
 import type {
   AdminTab,
   Block,
@@ -30,6 +31,15 @@ export default function AdminPage() {
   const [newMeetingTitle, setNewMeetingTitle] = useState("Repentance 101 Teaching");
   const [membersRefreshKey, setMembersRefreshKey] = useState(0);
   const [goLiveLoading, setGoLiveLoading] = useState(false);
+  const [messageUnread, setMessageUnread] = useState(0);
+
+  const fetchUnread = useCallback(async () => {
+    const res = await fetch("/api/messages/unread-count");
+    if (res.ok) {
+      const data = await res.json();
+      setMessageUnread(data.unread ?? 0);
+    }
+  }, []);
 
   const fetchAll = useCallback(async () => {
     const [dashRes, blocksRes, meetingsRes, channelsRes] = await Promise.all([
@@ -58,10 +68,32 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get("tab");
+    const allowed: AdminTab[] = [
+      "overview",
+      "members",
+      "messages",
+      "channels",
+      "livestream",
+      "private",
+      "blocks",
+      "content",
+    ];
+    if (requested && allowed.includes(requested as AdminTab)) {
+      setTab(requested as AdminTab);
+    }
+  }, []);
+
+  useEffect(() => {
     void fetchAll();
-    const interval = setInterval(() => void fetchAll(), 10000);
+    void fetchUnread();
+    const interval = setInterval(() => {
+      void fetchAll();
+      void fetchUnread();
+    }, 10000);
     return () => clearInterval(interval);
-  }, [fetchAll]);
+  }, [fetchAll, fetchUnread]);
 
   async function setMemberStatus(userId: string, status: MemberStatus) {
     await fetch("/api/admin/members", {
@@ -200,6 +232,7 @@ export default function AdminPage() {
 
   const badges: Partial<Record<AdminTab, number>> = {
     members: stats.pendingMembers.length,
+    messages: messageUnread,
     channels: stats.pendingChannelRequests.length,
     blocks: stats.activeBlocks.length,
   };
@@ -219,6 +252,10 @@ export default function AdminPage() {
           onRestoreProfile={(userId) => void restoreMemberProfile(userId)}
           refreshKey={membersRefreshKey}
         />
+      )}
+
+      {tab === "messages" && (
+        <MembershipMessageCenter embedded onUnreadChange={setMessageUnread} />
       )}
 
       {tab === "channels" && (

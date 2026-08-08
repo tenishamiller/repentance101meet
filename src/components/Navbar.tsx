@@ -30,19 +30,13 @@ export async function Navbar() {
               {item.label}
             </Link>
           ))}
-          {session?.user?.status === "APPROVED" || session?.user?.role === "ADMIN" ? (
+          {(session?.user?.status === "APPROVED" || session?.user?.role === "ADMIN") && (
             <>
               <Link
                 href="/personal-ministry"
                 className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
               >
                 Personal Ministry
-              </Link>
-              <Link
-                href="/messages"
-                className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
-              >
-                Messages
               </Link>
               <Link
                 href="/dashboard"
@@ -57,7 +51,7 @@ export async function Navbar() {
                 Chat
               </Link>
             </>
-          ) : null}
+          )}
           {session?.user?.role === "ADMIN" ? (
             <Link
               href="/admin"

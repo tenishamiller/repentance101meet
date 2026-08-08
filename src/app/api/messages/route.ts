@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
+import { activeUserFilter } from "@/lib/user-deletion";
 
 const messageInclude = {
   sender: { select: { id: true, name: true, avatarUrl: true, role: true } },
@@ -16,6 +17,81 @@ const messageInclude = {
   },
 } as const;
 
+async function markThreadRead(threadUserId: string) {
+  await prisma.membershipMessage.updateMany({
+    where: {
+      threadUserId,
+      readAt: null,
+      sender: { role: "MEMBER" },
+    },
+    data: { readAt: new Date() },
+  });
+}
+
+async function getAdminThreads() {
+  const latestMessages = await prisma.membershipMessage.findMany({
+    distinct: ["threadUserId"],
+    orderBy: { createdAt: "desc" },
+    include: {
+      threadUser: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+          status: true,
+          onboardingDueAt: true,
+          questionnaireCompletedAt: true,
+        },
+      },
+    },
+    where: {
+      threadUser: { role: "MEMBER", ...activeUserFilter() },
+    },
+  });
+
+  const unreadGroups = await prisma.membershipMessage.groupBy({
+    by: ["threadUserId"],
+    where: {
+      readAt: null,
+      sender: { role: "MEMBER" },
+      threadUser: { role: "MEMBER", ...activeUserFilter() },
+    },
+    _count: { id: true },
+  });
+
+  const unreadByThread = new Map(
+    unreadGroups.map((row) => [row.threadUserId, row._count.id]),
+  );
+
+  const threads = latestMessages
+    .map((msg) => ({
+      id: msg.threadUser.id,
+      name: msg.threadUser.name,
+      email: msg.threadUser.email,
+      avatarUrl: msg.threadUser.avatarUrl,
+      status: msg.threadUser.status,
+      onboardingDueAt: msg.threadUser.onboardingDueAt?.toISOString() ?? null,
+      questionnaireCompletedAt:
+        msg.threadUser.questionnaireCompletedAt?.toISOString() ?? null,
+      unreadCount: unreadByThread.get(msg.threadUserId) ?? 0,
+      lastMessage: {
+        content: msg.content,
+        createdAt: msg.createdAt.toISOString(),
+        type: msg.type,
+      },
+    }))
+    .sort((a, b) => {
+      if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
+      return (
+        new Date(b.lastMessage.createdAt).getTime() -
+        new Date(a.lastMessage.createdAt).getTime()
+      );
+    });
+
+  return threads;
+}
+
 export async function GET(request: NextRequest) {
   const session = await auth();
   if (!session?.user) {
@@ -26,6 +102,8 @@ export async function GET(request: NextRequest) {
   const threadUserId = request.nextUrl.searchParams.get("userId");
 
   if (isAdmin && threadUserId) {
+    await markThreadRead(threadUserId);
+
     const messages = await prisma.membershipMessage.findMany({
       where: { threadUserId },
       include: messageInclude,
@@ -47,33 +125,16 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return Response.json({ messages, member, isAdmin: true });
+    return Response.json({
+      messages: messages.map(serializeMessage),
+      member,
+      isAdmin: true,
+    });
   }
 
   if (isAdmin) {
-    const pendingThreads = await prisma.user.findMany({
-      where: {
-        role: "MEMBER",
-        status: "PENDING",
-        questionnaireCompletedAt: { not: null },
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        avatarUrl: true,
-        onboardingDueAt: true,
-        questionnaireCompletedAt: true,
-        membershipThread: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { content: true, createdAt: true, type: true },
-        },
-      },
-      orderBy: { questionnaireCompletedAt: "asc" },
-    });
-
-    return Response.json({ threads: pendingThreads, isAdmin: true });
+    const threads = await getAdminThreads();
+    return Response.json({ threads, isAdmin: true });
   }
 
   const messages = await prisma.membershipMessage.findMany({
@@ -92,7 +153,11 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  return Response.json({ messages, member: me, isAdmin: false });
+  return Response.json({
+    messages: messages.map(serializeMessage),
+    member: me,
+    isAdmin: false,
+  });
 }
 
 const postSchema = z.object({
@@ -123,15 +188,11 @@ export async function POST(request: NextRequest) {
 
   const threadUser = await prisma.user.findUnique({
     where: { id: targetThreadUserId },
-    select: { id: true, status: true, role: true },
+    select: { id: true, status: true, role: true, deletedAt: true },
   });
 
-  if (!threadUser) {
+  if (!threadUser || threadUser.role !== "MEMBER" || threadUser.deletedAt) {
     return Response.json({ error: "Member not found" }, { status: 404 });
-  }
-
-  if (!isAdmin && threadUser.status === "PENDING" && !threadUser) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const message = await prisma.membershipMessage.create({
@@ -144,5 +205,27 @@ export async function POST(request: NextRequest) {
     include: messageInclude,
   });
 
-  return Response.json({ message });
+  return Response.json({ message: serializeMessage(message) });
+}
+
+function serializeMessage(message: {
+  id: string;
+  content: string;
+  type: string;
+  createdAt: Date;
+  updatedAt: Date;
+  sender: { id: string; name: string; avatarUrl: string | null; role: string };
+  meeting?: {
+    id: string;
+    linkToken: string;
+    title: string;
+    status: string;
+    isOnboardingApproval: boolean;
+  } | null;
+}) {
+  return {
+    ...message,
+    createdAt: message.createdAt.toISOString(),
+    updatedAt: message.updatedAt.toISOString(),
+  };
 }
