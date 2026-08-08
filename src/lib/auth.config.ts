@@ -24,6 +24,9 @@ export const authConfig = {
           | "APPROVED"
           | "REJECTED";
         token.avatarUrl = (user as { avatarUrl?: string | null }).avatarUrl;
+        token.questionnaireCompleted = Boolean(
+          (user as { questionnaireCompleted?: boolean }).questionnaireCompleted,
+        );
 
         const rememberMe = (user as { rememberMe?: boolean }).rememberMe === true;
         token.rememberMe = rememberMe;
@@ -39,6 +42,9 @@ export const authConfig = {
           | "APPROVED"
           | "REJECTED"
           | undefined;
+        if (typeof session.questionnaireCompleted === "boolean") {
+          token.questionnaireCompleted = session.questionnaireCompleted;
+        }
       }
 
       return token;
@@ -49,6 +55,7 @@ export const authConfig = {
         session.user.role = token.role as "ADMIN" | "MEMBER";
         session.user.status = token.status as "PENDING" | "APPROVED" | "REJECTED";
         session.user.avatarUrl = token.avatarUrl as string | null | undefined;
+        session.user.questionnaireCompleted = token.questionnaireCompleted === true;
       }
       return session;
     },

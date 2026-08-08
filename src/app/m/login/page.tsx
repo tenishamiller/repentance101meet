@@ -14,7 +14,7 @@ export default async function MobileLoginPage() {
   }
 
   if (session?.user?.status === "PENDING") {
-    redirect("/m/messages");
+    redirect(session.user.questionnaireCompleted ? "/m/messages" : "/m/signup");
   }
 
   return <MemberLoginForm mobileApp />;

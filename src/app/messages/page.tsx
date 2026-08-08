@@ -8,6 +8,9 @@ export default async function MessagesPage() {
   const session = await auth();
   if (!session) redirect("/login");
   if (session.user.role === "ADMIN") redirect("/admin?tab=messages");
+  if (session.user.status === "PENDING" && !session.user.questionnaireCompleted) {
+    redirect("/signup");
+  }
 
   return <MembershipMessageCenter />;
 }

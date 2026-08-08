@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import { authConfig } from "@/lib/auth.config";
-import { canPendingAccessPath } from "@/lib/pending-access";
+import { canPendingAccessPath, pendingMemberLandingPath } from "@/lib/pending-access";
 import { isMobileUserAgent } from "@/lib/mobile-detect";
 import {
   isMobileAppPath,
@@ -40,6 +40,12 @@ const protectedPaths = [
 function mobileAwarePath(path: string, mobile: boolean, desktopPath: string): string {
   if (!mobile) return desktopPath;
   return toMobilePath(desktopPath) ?? `/m${desktopPath === "/" ? "" : desktopPath}`;
+}
+
+function normalizeAppPath(pathname: string): string {
+  if (pathname === "/m") return "/";
+  if (pathname.startsWith("/m/")) return pathname.slice(2);
+  return pathname;
 }
 
 export default auth((req) => {
@@ -86,10 +92,36 @@ export default auth((req) => {
     user?.role === "MEMBER" &&
     user.status === "PENDING" &&
     isProtected &&
-    !canPendingAccessPath(path)
+    !canPendingAccessPath(path, user.questionnaireCompleted === true)
   ) {
     return NextResponse.redirect(
-      new URL(mobileAwarePath(path, mobileRoute, "/messages"), req.url),
+      new URL(
+        pendingMemberLandingPath(user.questionnaireCompleted === true, mobileRoute),
+        req.url,
+      ),
+    );
+  }
+
+  if (
+    user?.role === "MEMBER" &&
+    user.status === "PENDING" &&
+    !user.questionnaireCompleted &&
+    (path === "/" || path === "/m")
+  ) {
+    return NextResponse.redirect(
+      new URL(pendingMemberLandingPath(false, mobileRoute), req.url),
+    );
+  }
+
+  if (
+    user?.role === "MEMBER" &&
+    user.status === "PENDING" &&
+    !user.questionnaireCompleted &&
+    (normalizeAppPath(path) === "/messages" ||
+      normalizeAppPath(path).startsWith("/messages/"))
+  ) {
+    return NextResponse.redirect(
+      new URL(pendingMemberLandingPath(false, mobileRoute), req.url),
     );
   }
 
@@ -127,7 +159,10 @@ export default auth((req) => {
     }
     if (user.status === "PENDING") {
       return NextResponse.redirect(
-        new URL(mobileAwarePath(path, mobileRoute, "/messages"), req.url),
+        new URL(
+          pendingMemberLandingPath(user.questionnaireCompleted === true, mobileRoute),
+          req.url,
+        ),
       );
     }
   }
@@ -138,7 +173,10 @@ export default auth((req) => {
     user.role !== "ADMIN"
   ) {
     return NextResponse.redirect(
-      new URL(mobileAwarePath(path, mobileRoute, "/messages"), req.url),
+      new URL(
+        pendingMemberLandingPath(user.questionnaireCompleted === true, mobileRoute),
+        req.url,
+      ),
     );
   }
 

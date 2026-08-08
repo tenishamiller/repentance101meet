@@ -13,31 +13,8 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session) redirect("/login");
 
-  const memberProfile =
-    session.user.role !== "ADMIN"
-      ? await prisma.user.findUnique({
-          where: { id: session.user.id },
-          select: { createdAt: true },
-        })
-      : null;
-
   if (session.user.status === "PENDING" && session.user.role !== "ADMIN") {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="font-serif text-3xl font-bold text-burgundy">Membership Pending</h1>
-        <BrandDivider className="mx-auto my-6 max-w-xs" />
-        <p className="text-burgundy/70">
-          Hi {session.user.name}, your membership request is being reviewed. Channel chat is
-          unavailable until you are approved. Please speak with {MINISTRY_LEADER} if you need
-          assistance.
-        </p>
-        {memberProfile?.createdAt && (
-          <p className="mt-4 text-sm font-medium text-burgundy/60">
-            Requested {formatRequestDateTime(memberProfile.createdAt)}
-          </p>
-        )}
-      </div>
-    );
+    redirect(session.user.questionnaireCompleted ? "/messages" : "/signup");
   }
 
   const channels = await prisma.channel.findMany({ orderBy: { name: "asc" } });

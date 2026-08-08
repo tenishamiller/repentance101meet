@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useState } from "react";
 import { RememberMeCheckbox, useRememberedEmail } from "@/components/auth/RememberMeField";
 
@@ -52,6 +52,14 @@ export function MemberLoginForm({ mobileApp = false }: { mobileApp?: boolean }) 
         if (statusData.status === "PENDING") {
           window.location.assign(
             statusData.questionnaireCompleted ? `${base}/messages` : `${base}/signup`,
+          );
+          return;
+        }
+      } else {
+        const session = await getSession();
+        if (session?.user?.status === "PENDING") {
+          window.location.assign(
+            session.user.questionnaireCompleted ? `${base}/messages` : `${base}/signup`,
           );
           return;
         }

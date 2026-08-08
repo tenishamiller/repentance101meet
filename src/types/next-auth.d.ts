@@ -7,6 +7,7 @@ declare module "next-auth" {
       role: "ADMIN" | "MEMBER";
       status: "PENDING" | "APPROVED" | "REJECTED";
       avatarUrl?: string | null;
+      questionnaireCompleted?: boolean;
     } & DefaultSession["user"];
   }
 
@@ -15,6 +16,7 @@ declare module "next-auth" {
     status?: "PENDING" | "APPROVED" | "REJECTED";
     avatarUrl?: string | null;
     rememberMe?: boolean;
+    questionnaireCompleted?: boolean;
   }
 }
 
@@ -25,6 +27,7 @@ declare module "next-auth/jwt" {
     status?: "PENDING" | "APPROVED" | "REJECTED";
     avatarUrl?: string | null;
     rememberMe?: boolean;
+    questionnaireCompleted?: boolean;
   }
 }
 

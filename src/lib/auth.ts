@@ -20,6 +20,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({
           where: { email: String(credentials.email).toLowerCase() },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            status: true,
+            avatarUrl: true,
+            passwordHash: true,
+            deletedAt: true,
+            purgeAt: true,
+            questionnaireCompletedAt: true,
+          },
         });
 
         if (!user) return null;
@@ -44,6 +56,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           status: user.status,
           avatarUrl: user.avatarUrl,
           rememberMe,
+          questionnaireCompleted: Boolean(user.questionnaireCompletedAt),
         };
       },
     }),

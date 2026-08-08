@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
@@ -18,6 +18,7 @@ type Step = "account" | "questionnaire" | "complete";
 export default function SignupPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const { update: updateSession } = useSession();
   const base = isMobileAppPath(pathname) ? "/m" : "";
   const [step, setStep] = useState<Step>("account");
 
@@ -41,6 +42,10 @@ export default function SignupPage() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data) return;
+        if (data.status === "APPROVED") {
+          router.replace(`${base}/dashboard`);
+          return;
+        }
         if (data.questionnaireCompleted && data.status === "PENDING") {
           router.replace(`${base}/messages`);
           return;
@@ -120,6 +125,7 @@ export default function SignupPage() {
       return;
     }
 
+    await updateSession({ questionnaireCompleted: true });
     setStep("complete");
   }
 

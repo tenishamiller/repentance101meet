@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import { Camera, Loader2 } from "lucide-react";
@@ -97,18 +97,19 @@ export default function SettingsPage() {
   }
 
   async function handleDeleteAccount() {
-    if (deleteConfirm !== "confirm") {
+    if (deleteConfirm.trim().toLowerCase() !== "confirm") {
       setError('Type "confirm" to permanently delete your profile.');
       return;
     }
 
+    setError("");
     const res = await fetch("/api/user/delete", { method: "DELETE" });
     if (res.ok) {
-      router.push(homePath);
-    } else {
-      const data = await res.json();
-      setError(data.error);
+      await signOut({ callbackUrl: homePath });
+      return;
     }
+    const data = await res.json();
+    setError(data.error ?? "Could not delete profile.");
   }
 
   if (!session) {

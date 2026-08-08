@@ -13,5 +13,9 @@ export default async function LoginPage() {
     redirect("/dashboard");
   }
 
+  if (session?.user?.status === "PENDING") {
+    redirect(session.user.questionnaireCompleted ? "/messages" : "/signup");
+  }
+
   return <MemberLoginForm />;
 }

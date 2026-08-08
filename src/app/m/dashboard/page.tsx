@@ -8,7 +8,7 @@ export default async function MobileDashboardPage() {
   const session = await auth();
   if (!session) redirect("/m/login");
   if (session.user.status === "PENDING" && session.user.role !== "ADMIN") {
-    redirect("/m/messages");
+    redirect(session.user.questionnaireCompleted ? "/m/messages" : "/m/signup");
   }
   return <MobileHome />;
 }

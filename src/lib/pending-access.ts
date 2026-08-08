@@ -14,10 +14,27 @@ function normalizePath(pathname: string): string {
   return pathname;
 }
 
-export function canPendingAccessPath(pathname: string): boolean {
+export function pendingMemberLandingPath(
+  questionnaireCompleted: boolean,
+  mobileRoute: boolean,
+): string {
+  const desktopPath = questionnaireCompleted ? "/messages" : "/signup";
+  if (!mobileRoute) return desktopPath;
+  return desktopPath === "/signup" ? "/m/signup" : "/m/messages";
+}
+
+export function canPendingAccessPath(
+  pathname: string,
+  questionnaireCompleted = false,
+): boolean {
   const path = normalizePath(pathname);
-  if (path === "/messages" || path.startsWith("/messages/")) return true;
   if (path === "/signup" || path.startsWith("/signup/")) return true;
+  if (
+    questionnaireCompleted &&
+    (path === "/messages" || path.startsWith("/messages/"))
+  ) {
+    return true;
+  }
   if (/^\/personal-ministry\/[^/]+/.test(path)) return true;
   if (pathname.startsWith("/api/messages")) return true;
   if (pathname.startsWith("/api/onboarding")) return true;
