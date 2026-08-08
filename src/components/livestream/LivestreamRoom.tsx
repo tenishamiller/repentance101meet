@@ -22,6 +22,8 @@ import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
 import { ParticipantGallery } from "@/components/livestream/ParticipantGallery";
+import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
+import { RecordingTimer } from "@/components/livestream/RecordingTimer";
 
 type Props = {
   meetingToken: string;
@@ -51,6 +53,10 @@ export function LivestreamRoom({
     isScreenSharing,
     isRecording,
     isSavingRecording,
+    recordingElapsedSeconds,
+    videoInputDevices,
+    selectedVideoDeviceId,
+    switchVideoDevice,
     participants,
     galleryMembers,
     viewerCount,
@@ -117,9 +123,10 @@ export function LivestreamRoom({
                       </span>
                     )}
                     {isRecording && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-gold/50 px-2 py-0.5 font-bold text-gold">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/50 px-2 py-0.5 font-bold text-gold">
                         <Circle className="h-2 w-2 fill-gold text-gold" />
                         REC
+                        <RecordingTimer elapsedSeconds={recordingElapsedSeconds} />
                       </span>
                     )}
                     {isScreenSharing && (
@@ -178,10 +185,19 @@ export function LivestreamRoom({
                     }}
                     className="inline-flex items-center gap-2 rounded-lg border border-gold bg-cream/10 px-3 py-2 text-xs font-bold text-gold-light transition hover:bg-gold/20 disabled:opacity-60 sm:text-sm"
                   >
+                    <Circle className="h-3 w-3 fill-gold text-gold" />
+                    <RecordingTimer elapsedSeconds={recordingElapsedSeconds} />
+                    <span className="text-gold-light/50">·</span>
                     <Download className="h-4 w-4" />
                     {isSavingRecording ? "Saving..." : "End & Download"}
                   </button>
                 )}
+                <CameraDeviceSelect
+                  devices={videoInputDevices}
+                  selectedDeviceId={selectedVideoDeviceId}
+                  onChange={(deviceId) => void switchVideoDevice(deviceId)}
+                  disabled={!isLive}
+                />
                 <button
                   type="button"
                   onClick={() => void toggleScreenShare()}

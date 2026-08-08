@@ -103,7 +103,10 @@ export default function AdminPage() {
     }
   }
 
-  async function meetingAction(meetingId: string, action: "start" | "end") {
+  async function meetingAction(
+    meetingId: string,
+    action: "start" | "end" | "delete" | "undo-delete",
+  ) {
     await fetch("/api/admin/meetings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },

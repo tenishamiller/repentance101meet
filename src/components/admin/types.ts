@@ -48,6 +48,8 @@ export type Meeting = {
   recordingUrl: string | null;
   createdAt: string;
   endedAt?: string | null;
+  deletedAt?: string | null;
+  purgeAt?: string | null;
   invitedUser?: { id: string; name: string; avatarUrl?: string | null } | null;
 };
 

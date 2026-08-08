@@ -53,7 +53,7 @@ export default async function DashboardPage() {
 
   const privateChannels = channels.filter((c) => c.type !== "PUBLIC");
   const liveMeeting = await prisma.meeting.findFirst({
-    where: { status: "LIVE", kind: "LIVESTREAM" },
+    where: { status: "LIVE", kind: "LIVESTREAM", deletedAt: null },
     orderBy: { startedAt: "desc" },
   });
   const privateInvite = session.user.role !== "ADMIN"

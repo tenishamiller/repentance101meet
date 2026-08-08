@@ -7,6 +7,7 @@ type RouteParams = { params: Promise<{ token: string }> };
 async function getMeetingContext(token: string, userId: string) {
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
   if (!meeting) return { error: "Meeting not found", status: 404 as const };
+  if (meeting.deletedAt) return { error: "Meeting not found", status: 404 as const };
 
   if (meeting.kind === "PRIVATE") {
     const isHost = meeting.createdById === userId;

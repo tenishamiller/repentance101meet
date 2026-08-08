@@ -136,6 +136,8 @@ model Meeting {
   memberVideoEnabled Boolean @default(true)
   memberMicEnabled   Boolean @default(true)
   createdAt     DateTime      @default(now())
+  deletedAt     DateTime?
+  purgeAt       DateTime?
 
   createdBy    User                 @relation("MeetingCreator", fields: [createdById], references: [id])
   invitedUser  User?                @relation("PrivateInvitee", fields: [invitedUserId], references: [id])

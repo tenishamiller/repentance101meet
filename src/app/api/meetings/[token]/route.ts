@@ -12,7 +12,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const { token } = await params;
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
 
-  if (!meeting) {
+  if (!meeting || meeting.deletedAt) {
     return Response.json({ error: "Meeting not found" }, { status: 404 });
   }
 

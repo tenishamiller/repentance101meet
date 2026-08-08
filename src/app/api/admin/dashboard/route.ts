@@ -1,11 +1,16 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { activeMeetingFilter, purgeExpiredMeetings, visibleMeetingFilter } from "@/lib/meeting-deletion";
 
 export async function GET() {
   const session = await auth();
   if (session?.user?.role !== "ADMIN") {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  await purgeExpiredMeetings();
+
+  const meetingVisibility = activeMeetingFilter();
 
   const [
     pendingMembers,
@@ -48,26 +53,26 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.meeting.findMany({
-      where: { status: "LIVE" },
+      where: { status: "LIVE", ...meetingVisibility },
       include: {
         invitedUser: { select: { id: true, name: true } },
       },
     }),
     prisma.meeting.findMany({
-      where: { status: "ENDED", kind: "LIVESTREAM" },
+      where: { status: "ENDED", kind: "LIVESTREAM", ...meetingVisibility },
       orderBy: { endedAt: "desc" },
       take: 10,
     }),
     prisma.user.count({ where: { role: "MEMBER", status: "APPROVED" } }),
     prisma.user.count({ where: { role: "MEMBER" } }),
     prisma.meeting.findMany({
-      where: { status: "LIVE", kind: "PRIVATE" },
+      where: { status: "LIVE", kind: "PRIVATE", ...meetingVisibility },
       include: {
         invitedUser: { select: { id: true, name: true, avatarUrl: true } },
       },
     }),
     prisma.meeting.findMany({
-      where: { recordingUrl: { not: null }, kind: "LIVESTREAM" },
+      where: { recordingUrl: { not: null }, kind: "LIVESTREAM", ...visibleMeetingFilter() },
       orderBy: { endedAt: "desc" },
       take: 20,
       select: {
@@ -76,6 +81,8 @@ export async function GET() {
         recordingUrl: true,
         endedAt: true,
         createdAt: true,
+        deletedAt: true,
+        purgeAt: true,
       },
     }),
   ]);

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Download, Mic, Radio, Share2, Video } from "lucide-react";
+import { Download, Mic, Radio, Share2, Trash2, Undo2, Video } from "lucide-react";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
+import { DeleteCountdown } from "@/components/admin/DeleteCountdown";
 import { formatDate } from "@/lib/utils";
+import { isMeetingPendingDeletion } from "@/lib/meeting-deletion-shared";
 import type { Meeting } from "./types";
 
 type Props = {
@@ -13,7 +15,7 @@ type Props = {
   onTitleChange: (title: string) => void;
   onCreateMeeting: () => void;
   generatedLinkToken: string;
-  onMeetingAction: (meetingId: string, action: "start" | "end") => void;
+  onMeetingAction: (meetingId: string, action: "start" | "end" | "delete" | "undo-delete") => void;
 };
 
 export function AdminLivestreamPanel({
@@ -25,7 +27,52 @@ export function AdminLivestreamPanel({
   generatedLinkToken,
   onMeetingAction,
 }: Props) {
-  const liveMeeting = meetings.find((m) => m.status === "LIVE");
+  const liveMeeting = meetings.find((m) => m.status === "LIVE" && !isMeetingPendingDeletion(m));
+
+  function confirmDelete(meeting: Meeting) {
+    const endingNote =
+      meeting.status === "LIVE"
+        ? " This will also end the live broadcast for everyone."
+        : meeting.recordingUrl
+          ? " The cloud recording will be removed permanently after 15 minutes."
+          : "";
+    return window.confirm(
+      `Delete "${meeting.title}"?${endingNote}\n\nYou can undo within 15 minutes. After that, deletion is permanent.`,
+    );
+  }
+
+  function renderDeleteControls(meeting: Meeting, compact = false) {
+    if (isMeetingPendingDeletion(meeting) && meeting.purgeAt) {
+      return (
+        <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "justify-end"}`}>
+          <span className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+            Deletes in <DeleteCountdown purgeAt={meeting.purgeAt} />
+          </span>
+          <button
+            type="button"
+            onClick={() => onMeetingAction(meeting.id, "undo-delete")}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gold/50 bg-cream px-3 py-2 text-sm font-semibold text-burgundy hover:bg-gold/10"
+          >
+            <Undo2 className="h-4 w-4" />
+            Undo
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          if (confirmDelete(meeting)) onMeetingAction(meeting.id, "delete");
+        }}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-burgundy/25 bg-white px-3 py-2 text-sm font-medium text-burgundy/80 hover:border-burgundy/40 hover:bg-burgundy/5 hover:text-burgundy"
+      >
+        <Trash2 className="h-4 w-4" />
+        Delete
+      </button>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-up">
@@ -113,13 +160,30 @@ export function AdminLivestreamPanel({
           <p className="text-burgundy/60">No sessions yet — generate a member link above.</p>
         ) : (
           <div className="space-y-4">
-            {meetings.map((m) => (
-              <div key={m.id} className="rounded-xl border border-gold/25 bg-cream-dark p-5">
+            {meetings.map((m) => {
+              const pendingDelete = isMeetingPendingDeletion(m);
+              return (
+              <div
+                key={m.id}
+                className={`rounded-xl border p-5 ${
+                  pendingDelete
+                    ? "border-amber-300/50 bg-amber-50/80"
+                    : "border-gold/25 bg-cream-dark"
+                }`}
+              >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <p className="font-serif text-lg font-semibold text-burgundy">{m.title}</p>
+                    <p
+                      className={`font-serif text-lg font-semibold ${
+                        pendingDelete ? "text-burgundy/70 line-through" : "text-burgundy"
+                      }`}
+                    >
+                      {m.title}
+                    </p>
                     <p className="mt-1 text-sm text-burgundy/60">
-                      {m.status === "LIVE" ? (
+                      {pendingDelete ? (
+                        <span className="font-semibold text-amber-800">Scheduled for deletion</span>
+                      ) : m.status === "LIVE" ? (
                         <span className="font-bold text-gold-muted">● LIVE NOW</span>
                       ) : (
                         <span>{m.status}</span>
@@ -128,8 +192,8 @@ export function AdminLivestreamPanel({
                       {formatDate(m.createdAt)}
                     </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {m.status === "SCHEDULED" && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!pendingDelete && m.status === "SCHEDULED" && (
                       <>
                         <button
                           type="button"
@@ -146,7 +210,7 @@ export function AdminLivestreamPanel({
                         </Link>
                       </>
                     )}
-                    {m.status === "LIVE" && (
+                    {!pendingDelete && m.status === "LIVE" && (
                       <>
                         <Link
                           href={`/meeting/${m.linkToken}`}
@@ -168,12 +232,14 @@ export function AdminLivestreamPanel({
                         </button>
                       </>
                     )}
+                    {renderDeleteControls(m)}
                   </div>
                 </div>
 
-                <MemberJoinLink meetingToken={m.linkToken} variant="row" />
+                {!pendingDelete && <MemberJoinLink meetingToken={m.linkToken} variant="row" />}
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </section>
@@ -196,28 +262,43 @@ export function AdminLivestreamPanel({
           </div>
         ) : (
           <ul className="divide-y divide-gold/15">
-            {recordings.map((r) => (
+            {recordings.map((r) => {
+              const pendingDelete = isMeetingPendingDeletion(r);
+              return (
               <li
                 key={r.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0"
+                className={`flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0 ${
+                  pendingDelete ? "rounded-lg bg-amber-50/80 px-3 -mx-3" : ""
+                }`}
               >
                 <div>
-                  <p className="font-medium text-burgundy">{r.title}</p>
+                  <p
+                    className={`font-medium ${pendingDelete ? "text-burgundy/70 line-through" : "text-burgundy"}`}
+                  >
+                    {r.title}
+                  </p>
                   <p className="text-xs text-burgundy/55">
+                    {pendingDelete ? (
+                      <span className="font-semibold text-amber-800">Scheduled for deletion · </span>
+                    ) : null}
                     Ended {r.endedAt ? formatDate(r.endedAt) : formatDate(r.createdAt)}
                   </p>
                 </div>
-                {r.recordingUrl && (
-                  <a
-                    href={`/api/admin/recordings/${r.id}/download`}
-                    className="inline-flex items-center gap-2 rounded-lg bg-gold px-4 py-2 text-sm font-bold text-burgundy-deep hover:bg-gold-light"
-                  >
-                    <Download className="h-4 w-4" />
-                    Download
-                  </a>
-                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {r.recordingUrl && !pendingDelete && (
+                    <a
+                      href={`/api/admin/recordings/${r.id}/download`}
+                      className="inline-flex items-center gap-2 rounded-lg bg-gold px-4 py-2 text-sm font-bold text-burgundy-deep hover:bg-gold-light"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download
+                    </a>
+                  )}
+                  {renderDeleteControls(r, true)}
+                </div>
               </li>
-            ))}
+            );
+            })}
           </ul>
         )}
       </section>
