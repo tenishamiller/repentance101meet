@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logMemberActivity } from "@/lib/member-activity";
+import { unblockMemberMeetings } from "@/lib/meeting-blocks";
 
 export async function GET() {
   const session = await auth();
@@ -96,10 +97,7 @@ export async function PATCH(request: NextRequest) {
       label: "Unblocked from ministry meetings",
     });
 
-    await prisma.meetingParticipant.updateMany({
-      where: { userId: block.userId },
-      data: { blocked: false },
-    });
+    await unblockMemberMeetings(block.userId);
   }
 
   return Response.json({ success: true });

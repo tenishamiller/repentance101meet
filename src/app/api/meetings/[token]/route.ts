@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { clearKickSignalsForUser } from "@/lib/meeting-blocks";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -69,6 +70,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
     update: { blocked: false },
     create: { meetingId: meeting.id, userId: session.user.id },
   });
+
+  await clearKickSignalsForUser(session.user.id, meeting.id);
 
   return Response.json({
     meeting: {

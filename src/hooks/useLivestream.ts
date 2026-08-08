@@ -83,7 +83,7 @@ export function useLivestream({
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
-  const signalCursorRef = useRef<string>(new Date(0).toISOString());
+  const signalCursorRef = useRef(new Date().toISOString());
   const connectedViewersRef = useRef<Set<string>>(new Set());
   const viewerStreamsRef = useRef<Map<string, MediaStream>>(new Map());
   const viewerHiddenVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());

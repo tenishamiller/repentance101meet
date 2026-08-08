@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { unblockMeetingParticipant } from "@/lib/meeting-blocks";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -119,10 +120,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       where: { id: blockId },
       data: { unblockedAt: new Date() },
     });
-    await prisma.meetingParticipant.updateMany({
-      where: { userId: block.userId },
-      data: { blocked: false },
-    });
+    await unblockMeetingParticipant(meeting.id, block.userId);
     return Response.json({ success: true });
   }
 
@@ -141,10 +139,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
   }
 
-  await prisma.meetingParticipant.updateMany({
-    where: { meetingId: meeting.id, userId },
-    data: { blocked: false },
-  });
+  await unblockMeetingParticipant(meeting.id, userId);
 
   return Response.json({ success: true });
 }
