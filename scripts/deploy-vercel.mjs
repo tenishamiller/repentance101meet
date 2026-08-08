@@ -127,6 +127,9 @@ for (const key of keys) {
   }
 }
 
+console.log("\nEnsuring Supabase storage bucket...");
+run("node", ["scripts/ensure-storage-bucket.mjs"]);
+
 console.log("\nDeploying...");
 run("npx", vercelArgs(["vercel", "--prod", "--yes"]));
 

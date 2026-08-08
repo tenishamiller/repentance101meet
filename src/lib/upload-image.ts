@@ -34,7 +34,10 @@ export async function saveUserImage(
       .upload(filename, buffer, { contentType: file.type, upsert: false });
 
     if (error) {
-      return { error: error.message || "Upload failed. Check Supabase storage bucket.", status: 500 };
+      const message = error.message?.toLowerCase().includes("bucket not found")
+        ? "Storage is not set up yet. Ask your admin to run: npm run storage:setup"
+        : error.message || "Upload failed. Check Supabase storage bucket.";
+      return { error: message, status: 500 };
     }
 
     const { data } = supabase.storage.from("uploads").getPublicUrl(filename);

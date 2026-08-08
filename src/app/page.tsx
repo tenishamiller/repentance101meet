@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { MINISTRY_NAME, MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
+import { DailyDadJoke } from "@/components/DailyDadJoke";
 import { formatRequestDateTime } from "@/lib/utils";
 import {
   BookOpen,
@@ -179,6 +180,8 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      <DailyDadJoke />
 
       {/* Quote */}
       <section className="mt-16 rounded-3xl border-2 border-gold/30 bg-cream-dark px-8 py-10 text-center shadow-inner">

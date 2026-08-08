@@ -154,12 +154,12 @@ export function MeetingChat({
   }
 
   return (
-    <div className="flex h-full flex-col bg-burgundy-dark">
-      <div className="border-b border-gold/20 px-4 py-3">
+    <div className="flex h-full min-h-0 flex-col bg-burgundy-dark">
+      <div className="shrink-0 border-b border-gold/20 px-4 py-3">
         <h3 className="font-serif font-semibold text-cream">Meeting Chat</h3>
         <p className="text-xs text-gold-light/70">Messages, files & emojis — everyone in the room</p>
       </div>
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
@@ -215,7 +215,7 @@ export function MeetingChat({
           </button>
         )}
       </div>
-      <form onSubmit={sendMessage} className="relative border-t border-gold/20 p-3">
+      <form onSubmit={sendMessage} className="relative shrink-0 border-t border-gold/20 bg-burgundy-dark p-3">
         {showEmoji && (
           <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmoji(false)} />
         )}

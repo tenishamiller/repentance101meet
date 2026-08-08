@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Circle,
@@ -15,6 +16,14 @@ import {
 import { UserAvatar } from "@/components/UserAvatar";
 import { useLivestream } from "@/hooks/useLivestream";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
+import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
+import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
+import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
+import {
+  getMemberVideoLayout,
+  setMemberVideoLayout,
+  type MemberVideoLayout,
+} from "@/lib/video-layout";
 
 type Peer = {
   id: string;
@@ -41,6 +50,16 @@ export function PrivateMinistryRoom({
   peer,
 }: Props) {
   const router = useRouter();
+  const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
+
+  useEffect(() => {
+    setMemberVideoLayoutState(getMemberVideoLayout());
+  }, []);
+
+  function updateMemberVideoLayout(layout: MemberVideoLayout) {
+    setMemberVideoLayoutState(layout);
+    setMemberVideoLayout(layout);
+  }
 
   const {
     localVideoRef,
@@ -50,6 +69,9 @@ export function PrivateMinistryRoom({
     isCameraOff,
     isRecording,
     isSavingRecording,
+    videoInputDevices,
+    selectedVideoDeviceId,
+    switchVideoDevice,
     error,
     toggleMute,
     toggleCamera,
@@ -69,10 +91,10 @@ export function PrivateMinistryRoom({
   const peerLabel = isHost ? peer.name : "Session host";
 
   return (
-    <div className="flex h-[calc(100vh-80px)] flex-col bg-burgundy-deep lg:flex-row">
-      <div className="flex flex-1 flex-col">
+    <div className="flex h-[calc(100vh-80px)] min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {isHost && (
-          <div className="border-b border-gold/30 bg-gradient-to-r from-burgundy-deep to-burgundy px-4 py-3">
+          <div className="shrink-0 border-b border-gold/30 bg-gradient-to-r from-burgundy-deep to-burgundy px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm text-gold-light">
                 <Shield className="h-4 w-4 text-gold" />
@@ -114,12 +136,18 @@ export function PrivateMinistryRoom({
           </div>
         )}
 
-        <div className="relative flex-1 bg-black">
+        <div
+          className={`relative min-h-0 flex-1 overflow-hidden bg-black ${
+            memberVideoLayout === "side-by-side" ? "grid grid-cols-1 sm:grid-cols-2" : ""
+          }`}
+        >
           <video
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            className="h-full w-full object-contain"
+            className={`h-full w-full object-contain ${
+              memberVideoLayout === "side-by-side" ? "border-r border-gold/20" : ""
+            }`}
           />
 
           <video
@@ -127,7 +155,13 @@ export function PrivateMinistryRoom({
             autoPlay
             playsInline
             muted
-            className="absolute bottom-4 right-4 h-28 w-40 rounded-xl border-2 border-gold/50 object-cover shadow-2xl sm:h-36 sm:w-52"
+            className={
+              memberVideoLayout === "side-by-side"
+                ? `h-full w-full object-cover ${isCameraOff ? "opacity-40" : ""}`
+                : `absolute bottom-4 right-4 z-10 h-28 w-40 rounded-xl border-2 border-gold/50 object-cover shadow-2xl sm:h-36 sm:w-52 ${
+                    isCameraOff ? "opacity-40" : ""
+                  }`
+            }
           />
 
           {!isLive && !error && (
@@ -163,12 +197,23 @@ export function PrivateMinistryRoom({
         </div>
 
         {error && (
-          <div className="border-t border-gold/30 bg-burgundy px-4 py-3 text-sm text-gold-light">
+          <div className="shrink-0 border-t border-gold/30 bg-burgundy px-4 py-3 text-sm text-gold-light">
             {error}
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-center gap-3 border-t border-gold/20 bg-burgundy-dark px-4 py-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-t border-gold/20 bg-burgundy-dark px-4 py-3">
+          <CameraDeviceSelect
+            devices={videoInputDevices}
+            selectedDeviceId={selectedVideoDeviceId}
+            onChange={(deviceId) => void switchVideoDevice(deviceId)}
+            disabled={!isLive}
+          />
+          <VideoLayoutSelect
+            mode="member"
+            value={memberVideoLayout}
+            onChange={updateMemberVideoLayout}
+          />
           <ControlButton
             onClick={toggleMute}
             active={!isMuted}
@@ -192,8 +237,8 @@ export function PrivateMinistryRoom({
         </div>
       </div>
 
-      <div className="flex h-80 w-full flex-col border-t border-gold/20 lg:h-auto lg:w-80 lg:border-l lg:border-t-0">
-        <div className="border-b border-gold/20 bg-burgundy p-4">
+      <div className="flex min-h-0 w-full flex-col border-t border-gold/20 max-lg:h-[38vh] lg:h-auto lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0 xl:w-96">
+        <div className="shrink-0 border-b border-gold/20 bg-burgundy p-4">
           <div className="flex items-center gap-3">
             <UserAvatar
               userId={peer.id}
@@ -208,8 +253,9 @@ export function PrivateMinistryRoom({
               </p>
             </div>
           </div>
+          {isHost && <BlockedUsersPanel meetingToken={meetingToken} />}
         </div>
-        <div className="flex-1">
+        <div className="min-h-0 flex-1">
           <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
         </div>
       </div>

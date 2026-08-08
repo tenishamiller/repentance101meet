@@ -77,5 +77,13 @@ export async function PATCH(request: NextRequest) {
     data: { unblockedAt: new Date() },
   });
 
+  const block = await prisma.blockList.findUnique({ where: { id: blockId } });
+  if (block) {
+    await prisma.meetingParticipant.updateMany({
+      where: { userId: block.userId },
+      data: { blocked: false },
+    });
+  }
+
   return Response.json({ success: true });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Circle,
@@ -24,6 +25,16 @@ import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
 import { ParticipantGallery } from "@/components/livestream/ParticipantGallery";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
 import { RecordingTimer } from "@/components/livestream/RecordingTimer";
+import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
+import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
+import {
+  getHostGalleryLayout,
+  getMemberVideoLayout,
+  setHostGalleryLayout,
+  setMemberVideoLayout,
+  type HostGalleryLayout,
+  type MemberVideoLayout,
+} from "@/lib/video-layout";
 
 type Props = {
   meetingToken: string;
@@ -43,6 +54,23 @@ export function LivestreamRoom({
   hostId,
 }: Props) {
   const router = useRouter();
+  const [hostGalleryLayout, setHostGalleryLayoutState] = useState<HostGalleryLayout>("sidebar");
+  const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
+
+  useEffect(() => {
+    setHostGalleryLayoutState(getHostGalleryLayout());
+    setMemberVideoLayoutState(getMemberVideoLayout());
+  }, []);
+
+  function updateHostGalleryLayout(layout: HostGalleryLayout) {
+    setHostGalleryLayoutState(layout);
+    setHostGalleryLayout(layout);
+  }
+
+  function updateMemberVideoLayout(layout: MemberVideoLayout) {
+    setMemberVideoLayoutState(layout);
+    setMemberVideoLayout(layout);
+  }
 
   const {
     localVideoRef,
@@ -141,27 +169,41 @@ export function LivestreamRoom({
               </div>
             </div>
 
-            {/* Host video */}
-            <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="h-full w-full object-contain"
-              />
-              {!isLive && !error && (
-                <div className="absolute inset-0 flex items-center justify-center bg-burgundy-deep/90">
-                  <p className="font-serif text-gold-light">Starting camera...</p>
-                </div>
+            {/* Host video + member gallery */}
+            <div className="relative flex min-h-0 flex-1 overflow-hidden">
+              <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="h-full w-full object-contain"
+                />
+                {!isLive && !error && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-burgundy-deep/90">
+                    <p className="font-serif text-gold-light">Starting camera...</p>
+                  </div>
+                )}
+              </div>
+
+              {hostGalleryLayout === "sidebar" && (
+                <ParticipantGallery
+                  members={galleryMembers}
+                  memberVideoEnabled={memberVideoEnabled}
+                  memberMicEnabled={memberMicEnabled}
+                  layout="sidebar"
+                />
               )}
             </div>
 
-            <ParticipantGallery
-              members={galleryMembers}
-              memberVideoEnabled={memberVideoEnabled}
-              memberMicEnabled={memberMicEnabled}
-            />
+            {hostGalleryLayout === "bottom" && (
+              <ParticipantGallery
+                members={galleryMembers}
+                memberVideoEnabled={memberVideoEnabled}
+                memberMicEnabled={memberMicEnabled}
+                layout="bottom"
+              />
+            )}
 
             {/* Host controls — always visible dock with Record, Share, etc. */}
             <div className="z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark px-2 py-2.5 sm:px-4 sm:py-3">
@@ -197,6 +239,11 @@ export function LivestreamRoom({
                   selectedDeviceId={selectedVideoDeviceId}
                   onChange={(deviceId) => void switchVideoDevice(deviceId)}
                   disabled={!isLive}
+                />
+                <VideoLayoutSelect
+                  mode="host"
+                  value={hostGalleryLayout}
+                  onChange={updateHostGalleryLayout}
                 />
                 <button
                   type="button"
@@ -252,21 +299,31 @@ export function LivestreamRoom({
           </>
         ) : (
           <>
-            <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
+            <div
+              className={`relative min-h-0 flex-1 overflow-hidden bg-black ${
+                memberVideoLayout === "side-by-side" ? "grid grid-cols-1 sm:grid-cols-2" : ""
+              }`}
+            >
               <video
                 ref={remoteVideoRef}
                 autoPlay
                 playsInline
-                className="h-full w-full object-contain"
+                className={`h-full w-full object-contain ${
+                  memberVideoLayout === "side-by-side" ? "border-r border-gold/20" : ""
+                }`}
               />
               <video
                 ref={localVideoRef}
                 autoPlay
                 playsInline
                 muted
-                className={`absolute bottom-4 right-4 z-10 h-24 w-32 rounded-xl border-2 border-gold/50 object-cover shadow-2xl sm:h-28 sm:w-40 ${
-                  isCameraOff ? "opacity-40" : ""
-                }`}
+                className={
+                  memberVideoLayout === "side-by-side"
+                    ? `h-full w-full object-cover ${isCameraOff ? "opacity-40" : ""}`
+                    : `absolute bottom-4 right-4 z-10 h-24 w-32 rounded-xl border-2 border-gold/50 object-cover shadow-2xl sm:h-28 sm:w-40 ${
+                        isCameraOff ? "opacity-40" : ""
+                      }`
+                }
               />
               {!isLive && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
@@ -303,6 +360,17 @@ export function LivestreamRoom({
             </div>
 
             <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-gold/20 bg-burgundy-dark px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+              <CameraDeviceSelect
+                devices={videoInputDevices}
+                selectedDeviceId={selectedVideoDeviceId}
+                onChange={(deviceId) => void switchVideoDevice(deviceId)}
+                disabled={!isLive || !memberVideoEnabled}
+              />
+              <VideoLayoutSelect
+                mode="member"
+                value={memberVideoLayout}
+                onChange={updateMemberVideoLayout}
+              />
               <ControlButton
                 onClick={toggleMute}
                 active={!isMuted}
@@ -447,6 +515,8 @@ export function LivestreamRoom({
                 </ul>
               </div>
             )}
+
+            <BlockedUsersPanel meetingToken={meetingToken} />
           </div>
         )}
 
