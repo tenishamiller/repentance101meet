@@ -54,20 +54,15 @@ async function uploadViaServer(
   return { downloadUrl: data.publicUrl, publicUrl: data.publicUrl };
 }
 
-/** Upload using Supabase signed URL (FormData PUT — matches storage-js, no anon key required). */
-async function uploadToSupabaseSignedUrl(
-  signedUrl: string,
-  blob: Blob,
-  filename: string,
-): Promise<void> {
-  const form = new FormData();
-  form.append("cacheControl", "3600");
-  form.append("", blob, filename);
-
+/** Upload using Supabase signed URL (raw PUT body — required by storage API). */
+async function uploadToSupabaseSignedUrl(signedUrl: string, blob: Blob): Promise<void> {
   const res = await fetch(signedUrl, {
     method: "PUT",
-    body: form,
-    headers: { "x-upsert": "true" },
+    body: blob,
+    headers: {
+      "Content-Type": RECORDING_CONTENT_TYPE,
+      "x-upsert": "true",
+    },
   });
 
   if (!res.ok) {
@@ -101,7 +96,7 @@ async function uploadViaSignedUrl(
 
   if (signedUrl) {
     try {
-      await uploadToSupabaseSignedUrl(signedUrl, blob, filename);
+      await uploadToSupabaseSignedUrl(signedUrl, blob);
       return { downloadUrl: publicUrl, publicUrl };
     } catch (error) {
       errors.push(error instanceof Error ? error.message : "Signed URL upload failed");

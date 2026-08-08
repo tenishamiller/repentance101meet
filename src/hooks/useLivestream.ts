@@ -137,6 +137,8 @@ export function useLivestream({
   const applyHostMemberMediaPolicyRef = useRef<() => void>(() => {});
 
   const meetingEndedRef = useRef(false);
+  const endingBroadcastRef = useRef(false);
+  const endBroadcastRef = useRef<() => Promise<string | null>>(async () => null);
   const stopAllRef = useRef<() => void>(() => {});
   const handleMeetingEndedRef = useRef<() => void>(() => {});
 
@@ -464,7 +466,10 @@ export function useLivestream({
       stream = buildRecordingStream();
     }
 
-    if (!stream) return;
+    if (!stream) {
+      setError("Could not start recording — allow camera or microphone access and try again.");
+      return;
+    }
 
     recordingStreamRef.current = stream;
     recordingMimeRef.current = getRecordingMimeType();
@@ -552,10 +557,16 @@ export function useLivestream({
         resolve(blob);
       };
 
-      if (recorder.state === "recording") {
+      if (recorder.state === "recording" || recorder.state === "paused") {
         recorder.requestData();
       }
-      recorder.stop();
+
+      window.setTimeout(() => {
+        if (recorder.state !== "inactive") {
+          recorder.stop();
+        }
+      }, 150);
+
       recorderRef.current = null;
       setIsRecording(false);
       recordingStartedAtRef.current = null;
@@ -901,11 +912,20 @@ export function useLivestream({
   }, []);
 
   const handleMeetingEnded = useCallback(() => {
-    if (meetingEndedRef.current) return;
+    if (meetingEndedRef.current || endingBroadcastRef.current) return;
+
+    const activelyRecording =
+      recorderRef.current?.state === "recording" || recorderRef.current?.state === "paused";
+
+    if (isHost && activelyRecording) {
+      void endBroadcastRef.current();
+      return;
+    }
+
     meetingEndedRef.current = true;
     stopAll();
     setMeetingEnded(true);
-  }, [stopAll]);
+  }, [isHost, stopAll]);
 
   stopAllRef.current = stopAll;
   handleMeetingEndedRef.current = handleMeetingEnded;
@@ -1289,52 +1309,77 @@ export function useLivestream({
   }, [attachLocalStream, isHost, isScreenSharing, replaceVideoOnAllConnections, stopScreenShare]);
 
   const endBroadcast = useCallback(async () => {
-    if (!isHost) return null;
+    if (!isHost || meetingEndedRef.current || endingBroadcastRef.current) return null;
 
+    endingBroadcastRef.current = true;
     setIsSavingRecording(true);
-    const wasRecording = isRecording || recorderRef.current?.state === "recording";
-    const blob = await stopRecording();
 
-    await sendSignal("host-ended", null);
+    const wasRecording =
+      isRecording ||
+      recorderRef.current?.state === "recording" ||
+      recorderRef.current?.state === "paused";
 
     let recordingUrl: string | null = null;
 
-    if (blob && blob.size > 0) {
-      const filename = buildRecordingFilename(meetingTitle, RECORDING_CONTENT_TYPE);
+    try {
+      const blob = await stopRecording();
 
-      try {
-        const result = await uploadRecordingBlob(meetingToken, blob, filename);
-        recordingUrl = result.publicUrl;
-        onRecordingSavedRef.current?.(result.publicUrl);
-        setRecordingSaveMessage("saved");
+      await sendSignal("host-ended", null);
+
+      if (blob && blob.size > 0) {
+        const filename = buildRecordingFilename(meetingTitle, RECORDING_CONTENT_TYPE);
+
+        try {
+          const result = await uploadRecordingBlob(meetingToken, blob, filename);
+          recordingUrl = result.publicUrl;
+          onRecordingSavedRef.current?.(result.publicUrl);
+          setRecordingSaveMessage("saved");
+          setError("");
+        } catch (uploadError) {
+          console.error("Recording upload failed:", uploadError);
+          const message =
+            uploadError instanceof Error ? uploadError.message : "Upload failed";
+          setRecordingSaveMessage("upload-failed");
+          setError(
+            `Recording could not be saved to the library: ${message}. Check Supabase storage and try again.`,
+          );
+        }
+      } else if (wasRecording) {
+        setRecordingSaveMessage("empty");
         setError("");
-      } catch (uploadError) {
-        console.error("Recording upload failed:", uploadError);
-        const message =
-          uploadError instanceof Error ? uploadError.message : "Upload failed";
-        setRecordingSaveMessage("upload-failed");
-        setError(
-          `Recording could not be saved to the library: ${message}. Check Supabase storage and try again.`,
-        );
+      } else {
+        setRecordingSaveMessage("not-recorded");
+        setError("");
       }
-    } else if (wasRecording) {
-      setRecordingSaveMessage("empty");
-      setError("");
-    } else {
-      setRecordingSaveMessage("not-recorded");
-      setError("");
+
+      const patchRes = await fetch(`/api/meetings/${meetingToken}/recording`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "end", publicUrl: recordingUrl }),
+      });
+
+      if (!patchRes.ok) {
+        const patchErr = await patchRes.json().catch(() => ({}));
+        const patchMessage =
+          typeof patchErr.error === "string" ? patchErr.error : "Could not finalize meeting";
+        if (recordingUrl) {
+          setRecordingSaveMessage("upload-failed");
+          setError(
+            `Recording uploaded but could not be linked in the library: ${patchMessage}. Contact support if this persists.`,
+          );
+          recordingUrl = null;
+        } else {
+          setError(patchMessage);
+        }
+      }
+    } finally {
+      stopAll();
+      setIsSavingRecording(false);
+      meetingEndedRef.current = true;
+      setMeetingEnded(true);
+      endingBroadcastRef.current = false;
     }
 
-    await fetch(`/api/meetings/${meetingToken}/recording`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "end", publicUrl: recordingUrl }),
-    });
-
-    stopAll();
-    setIsSavingRecording(false);
-    meetingEndedRef.current = true;
-    setMeetingEnded(true);
     return recordingUrl;
   }, [
     isHost,
@@ -1345,6 +1390,8 @@ export function useLivestream({
     stopRecording,
     isRecording,
   ]);
+
+  endBroadcastRef.current = endBroadcast;
 
   const toggleHand = useCallback(async () => {
     const action = handRaised ? "lower-hand" : "raise-hand";
