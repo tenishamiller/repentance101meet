@@ -13,7 +13,20 @@ export async function GET() {
   const isAdmin = session.user.role === "ADMIN";
 
   if (session.user.status !== "APPROVED" && !isAdmin) {
-    return Response.json({ error: "Account not approved" }, { status: 403 });
+    const onboardingSessions = await prisma.meeting.findMany({
+      where: {
+        kind: "PRIVATE",
+        isOnboardingApproval: true,
+        invitedUserId: session.user.id,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: {
+        invitedUser: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        createdBy: { select: { id: true, name: true, avatarUrl: true } },
+      },
+    });
+    return Response.json({ sessions: onboardingSessions, approvedMembers: [], isAdmin: false });
   }
 
   const sessions = await prisma.meeting.findMany({
@@ -126,7 +139,11 @@ export async function PATCH(request: NextRequest) {
       where: { id: sessionId },
       data: { status: "ENDED", endedAt: new Date() },
     });
-    return Response.json({ session: updated });
+    return Response.json({
+      session: updated,
+      requiresOnboardingDecision: privateSession.isOnboardingApproval,
+      invitedUserId: privateSession.invitedUserId,
+    });
   }
 
   return Response.json({ error: "Invalid action" }, { status: 400 });

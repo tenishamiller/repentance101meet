@@ -10,7 +10,13 @@ type Props = {
 
 export function PrivateSessionClient({ token }: Props) {
   const [data, setData] = useState<{
-    session: { title: string; createdById: string };
+    session: {
+      id: string;
+      title: string;
+      createdById: string;
+      isOnboardingApproval: boolean;
+      invitedUserId: string | null;
+    };
     isHost: boolean;
     peer: { id: string; name: string; avatarUrl: string | null };
     user: { id: string; name: string };
@@ -35,8 +41,8 @@ export function PrivateSessionClient({ token }: Props) {
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
         <h1 className="font-serif text-2xl font-bold text-burgundy">Cannot Join Session</h1>
         <p className="mt-2 max-w-md text-center text-burgundy/70">{error}</p>
-        <Link href="/personal-ministry" className="btn-primary mt-6">
-          Back to Personal Ministry
+        <Link href="/messages" className="btn-primary mt-6">
+          Back to Membership Messages
         </Link>
       </div>
     );
@@ -55,11 +61,14 @@ export function PrivateSessionClient({ token }: Props) {
     <PrivateMinistryRoom
       meetingToken={token}
       meetingTitle={data.session.title}
+      sessionId={data.session.id}
       userId={data.user.id}
       userName={data.user.name}
       isHost={data.isHost}
       hostId={data.session.createdById}
       peer={data.peer}
+      isOnboardingApproval={data.session.isOnboardingApproval}
+      invitedUserId={data.session.invitedUserId}
     />
   );
 }

@@ -54,6 +54,14 @@ enum MemberActivityType {
   UNBLOCKED
   BLOCKED_MEETING
   UNBLOCKED_MEETING
+  QUESTIONNAIRE_COMPLETED
+  ONBOARDING_INVITE_SENT
+}
+
+enum MembershipMessageType {
+  TEXT
+  ONBOARDING_INVITE
+  SYSTEM
 }
 
 model User {
@@ -64,6 +72,9 @@ model User {
   avatarUrl    String?
   role         Role          @default(MEMBER)
   status       AccountStatus @default(PENDING)
+  questionnaireCompletedAt DateTime?
+  questionnaireAnswers     Json?
+  onboardingDueAt          DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -77,6 +88,8 @@ model User {
   meetingParticipants MeetingParticipant[]
   activityLogs        MemberActivityLog[]   @relation("MemberActivitySubject")
   activityActions     MemberActivityLog[]   @relation("MemberActivityActor")
+  membershipThread    MembershipMessage[]   @relation("MembershipThread")
+  membershipMessagesSent MembershipMessage[] @relation("MembershipMessageSender")
 }
 
 model MemberActivityLog {
@@ -96,6 +109,23 @@ model MemberActivityLog {
   actor   User?    @relation("MemberActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([userId, occurredAt])
+}
+
+model MembershipMessage {
+  id           String                @id @default(cuid())
+  threadUserId String
+  senderId     String
+  content      String                @db.Text
+  type         MembershipMessageType @default(TEXT)
+  meetingId    String?
+  readAt       DateTime?
+  createdAt    DateTime              @default(now())
+
+  threadUser User     @relation("MembershipThread", fields: [threadUserId], references: [id], onDelete: Cascade)
+  sender     User     @relation("MembershipMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  meeting    Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  @@index([threadUserId, createdAt])
 }
 
 model BlockList {
@@ -167,6 +197,7 @@ model Meeting {
   livekitRoom   String?
   createdById   String
   invitedUserId String?
+  isOnboardingApproval Boolean @default(false)
   startedAt     DateTime?
   endedAt       DateTime?
   memberVideoEnabled Boolean @default(true)
@@ -181,6 +212,7 @@ model Meeting {
   messages     MeetingMessage[]
   signals      MeetingSignal[]
   activityLogs MemberActivityLog[]
+  membershipMessages MembershipMessage[]
 }
 
 model MeetingSignal {

@@ -117,6 +117,54 @@ export function AdminMembersPanel({
                   options={MEMBER_STATUS_OPTIONS}
                   onChange={(status) => onStatusChange(m.id, status)}
                 />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await fetch("/api/admin/onboarding", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "invite", userId: m.id }),
+                      });
+                    }}
+                    className="rounded-lg bg-burgundy px-3 py-2 text-xs font-semibold text-cream hover:bg-burgundy-dark"
+                  >
+                    Send 1-on-1 Invite
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await fetch("/api/admin/onboarding", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "start", userId: m.id }),
+                      });
+                    }}
+                    className="rounded-lg border border-gold/40 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-gold/10"
+                  >
+                    Start Session
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const sure = window.confirm(
+                        `Deny and permanently delete ${m.name}'s account?`,
+                      );
+                      if (!sure) return;
+                      const final = window.confirm("Final confirmation: delete this account?");
+                      if (!final) return;
+                      await fetch("/api/admin/onboarding", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "deny", userId: m.id, confirm: true }),
+                      });
+                      window.location.reload();
+                    }}
+                    className="rounded-lg border border-burgundy/40 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/10"
+                  >
+                    Deny & Delete
+                  </button>
+                </div>
               </div>
             )}
           />

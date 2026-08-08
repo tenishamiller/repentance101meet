@@ -22,8 +22,20 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return Response.json({ error: "Session not found" }, { status: 404 });
   }
 
-  if (session.user.status !== "APPROVED" && session.user.role !== "ADMIN") {
+  if (
+    session.user.status !== "APPROVED" &&
+    session.user.role !== "ADMIN" &&
+    !privateSession.isOnboardingApproval
+  ) {
     return Response.json({ error: "Account not approved" }, { status: 403 });
+  }
+
+  if (
+    privateSession.isOnboardingApproval &&
+    session.user.status === "PENDING" &&
+    session.user.id !== privateSession.invitedUserId
+  ) {
+    return Response.json({ error: "This onboarding session is not for you" }, { status: 403 });
   }
 
   const isHost = session.user.id === privateSession.createdById;
@@ -79,6 +91,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       status: privateSession.status,
       createdById: privateSession.createdById,
       invitedUserId: privateSession.invitedUserId,
+      isOnboardingApproval: privateSession.isOnboardingApproval,
     },
     isHost,
     peer,

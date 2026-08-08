@@ -22,6 +22,7 @@ import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
 import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
+import { OnboardingDecisionModal } from "@/components/onboarding/OnboardingDecisionModal";
 import {
   getMemberVideoLayout,
   setMemberVideoLayout,
@@ -37,25 +38,33 @@ type Peer = {
 type Props = {
   meetingToken: string;
   meetingTitle: string;
+  sessionId: string;
   userId: string;
   userName: string;
   isHost: boolean;
   hostId: string;
   peer: Peer;
+  isOnboardingApproval?: boolean;
+  invitedUserId?: string | null;
 };
 
 export function PrivateMinistryRoom({
   meetingToken,
   meetingTitle,
+  sessionId,
   userId,
   isHost,
   hostId,
   peer,
+  isOnboardingApproval = false,
+  invitedUserId,
 }: Props) {
   const router = useRouter();
   const isMobile = useIsMobile();
   const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
   const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
+  const [showDecision, setShowDecision] = useState(false);
+  const [decisionLoading, setDecisionLoading] = useState(false);
 
   useEffect(() => {
     setMemberVideoLayoutState(getMemberVideoLayout());
@@ -90,12 +99,64 @@ export function PrivateMinistryRoom({
     isHost,
     hostId,
     mode: "private",
-    onMeetingEnded: () => router.push("/personal-ministry?ended=1"),
+    onMeetingEnded: () =>
+      router.push(isOnboardingApproval ? "/messages" : "/personal-ministry?ended=1"),
   });
 
   const peerLabel = isHost ? peer.name : "Session host";
 
+  async function handleEndSession() {
+    await endBroadcast();
+    const res = await fetch("/api/private-ministry", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, action: "end" }),
+    });
+    const data = await res.json();
+
+    if (isHost && isOnboardingApproval && data.requiresOnboardingDecision && invitedUserId) {
+      setShowDecision(true);
+      return;
+    }
+
+    router.push(isOnboardingApproval ? "/messages" : "/personal-ministry?ended=1");
+  }
+
+  async function handleDecision(decision: "approve" | "deny") {
+    if (!invitedUserId) return;
+    setDecisionLoading(true);
+    await fetch("/api/admin/onboarding", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "decide",
+        userId: invitedUserId,
+        decision,
+        meetingId: sessionId,
+        confirm: decision === "deny" ? true : undefined,
+      }),
+    });
+    setDecisionLoading(false);
+    setShowDecision(false);
+    router.push("/admin?tab=members");
+  }
+
   return (
+    <>
+    {showDecision && invitedUserId && (
+      <OnboardingDecisionModal
+        memberName={peer.name}
+        userId={invitedUserId}
+        meetingId={sessionId}
+        loading={decisionLoading}
+        onApprove={() => void handleDecision("approve")}
+        onDeny={() => void handleDecision("deny")}
+        onCancel={() => {
+          setShowDecision(false);
+          router.push("/admin?tab=members");
+        }}
+      />
+    )}
     <div className="flex h-mobile-immersive min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
       <div
         className={`flex min-h-0 min-w-0 flex-1 flex-col ${
@@ -131,10 +192,7 @@ export function PrivateMinistryRoom({
                 <button
                   type="button"
                   disabled={isSavingRecording}
-                  onClick={async () => {
-                    await endBroadcast();
-                    router.push("/personal-ministry?ended=1");
-                  }}
+                  onClick={() => void handleEndSession()}
                   className="inline-flex items-center gap-2 rounded-lg border-2 border-gold bg-burgundy-dark px-4 py-2 text-sm font-bold text-cream hover:bg-burgundy disabled:opacity-60"
                 >
                   <Download className="h-4 w-4" />
@@ -237,7 +295,7 @@ export function PrivateMinistryRoom({
           />
           <button
             type="button"
-            onClick={() => router.push("/personal-ministry")}
+            onClick={() => router.push(isOnboardingApproval ? "/messages" : "/personal-ministry")}
             className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-burgundy px-5 py-2.5 text-sm font-semibold text-gold-light hover:bg-burgundy-dark"
           >
             <PhoneOff className="h-4 w-4" />
@@ -292,6 +350,7 @@ export function PrivateMinistryRoom({
         />
       )}
     </div>
+    </>
   );
 }
 

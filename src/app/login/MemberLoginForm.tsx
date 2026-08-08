@@ -35,6 +35,18 @@ export function MemberLoginForm() {
       }
 
       persistOnLogin(normalizedEmail);
+
+      const statusRes = await fetch("/api/onboarding/status");
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        if (statusData.status === "PENDING") {
+          window.location.assign(
+            statusData.questionnaireCompleted ? "/messages" : "/signup",
+          );
+          return;
+        }
+      }
+
       window.location.assign("/dashboard");
     } catch {
       setError("Could not sign in. Please try again.");

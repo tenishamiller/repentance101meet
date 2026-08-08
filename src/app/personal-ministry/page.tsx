@@ -10,7 +10,7 @@ export default async function PersonalMinistryPage() {
   }
 
   if (session.user.status !== "APPROVED" && session.user.role !== "ADMIN") {
-    redirect("/dashboard");
+    redirect("/messages");
   }
 
   return (

@@ -39,6 +39,12 @@ export async function Navbar() {
                 Personal Ministry
               </Link>
               <Link
+                href="/messages"
+                className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
+              >
+                Messages
+              </Link>
+              <Link
                 href="/dashboard"
                 className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
               >

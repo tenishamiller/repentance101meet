@@ -26,6 +26,13 @@ type NavItem = {
 
 const ITEMS: NavItem[] = [
   {
+    href: "/messages",
+    label: "Messages",
+    icon: MessageCircle,
+    match: (p) => p.startsWith("/messages"),
+    memberOnly: true,
+  },
+  {
     href: "/dashboard",
     label: "Home",
     icon: Home,
@@ -68,6 +75,26 @@ export function MobileBottomNav() {
   const isAdmin = session?.user?.role === "ADMIN";
   const isApproved =
     session?.user?.status === "APPROVED" || session?.user?.role === "ADMIN";
+  const isPending = session?.user?.status === "PENDING";
+
+  if (isPending) {
+    return (
+      <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-gold/30 bg-cream/95 backdrop-blur-md md:hidden">
+        <div className="mx-auto flex max-w-lg items-center justify-center px-2 py-2">
+          <Link
+            href="/messages"
+            className={cn(
+              "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold",
+              pathname.startsWith("/messages") ? "text-burgundy" : "text-burgundy/55",
+            )}
+          >
+            <MessageCircle className="h-5 w-5" />
+            Messages
+          </Link>
+        </div>
+      </nav>
+    );
+  }
 
   const visibleItems = ITEMS.filter((item) => {
     if (item.adminOnly && !isAdmin) return false;
