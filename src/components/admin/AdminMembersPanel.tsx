@@ -8,12 +8,16 @@ import { formatRequestDateTime } from "@/lib/utils";
 import { ListPagination } from "./ListPagination";
 import { MEMBER_STATUS_OPTIONS, StatusToggle } from "./StatusToggle";
 import { MemberDetailPanel } from "./MemberDetailPanel";
-import type { Member, MemberStatus, PendingMember } from "./types";
+import { UserDeleteCountdown } from "./UserDeleteCountdown";
+import { isUserPendingDeletion } from "@/lib/user-deletion-shared";
+import type { Member, MemberDirectoryFilter, MemberStatus, PendingMember } from "./types";
 
 type Props = {
   pendingMembers: PendingMember[];
   onStatusChange: (userId: string, status: MemberStatus) => void;
   onBlock: (userId: string) => void;
+  onRemoveProfile: (userId: string) => void;
+  onRestoreProfile: (userId: string) => void;
   refreshKey?: number;
 };
 
@@ -21,6 +25,7 @@ const STATUS_STYLE: Record<string, string> = {
   APPROVED: "bg-gold/20 text-burgundy",
   PENDING: "bg-burgundy/10 text-burgundy",
   REJECTED: "bg-stone-200 text-stone-600",
+  REMOVED: "bg-burgundy/15 text-burgundy line-through",
 };
 
 const PAGE_SIZE = 25;
@@ -29,10 +34,12 @@ export function AdminMembersPanel({
   pendingMembers,
   onStatusChange,
   onBlock,
+  onRemoveProfile,
+  onRestoreProfile,
   refreshKey = 0,
 }: Props) {
   const [filter, setFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | MemberStatus>("ALL");
+  const [statusFilter, setStatusFilter] = useState<MemberDirectoryFilter>("ALL");
   const [page, setPage] = useState(1);
   const [members, setMembers] = useState<Member[]>([]);
   const [total, setTotal] = useState(0);
@@ -148,10 +155,12 @@ export function AdminMembersPanel({
                     type="button"
                     onClick={async () => {
                       const sure = window.confirm(
-                        `Deny and permanently delete ${m.name}'s account?`,
+                        `Remove ${m.name}'s profile from the website? They can be restored within 30 days.`,
                       );
                       if (!sure) return;
-                      const final = window.confirm("Final confirmation: delete this account?");
+                      const final = window.confirm(
+                        "Final confirmation: remove this member's profile?",
+                      );
                       if (!final) return;
                       await fetch("/api/admin/onboarding", {
                         method: "POST",
@@ -162,7 +171,7 @@ export function AdminMembersPanel({
                     }}
                     className="rounded-lg border border-burgundy/40 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/10"
                   >
-                    Deny & Delete
+                    Deny & Remove
                   </button>
                 </div>
               </div>
@@ -194,6 +203,7 @@ export function AdminMembersPanel({
             <option value="APPROVED">Approved</option>
             <option value="PENDING">Pending</option>
             <option value="REJECTED">Denied</option>
+            <option value="REMOVED">Removed (30-day restore)</option>
           </select>
         </div>
 
@@ -216,7 +226,13 @@ export function AdminMembersPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  {members.map((m) => (
+                  {members.map((m) => {
+                    const pendingDeletion =
+                      m.deletedAt &&
+                      m.purgeAt &&
+                      isUserPendingDeletion({ deletedAt: m.deletedAt, purgeAt: m.purgeAt });
+
+                    return (
                     <tr key={m.id} className="border-b border-gold/10 last:border-0">
                       <td className="py-3 pr-4">
                         <div className="flex items-center gap-2">
@@ -240,15 +256,33 @@ export function AdminMembersPanel({
                       </td>
                       <td className="py-3 pr-4">
                         <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[m.status] ?? ""}`}
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[pendingDeletion ? "REMOVED" : m.status] ?? ""}`}
                         >
-                          {m.status === "REJECTED" ? "DENIED" : m.status}
+                          {pendingDeletion
+                            ? "REMOVED"
+                            : m.status === "REJECTED"
+                              ? "DENIED"
+                              : m.status}
                         </span>
+                        {pendingDeletion && m.purgeAt && (
+                          <p className="mt-1 text-[11px] text-burgundy/55">
+                            Purges in <UserDeleteCountdown purgeAt={m.purgeAt} />
+                          </p>
+                        )}
                       </td>
                       <td className="py-3 pr-4 text-burgundy/60">
                         {formatRequestDateTime(m.createdAt)}
                       </td>
                       <td className="py-3">
+                        {pendingDeletion ? (
+                          <button
+                            type="button"
+                            onClick={() => onRestoreProfile(m.id)}
+                            className="rounded-lg border border-gold/40 bg-gold/10 px-2.5 py-1 text-xs font-semibold text-burgundy hover:bg-gold/20"
+                          >
+                            Restore Profile
+                          </button>
+                        ) : (
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                           <StatusToggle
                             value={m.status as MemberStatus}
@@ -265,10 +299,19 @@ export function AdminMembersPanel({
                               Block
                             </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => onRemoveProfile(m.id)}
+                            className="rounded-lg border border-burgundy/40 px-2.5 py-1 text-xs font-semibold text-burgundy hover:bg-burgundy/10"
+                          >
+                            Remove Profile
+                          </button>
                         </div>
+                        )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

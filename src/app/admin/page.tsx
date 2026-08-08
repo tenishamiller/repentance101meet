@@ -28,7 +28,6 @@ export default function AdminPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [channels, setChannels] = useState<ChannelSummary[]>([]);
   const [newMeetingTitle, setNewMeetingTitle] = useState("Repentance 101 Teaching");
-  const [generatedLinkToken, setGeneratedLinkToken] = useState("");
   const [membersRefreshKey, setMembersRefreshKey] = useState(0);
   const [goLiveLoading, setGoLiveLoading] = useState(false);
 
@@ -74,6 +73,31 @@ export default function AdminPage() {
     void fetchAll();
   }
 
+  async function removeMemberProfile(userId: string) {
+    const sure = window.confirm(
+      "Remove this member's profile from the website? You can restore it within 30 days.",
+    );
+    if (!sure) return;
+
+    await fetch("/api/admin/members", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, action: "delete" }),
+    });
+    setMembersRefreshKey((k) => k + 1);
+    void fetchAll();
+  }
+
+  async function restoreMemberProfile(userId: string) {
+    await fetch("/api/admin/members", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, action: "restore" }),
+    });
+    setMembersRefreshKey((k) => k + 1);
+    void fetchAll();
+  }
+
   async function setChannelRequestStatus(membershipId: string, status: ChannelMembershipStatus) {
     await fetch("/api/admin/channel-requests", {
       method: "PATCH",
@@ -91,19 +115,6 @@ export default function AdminPage() {
       body: JSON.stringify({ membershipId, reason: reason.trim() || undefined }),
     });
     void fetchAll();
-  }
-
-  async function createMeeting() {
-    const res = await fetch("/api/admin/meetings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newMeetingTitle }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      setGeneratedLinkToken(data.meeting.linkToken);
-      void fetchAll();
-    }
   }
 
   async function meetingAction(
@@ -136,7 +147,6 @@ export default function AdminPage() {
         const data = await res.json();
         if (!res.ok) return;
         meeting = data.meeting;
-        setGeneratedLinkToken(data.meeting.linkToken);
       }
 
       if (!meeting) return;
@@ -205,6 +215,8 @@ export default function AdminPage() {
           pendingMembers={stats.pendingMembers}
           onStatusChange={(userId, status) => void setMemberStatus(userId, status)}
           onBlock={(userId) => void blockUser(userId)}
+          onRemoveProfile={(userId) => void removeMemberProfile(userId)}
+          onRestoreProfile={(userId) => void restoreMemberProfile(userId)}
           refreshKey={membersRefreshKey}
         />
       )}
@@ -225,8 +237,6 @@ export default function AdminPage() {
           recordings={stats.recordings}
           newMeetingTitle={newMeetingTitle}
           onTitleChange={setNewMeetingTitle}
-          onCreateMeeting={() => void createMeeting()}
-          generatedLinkToken={generatedLinkToken}
           onGoLive={() => void goLive()}
           goLiveLoading={goLiveLoading}
           onMeetingAction={meetingAction}

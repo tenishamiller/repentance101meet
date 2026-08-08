@@ -56,6 +56,9 @@ enum MemberActivityType {
   UNBLOCKED_MEETING
   QUESTIONNAIRE_COMPLETED
   ONBOARDING_INVITE_SENT
+  MEMBER_DELETED
+  MEMBER_RESTORED
+  MEMBER_PURGED
 }
 
 enum MembershipMessageType {
@@ -75,9 +78,14 @@ model User {
   questionnaireCompletedAt DateTime?
   questionnaireAnswers     Json?
   onboardingDueAt          DateTime?
+  deletedAt                DateTime?
+  purgeAt                  DateTime?
+  deletedById              String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  deletedBy           User?                 @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  membersDeleted      User[]                @relation("UserDeletedBy")
   channelMemberships  ChannelMembership[]
   channelMessages     ChannelMessage[]
   meetingMessages     MeetingMessage[]

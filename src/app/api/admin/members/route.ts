@@ -2,6 +2,13 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logMemberActivity } from "@/lib/member-activity";
+import {
+  activeUserFilter,
+  purgeExpiredUsers,
+  restoreDeletedUser,
+  softDeleteUser,
+  visibleUserFilter,
+} from "@/lib/user-deletion";
 import type { Prisma } from "@/generated/prisma/client";
 
 const DEFAULT_LIMIT = 25;
@@ -12,6 +19,8 @@ export async function GET(request: NextRequest) {
   if (session?.user?.role !== "ADMIN") {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  await purgeExpiredUsers();
 
   const { searchParams } = request.nextUrl;
   const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
@@ -24,14 +33,26 @@ export async function GET(request: NextRequest) {
 
   const where: Prisma.UserWhereInput = { role: "MEMBER" };
 
-  if (status !== "ALL") {
-    where.status = status as "PENDING" | "APPROVED" | "REJECTED";
+  if (status === "REMOVED") {
+    where.deletedAt = { not: null };
+    where.purgeAt = { gt: new Date() };
+  } else {
+    Object.assign(where, visibleUserFilter());
+    if (status !== "ALL") {
+      where.status = status as "PENDING" | "APPROVED" | "REJECTED";
+      where.deletedAt = null;
+    }
   }
 
   if (q) {
-    where.OR = [
-      { name: { contains: q, mode: "insensitive" } },
-      { email: { contains: q, mode: "insensitive" } },
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      {
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } },
+        ],
+      },
     ];
   }
 
@@ -42,13 +63,28 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        status: true,
+        avatarUrl: true,
+        createdAt: true,
+        deletedAt: true,
+        purgeAt: true,
+      },
     }),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   return Response.json({
-    members,
+    members: members.map((m) => ({
+      ...m,
+      createdAt: m.createdAt.toISOString(),
+      deletedAt: m.deletedAt?.toISOString() ?? null,
+      purgeAt: m.purgeAt?.toISOString() ?? null,
+    })),
     total,
     page,
     limit,
@@ -67,6 +103,14 @@ export async function PATCH(request: NextRequest) {
   const allowed = ["PENDING", "APPROVED", "REJECTED"];
   if (!allowed.includes(status)) {
     return Response.json({ error: "Invalid status" }, { status: 400 });
+  }
+
+  const existing = await prisma.user.findFirst({
+    where: { id: userId, role: "MEMBER", deletedAt: null },
+  });
+
+  if (!existing) {
+    return Response.json({ error: "Member not found" }, { status: 404 });
   }
 
   const user = await prisma.user.update({
@@ -91,4 +135,36 @@ export async function PATCH(request: NextRequest) {
   }
 
   return Response.json({ user });
+}
+
+export async function POST(request: NextRequest) {
+  const session = await auth();
+  if (session?.user?.role !== "ADMIN") {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { userId, action, reason } = await request.json();
+
+  if (!userId || !action) {
+    return Response.json({ error: "userId and action required" }, { status: 400 });
+  }
+
+  try {
+    if (action === "delete") {
+      await softDeleteUser(userId, session.user.id, reason);
+      return Response.json({ success: true });
+    }
+
+    if (action === "restore") {
+      await restoreDeletedUser(userId, session.user.id);
+      return Response.json({ success: true });
+    }
+
+    return Response.json({ error: "Invalid action" }, { status: 400 });
+  } catch (error) {
+    return Response.json(
+      { error: error instanceof Error ? error.message : "Action failed" },
+      { status: 400 },
+    );
+  }
 }

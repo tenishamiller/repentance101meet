@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getAppUrl } from "@/lib/app-url";
 import { logMemberActivity } from "@/lib/member-activity";
+import { softDeleteUser } from "@/lib/user-deletion";
 import {
   ONBOARDING_DUE_HOURS,
   ONBOARDING_INVITE_MESSAGE,
@@ -118,8 +119,8 @@ export async function denyAndDeleteMember(adminId: string, userId: string, reaso
     type: "MEMBERSHIP_DENIED",
     actorId: adminId,
     reason: reason ?? "Membership denied",
-    label: reason ?? "Membership denied and account removed",
+    label: reason ?? "Membership denied and profile scheduled for removal",
   });
 
-  await prisma.user.delete({ where: { id: userId } });
+  await softDeleteUser(userId, adminId, reason ?? "Membership denied");
 }

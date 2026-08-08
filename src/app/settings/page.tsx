@@ -224,7 +224,8 @@ export default function SettingsPage() {
       <section className="mt-6 rounded-2xl border-2 border-burgundy/30 bg-burgundy/5 p-6">
         <h2 className="font-serif font-semibold text-burgundy">Delete Account</h2>
         <p className="mt-2 text-sm text-burgundy/70">
-          This permanently deletes your profile. Type <strong>confirm</strong> to proceed.
+          This schedules your profile for removal. Norman can restore it within 30 days; after
+          that you would need to create a new account. Type <strong>confirm</strong> to proceed.
         </p>
         <input
           type="text"

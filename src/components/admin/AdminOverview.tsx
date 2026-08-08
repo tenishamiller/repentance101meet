@@ -169,7 +169,7 @@ export function AdminOverview({ stats, onGoTo }: Props) {
           >
             <Radio className="mb-2 h-6 w-6 text-gold-muted" />
             <p className="font-semibold text-burgundy">Start Livestream</p>
-            <p className="mt-1 text-xs text-burgundy/60">Generate link & go live</p>
+            <p className="mt-1 text-xs text-burgundy/60">Go live & teach</p>
           </button>
           <button
             type="button"

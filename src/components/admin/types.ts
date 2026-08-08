@@ -17,7 +17,11 @@ export type PendingMember = {
 
 export type Member = PendingMember & {
   status: MemberStatus;
+  deletedAt?: string | null;
+  purgeAt?: string | null;
 };
+
+export type MemberDirectoryFilter = "ALL" | MemberStatus | "REMOVED";
 
 export type MemberStatus = "PENDING" | "APPROVED" | "REJECTED";
 

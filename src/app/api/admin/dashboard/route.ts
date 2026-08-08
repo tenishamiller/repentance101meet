@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { activeMeetingFilter, purgeExpiredMeetings, visibleMeetingFilter } from "@/lib/meeting-deletion";
+import { activeUserFilter, purgeExpiredUsers } from "@/lib/user-deletion";
 
 export async function GET() {
   const session = await auth();
@@ -9,8 +10,10 @@ export async function GET() {
   }
 
   await purgeExpiredMeetings();
+  await purgeExpiredUsers();
 
   const meetingVisibility = activeMeetingFilter();
+  const memberVisibility = activeUserFilter();
 
   const [
     pendingMembers,
@@ -25,7 +28,7 @@ export async function GET() {
     recordings,
   ] = await Promise.all([
     prisma.user.findMany({
-      where: { status: "PENDING", role: "MEMBER" },
+      where: { status: "PENDING", role: "MEMBER", ...memberVisibility },
       orderBy: { createdAt: "desc" },
     }),
     prisma.channelMembership.findMany({
@@ -63,8 +66,8 @@ export async function GET() {
       orderBy: { endedAt: "desc" },
       take: 10,
     }),
-    prisma.user.count({ where: { role: "MEMBER", status: "APPROVED" } }),
-    prisma.user.count({ where: { role: "MEMBER" } }),
+    prisma.user.count({ where: { role: "MEMBER", status: "APPROVED", ...memberVisibility } }),
+    prisma.user.count({ where: { role: "MEMBER", ...memberVisibility } }),
     prisma.meeting.findMany({
       where: { status: "LIVE", kind: "PRIVATE", ...meetingVisibility },
       include: {

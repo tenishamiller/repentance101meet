@@ -30,7 +30,16 @@ export function MemberLoginForm({ mobileApp = false }: { mobileApp?: boolean }) 
       });
 
       if (result?.error || result?.ok === false) {
-        setError("Invalid email or password, or account not approved.");
+        const msgRes = await fetch("/api/auth/login-message", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail, password }),
+        });
+        const msgData = msgRes.ok ? await msgRes.json() : null;
+        setError(
+          msgData?.message ??
+            "Invalid email or password, or account not approved.",
+        );
         setLoading(false);
         return;
       }

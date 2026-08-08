@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { softDeleteUser } from "@/lib/user-deletion";
 
 export async function DELETE() {
   const session = await auth();
@@ -11,7 +11,11 @@ export async function DELETE() {
     return Response.json({ error: "Admin account cannot be deleted" }, { status: 400 });
   }
 
-  await prisma.user.delete({ where: { id: session.user.id } });
+  await softDeleteUser(
+    session.user.id,
+    session.user.id,
+    "Member requested account removal",
+  );
 
   return Response.json({ success: true });
 }

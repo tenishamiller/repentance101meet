@@ -2,6 +2,8 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { logMemberActivity } from "@/lib/member-activity";
+import { permanentlyDeleteUser, purgeExpiredUsers } from "@/lib/user-deletion";
+import { isUserPendingDeletion } from "@/lib/user-deletion-shared";
 
 const signupSchema = z.object({
   name: z.string().min(2).max(100),
@@ -14,12 +16,28 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = signupSchema.parse(body);
 
+    await purgeExpiredUsers();
+
     const existing = await prisma.user.findUnique({
       where: { email: data.email.toLowerCase() },
     });
 
     if (existing) {
-      return Response.json({ error: "Email already registered" }, { status: 400 });
+      if (isUserPendingDeletion(existing)) {
+        return Response.json(
+          {
+            error:
+              "This email was removed from the ministry. Please contact leadership directly if you believe this was a mistake.",
+          },
+          { status: 400 },
+        );
+      }
+
+      if (existing.deletedAt) {
+        await permanentlyDeleteUser(existing.id);
+      } else {
+        return Response.json({ error: "Email already registered" }, { status: 400 });
+      }
     }
 
     const passwordHash = await bcrypt.hash(data.password, 12);

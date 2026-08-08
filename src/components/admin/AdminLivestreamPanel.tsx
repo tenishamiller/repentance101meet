@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, Mic, Radio, Share2, Trash2, Undo2, Video } from "lucide-react";
+import { Download, Mic, Share2, Trash2, Undo2, Video } from "lucide-react";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { DeleteCountdown } from "@/components/admin/DeleteCountdown";
 import { ListPagination } from "@/components/admin/ListPagination";
@@ -14,8 +14,6 @@ type Props = {
   recordings: Meeting[];
   newMeetingTitle: string;
   onTitleChange: (title: string) => void;
-  onCreateMeeting: () => void;
-  generatedLinkToken: string;
   onGoLive: () => void;
   goLiveLoading?: boolean;
   onMeetingAction: (meetingId: string, action: "start" | "end" | "delete" | "undo-delete") => void;
@@ -26,8 +24,6 @@ export function AdminLivestreamPanel({
   recordings,
   newMeetingTitle,
   onTitleChange,
-  onCreateMeeting,
-  generatedLinkToken,
   onGoLive,
   goLiveLoading = false,
   onMeetingAction,
@@ -109,8 +105,9 @@ export function AdminLivestreamPanel({
           Live Teaching Room
         </h2>
         <p className="mb-4 text-sm text-burgundy/70">
-          Generate a member link, start your session, and broadcast with full controls — camera,
-          mic, screen share, recording, chat with attachments, raise hand, and member reactions.
+          Press Go Live to start your session and broadcast with full controls — camera, mic, screen
+          share, recording, chat with attachments, raise hand, and member reactions. Share the member
+          link from inside the livestream room.
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
@@ -142,7 +139,7 @@ export function AdminLivestreamPanel({
           <p className="mt-2 max-w-xl text-sm text-cream/85">
             {liveMeeting
               ? "Members can join from the livestream page. Return to the room to share camera, screen, chat, and recording."
-              : "Set your session title, generate the member link if needed, then press Go Live — that starts the session and opens your broadcast room."}
+              : "Set your session title and press Go Live — that starts the session and opens your broadcast room."}
           </p>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -173,67 +170,24 @@ export function AdminLivestreamPanel({
                   : "Go Live Now"}
             </button>
           </div>
-
-          {!generatedLinkToken && !activeSession && (
-            <p className="mt-4 text-xs text-gold-light/70">
-              Tip: Go Live creates a session automatically. You can also generate a member link first
-              below if you want to share it before you start.
-            </p>
-          )}
         </div>
 
-        {(generatedLinkToken || activeSession) && (
+        {activeSession && (
           <div className="border-t border-gold/20 bg-cream-dark px-6 py-4">
             <MemberJoinLink
-              meetingToken={generatedLinkToken || activeSession!.linkToken}
-              title="Member join link — share after you go live"
+              meetingToken={activeSession.linkToken}
+              title="Member join link — share from the livestream room"
               variant="row"
             />
           </div>
         )}
       </section>
 
-      {/* Create link (optional — for sharing before broadcast) */}
-      <section className="card-brand p-6">
-        <h2 className="mb-2 font-serif text-xl font-semibold text-burgundy">
-          Generate Link Early (optional)
-        </h2>
-        <p className="mb-4 text-sm text-burgundy/60">
-          Only needed if you want a member link before pressing Go Live. Otherwise, Go Live above
-          handles everything.
-        </p>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <input
-            type="text"
-            value={newMeetingTitle}
-            onChange={(e) => onTitleChange(e.target.value)}
-            className="input-field flex-1"
-            placeholder="e.g. Repentance 101 — Sunday Teaching"
-          />
-          <button
-            type="button"
-            onClick={onCreateMeeting}
-            className="btn-primary inline-flex shrink-0 items-center gap-2 !px-6"
-          >
-            <Radio className="h-4 w-4" />
-            Generate Link
-          </button>
-        </div>
-      </section>
-
-      {generatedLinkToken && !activeSession && (
-        <MemberJoinLink
-          meetingToken={generatedLinkToken}
-          title="Draft member link (session not started yet)"
-          variant="hero"
-        />
-      )}
-
       {/* Session history */}
       <section className="card-brand p-6">
         <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">Session History</h2>
         {meetings.length === 0 ? (
-          <p className="text-burgundy/60">No sessions yet — generate a member link above.</p>
+          <p className="text-burgundy/60">No sessions yet — press Go Live to start your first teaching.</p>
         ) : (
           <div className="space-y-4">
             {pagedMeetings.map((m) => {

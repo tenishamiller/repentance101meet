@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { authConfig } from "@/lib/auth.config";
+import { isUserPendingDeletion } from "@/lib/user-deletion-shared";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -28,6 +29,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           user.passwordHash,
         );
         if (!valid) return null;
+
+        if (isUserPendingDeletion(user)) return null;
 
         if (user.status === "REJECTED") return null;
 
