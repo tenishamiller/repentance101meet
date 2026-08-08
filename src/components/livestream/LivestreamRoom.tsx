@@ -100,10 +100,10 @@ export function LivestreamRoom({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {isHost ? (
           <>
-            {/* Host toolbar — compact, never overlaps video */}
-            <div className="shrink-0 border-b border-gold/30 bg-burgundy px-3 py-2 sm:px-4 sm:py-3">
+            {/* Host header — title & status only */}
+            <div className="shrink-0 border-b border-gold/30 bg-burgundy px-3 py-2 sm:px-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0">
                   <p className="truncate font-serif text-sm font-semibold text-cream sm:text-base">
                     {meetingTitle}
                   </p>
@@ -123,80 +123,17 @@ export function LivestreamRoom({
                     {isScreenSharing && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 font-semibold text-cream">
                         <MonitorUp className="h-3 w-3" />
-                        Screen sharing
+                        Sharing screen
                       </span>
                     )}
                     <span>{viewerCount} watching</span>
                   </div>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <HostPolicyToggle
-                    active={memberVideoEnabled}
-                    onClick={toggleMemberVideo}
-                    enabledLabel="Member Video On"
-                    disabledLabel="Member Video Off"
-                    enabledIcon={Video}
-                    disabledIcon={VideoOff}
-                  />
-                  <HostPolicyToggle
-                    active={memberMicEnabled}
-                    onClick={toggleMemberMic}
-                    enabledLabel="Member Mics On"
-                    disabledLabel="Member Mics Off"
-                    enabledIcon={Mic}
-                    disabledIcon={MicOff}
-                  />
-                  {!isRecording ? (
-                    <button
-                      type="button"
-                      onClick={beginRecording}
-                      disabled={!isLive}
-                      className="inline-flex items-center gap-2 rounded-lg border border-gold bg-gold px-3 py-2 text-xs font-bold text-burgundy-deep transition hover:bg-gold-light disabled:opacity-50 sm:text-sm"
-                    >
-                      <Circle className="h-4 w-4 fill-burgundy text-burgundy" />
-                      Record
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={isSavingRecording}
-                      onClick={async () => {
-                        await endBroadcast();
-                      }}
-                      className="inline-flex items-center gap-2 rounded-lg border border-gold bg-cream/10 px-3 py-2 text-xs font-bold text-gold-light transition hover:bg-gold/20 disabled:opacity-60 sm:text-sm"
-                    >
-                      <Download className="h-4 w-4" />
-                      {isSavingRecording ? "Saving..." : "End & Download"}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => void toggleScreenShare()}
-                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition sm:text-sm ${
-                      isScreenSharing
-                        ? "border-gold bg-gold text-burgundy-deep"
-                        : "border-gold/50 bg-burgundy-dark text-gold-light hover:border-gold"
-                    }`}
-                  >
-                    {isScreenSharing ? (
-                      <>
-                        <MonitorOff className="h-4 w-4" />
-                        Stop Share
-                      </>
-                    ) : (
-                      <>
-                        <MonitorUp className="h-4 w-4" />
-                        Share Screen
-                      </>
-                    )}
-                  </button>
-                </div>
               </div>
             </div>
 
-            {/* Host video — bounded height, no text overlays */}
-            <div className="relative min-h-0 flex-1 overflow-hidden bg-black lg:max-h-[calc(100vh-220px)]">
+            {/* Host video */}
+            <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
               <video
                 ref={localVideoRef}
                 autoPlay
@@ -211,38 +148,89 @@ export function LivestreamRoom({
               )}
             </div>
 
-            {/* Host controls — always visible below video */}
-            <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-gold/20 bg-burgundy-dark px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
-              <ControlButton
-                onClick={toggleMute}
-                active={!isMuted}
-                label={isMuted ? "Unmute" : "Mute"}
-                icon={isMuted ? MicOff : Mic}
-              />
-              <ControlButton
-                onClick={toggleCamera}
-                active={!isCameraOff}
-                label={isCameraOff ? "Camera On" : "Camera Off"}
-                icon={isCameraOff ? VideoOff : Video}
-              />
-              {!isRecording && (
-                <button
-                  type="button"
-                  onClick={beginRecording}
-                  disabled={!isLive}
-                  className="inline-flex items-center gap-2 rounded-full border border-gold/50 bg-gold/15 px-4 py-2 text-sm font-semibold text-gold-light hover:bg-gold/25 disabled:opacity-50 lg:hidden"
-                >
-                  <Circle className="h-4 w-4 fill-gold text-gold" />
-                  Record
-                </button>
-              )}
-            </div>
-
             <ParticipantGallery
               members={galleryMembers}
               memberVideoEnabled={memberVideoEnabled}
               memberMicEnabled={memberMicEnabled}
             />
+
+            {/* Host controls — always visible dock with Record, Share, etc. */}
+            <div className="z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark px-2 py-2.5 sm:px-4 sm:py-3">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {!isRecording ? (
+                  <button
+                    type="button"
+                    onClick={beginRecording}
+                    disabled={!isLive}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gold bg-gold px-3 py-2 text-xs font-bold text-burgundy-deep transition hover:bg-gold-light disabled:opacity-50 sm:text-sm"
+                  >
+                    <Circle className="h-4 w-4 fill-burgundy text-burgundy" />
+                    Record
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isSavingRecording}
+                    onClick={async () => {
+                      await endBroadcast();
+                    }}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gold bg-cream/10 px-3 py-2 text-xs font-bold text-gold-light transition hover:bg-gold/20 disabled:opacity-60 sm:text-sm"
+                  >
+                    <Download className="h-4 w-4" />
+                    {isSavingRecording ? "Saving..." : "End & Download"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void toggleScreenShare()}
+                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition sm:text-sm ${
+                    isScreenSharing
+                      ? "border-gold bg-gold text-burgundy-deep"
+                      : "border-gold/50 bg-burgundy text-gold-light hover:border-gold"
+                  }`}
+                >
+                  {isScreenSharing ? (
+                    <>
+                      <MonitorOff className="h-4 w-4" />
+                      Stop Share
+                    </>
+                  ) : (
+                    <>
+                      <MonitorUp className="h-4 w-4" />
+                      Share Screen
+                    </>
+                  )}
+                </button>
+                <HostPolicyToggle
+                  active={memberVideoEnabled}
+                  onClick={toggleMemberVideo}
+                  enabledLabel="Member Video On"
+                  disabledLabel="Member Video Off"
+                  enabledIcon={Video}
+                  disabledIcon={VideoOff}
+                />
+                <HostPolicyToggle
+                  active={memberMicEnabled}
+                  onClick={toggleMemberMic}
+                  enabledLabel="Member Mics On"
+                  disabledLabel="Member Mics Off"
+                  enabledIcon={Mic}
+                  disabledIcon={MicOff}
+                />
+                <ControlButton
+                  onClick={toggleMute}
+                  active={!isMuted}
+                  label={isMuted ? "Unmute" : "Mute"}
+                  icon={isMuted ? MicOff : Mic}
+                />
+                <ControlButton
+                  onClick={toggleCamera}
+                  active={!isCameraOff}
+                  label={isCameraOff ? "Camera On" : "Camera Off"}
+                  icon={isCameraOff ? VideoOff : Video}
+                />
+              </div>
+            </div>
           </>
         ) : (
           <>

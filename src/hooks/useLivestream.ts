@@ -898,6 +898,7 @@ export function useLivestream({
       attachLocalStream(screenStream);
       await replaceVideoOnAllConnections(screenStream);
       setIsScreenSharing(true);
+      if (isHost) setIsLive(true);
 
       screenStream.getVideoTracks()[0]?.addEventListener("ended", () => {
         void stopScreenShare();
@@ -905,7 +906,7 @@ export function useLivestream({
     } catch {
       setError("Could not share screen. Choose a window or tab when prompted, or try Chrome.");
     }
-  }, [attachLocalStream, isScreenSharing, replaceVideoOnAllConnections, stopScreenShare]);
+  }, [attachLocalStream, isHost, isScreenSharing, replaceVideoOnAllConnections, stopScreenShare]);
 
   const endBroadcast = useCallback(async () => {
     if (!isHost) return null;
