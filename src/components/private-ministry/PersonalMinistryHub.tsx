@@ -7,6 +7,7 @@ import {
   Heart,
   Plus,
   Shield,
+  Trash2,
   UserPlus,
   Video,
 } from "lucide-react";
@@ -76,12 +77,28 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
     }
   }
 
-  async function sessionAction(sessionId: string, action: "start" | "end") {
-    await fetch("/api/private-ministry", {
+  async function sessionAction(sessionId: string, action: "start" | "end" | "hide") {
+    if (action === "hide") {
+      const sure = window.confirm(
+        isAdmin
+          ? "Remove this session from your log? The member will still see it in their Personal Ministry history."
+          : "Remove this session from your log? Your host will still see it in their Personal Ministry history.",
+      );
+      if (!sure) return;
+    }
+
+    const res = await fetch("/api/private-ministry", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId, action }),
     });
+
+    if (!res.ok && action === "hide") {
+      const data = await res.json().catch(() => ({}));
+      window.alert(typeof data.error === "string" ? data.error : "Could not remove session.");
+      return;
+    }
+
     void fetchSessions();
   }
 
@@ -159,6 +176,17 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
               >
                 Join Private Session
               </Link>
+            )}
+            {s.status !== "LIVE" && (
+              <button
+                type="button"
+                onClick={() => void sessionAction(s.id, "hide")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-burgundy/25 px-3 py-2 text-sm font-medium text-burgundy/70 hover:bg-burgundy/5 hover:text-burgundy"
+                title="Remove from your log only"
+              >
+                <Trash2 className="h-4 w-4" />
+                Remove from log
+              </button>
             )}
           </div>
         </div>

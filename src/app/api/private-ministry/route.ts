@@ -18,6 +18,7 @@ export async function GET() {
         kind: "PRIVATE",
         isOnboardingApproval: true,
         invitedUserId: session.user.id,
+        memberHiddenAt: null,
       },
       orderBy: { createdAt: "desc" },
       take: 5,
@@ -31,8 +32,8 @@ export async function GET() {
 
   const sessions = await prisma.meeting.findMany({
     where: isAdmin
-      ? { kind: "PRIVATE" }
-      : { kind: "PRIVATE", invitedUserId: session.user.id },
+      ? { kind: "PRIVATE", hostHiddenAt: null }
+      : { kind: "PRIVATE", invitedUserId: session.user.id, memberHiddenAt: null },
     orderBy: { createdAt: "desc" },
     take: 30,
     include: {
@@ -103,8 +104,8 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
+  if (!session?.user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { sessionId, action } = await request.json();
@@ -116,15 +117,22 @@ export async function PATCH(request: NextRequest) {
     return Response.json({ error: "Session not found" }, { status: 404 });
   }
 
-  if (action === "start") {
-    const updated = await prisma.meeting.update({
-      where: { id: sessionId },
-      data: { status: "LIVE", startedAt: new Date() },
-    });
-    return Response.json({ session: updated });
-  }
+  const isAdmin = session.user.role === "ADMIN";
+  const isInvitee = privateSession.invitedUserId === session.user.id;
 
-  if (action === "end") {
+  if (action === "start" || action === "end") {
+    if (!isAdmin) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    if (action === "start") {
+      const updated = await prisma.meeting.update({
+        where: { id: sessionId },
+        data: { status: "LIVE", startedAt: new Date() },
+      });
+      return Response.json({ session: updated });
+    }
+
     await prisma.meetingSignal.create({
       data: {
         meetingId: privateSession.id,
@@ -144,6 +152,33 @@ export async function PATCH(request: NextRequest) {
       requiresOnboardingDecision: privateSession.isOnboardingApproval,
       invitedUserId: privateSession.invitedUserId,
     });
+  }
+
+  if (action === "hide") {
+    if (privateSession.status === "LIVE") {
+      return Response.json(
+        { error: "End the session before removing it from your log" },
+        { status: 400 },
+      );
+    }
+
+    if (isAdmin) {
+      const updated = await prisma.meeting.update({
+        where: { id: sessionId },
+        data: { hostHiddenAt: new Date() },
+      });
+      return Response.json({ session: updated });
+    }
+
+    if (isInvitee) {
+      const updated = await prisma.meeting.update({
+        where: { id: sessionId },
+        data: { memberHiddenAt: new Date() },
+      });
+      return Response.json({ session: updated });
+    }
+
+    return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
   return Response.json({ error: "Invalid action" }, { status: 400 });
