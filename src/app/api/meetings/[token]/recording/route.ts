@@ -37,7 +37,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const supabase = createSupabaseAdmin()!;
     const { data, error } = await supabase.storage
       .from("uploads")
-      .createSignedUploadUrl(storagePath);
+      .createSignedUploadUrl(storagePath, { upsert: true });
 
     if (error || !data) {
       return Response.json({ error: error?.message ?? "Upload sign failed" }, { status: 500 });
@@ -61,7 +61,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   });
 }
 
-/** Fallback upload through server (local dev — small/medium files). */
+/** Fallback upload through server (small recordings — Vercel body limit ~4.5 MB). */
+export const maxDuration = 60;
+
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   const session = await auth();
   if (!session?.user) {

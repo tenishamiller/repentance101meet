@@ -29,6 +29,7 @@ export function buildRecordingFilename(title: string, mimeType: string) {
   return `repentance101-${safe}-${date}.${getRecordingExtension(mimeType)}`;
 }
 
+/** Vercel serverless request body limit — larger recordings must upload direct to Supabase. */
 const SERVER_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 
 async function uploadViaServer(
@@ -50,15 +51,33 @@ async function uploadViaServer(
   return { downloadUrl: data.publicUrl, publicUrl: data.publicUrl };
 }
 
+/** Upload using Supabase signed URL (FormData PUT — matches storage-js, no anon key required). */
+async function uploadToSupabaseSignedUrl(
+  signedUrl: string,
+  blob: Blob,
+  filename: string,
+): Promise<void> {
+  const form = new FormData();
+  form.append("cacheControl", "3600");
+  form.append("", blob, filename);
+
+  const res = await fetch(signedUrl, {
+    method: "PUT",
+    body: form,
+    headers: { "x-upsert": "true" },
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(detail || `Signed upload failed (${res.status})`);
+  }
+}
+
 async function uploadViaSignedUrl(
   meetingToken: string,
   blob: Blob,
   filename: string,
 ): Promise<{ downloadUrl: string; publicUrl: string }> {
-  const { createSupabaseBrowser, isSupabaseBrowserConfigured } = await import(
-    "@/lib/supabase-browser"
-  );
-
   const signRes = await fetch(`/api/meetings/${meetingToken}/recording`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -70,25 +89,43 @@ async function uploadViaSignedUrl(
     throw new Error(err.error ?? "Could not prepare recording upload");
   }
 
-  const { path, publicUrl, token } = await signRes.json();
-  if (!path || !publicUrl || !token) {
+  const { signedUrl, path, publicUrl, token } = await signRes.json();
+  if (!publicUrl) {
     throw new Error("Storage is not configured for cloud recordings");
   }
 
-  if (!isSupabaseBrowserConfigured()) {
-    throw new Error("Supabase is not configured in the browser");
+  const errors: string[] = [];
+
+  if (signedUrl) {
+    try {
+      await uploadToSupabaseSignedUrl(signedUrl, blob, filename);
+      return { downloadUrl: publicUrl, publicUrl };
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "Signed URL upload failed");
+    }
   }
 
-  const supabase = createSupabaseBrowser()!;
-  const { error } = await supabase.storage.from("uploads").uploadToSignedUrl(path, token, blob, {
-    contentType: blob.type || "video/webm",
-  });
-
-  if (error) {
-    throw new Error(error.message);
+  if (path && token) {
+    try {
+      const { createSupabaseBrowser, isSupabaseBrowserConfigured } = await import(
+        "@/lib/supabase-browser"
+      );
+      if (!isSupabaseBrowserConfigured()) {
+        throw new Error("Supabase browser client is not configured");
+      }
+      const supabase = createSupabaseBrowser()!;
+      const { error } = await supabase.storage.from("uploads").uploadToSignedUrl(path, token, blob, {
+        contentType: blob.type || "video/webm",
+        upsert: true,
+      });
+      if (error) throw new Error(error.message);
+      return { downloadUrl: publicUrl, publicUrl };
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "SDK upload failed");
+    }
   }
 
-  return { downloadUrl: publicUrl, publicUrl };
+  throw new Error(errors.join(" · ") || "Recording upload failed");
 }
 
 export async function uploadRecordingBlob(
@@ -96,19 +133,16 @@ export async function uploadRecordingBlob(
   blob: Blob,
   filename: string,
 ): Promise<{ downloadUrl: string; publicUrl: string }> {
-  if (blob.size <= SERVER_UPLOAD_MAX_BYTES) {
-    try {
-      return await uploadViaServer(meetingToken, blob, filename);
-    } catch {
-      /* fall through to signed upload for larger reliability edge cases */
-    }
-  }
-
+  // Direct-to-Supabase upload supports large teaching recordings (Vercel caps server uploads at ~4.5 MB).
   try {
     return await uploadViaSignedUrl(meetingToken, blob, filename);
   } catch (signedError) {
     if (blob.size <= SERVER_UPLOAD_MAX_BYTES) {
-      return uploadViaServer(meetingToken, blob, filename);
+      try {
+        return await uploadViaServer(meetingToken, blob, filename);
+      } catch {
+        throw signedError;
+      }
     }
     throw signedError;
   }

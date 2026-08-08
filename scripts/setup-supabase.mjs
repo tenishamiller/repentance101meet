@@ -183,7 +183,7 @@ const storageRes = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
     apikey: serviceKey,
     "Content-Type": "application/json",
   },
-  body: JSON.stringify({ id: "uploads", name: "uploads", public: true }),
+  body: JSON.stringify({ id: "uploads", name: "uploads", public: true, file_size_limit: 524288000 }),
 });
 if (!storageRes.ok && storageRes.status !== 409) {
   console.warn("Bucket warning:", (await storageRes.text()).slice(0, 200));
