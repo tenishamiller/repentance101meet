@@ -4,6 +4,8 @@ import { Providers } from "@/components/Providers";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { AppChrome } from "@/components/layout/AppChrome";
+import { MobileAppShell } from "@/components/layout/MobileAppShell";
+import { LayoutSwitch } from "@/components/layout/LayoutSwitch";
 import { MINISTRY_NAME } from "@/lib/brand";
 import "./globals.css";
 
@@ -36,8 +38,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${crimson.variable} ${sourceSans.variable} h-full`}>
       <body className="ministry-bg flex min-h-full flex-col font-sans text-foreground antialiased">
         <Providers>
-          <Navbar />
-          <AppChrome footer={<Footer />}>{children}</AppChrome>
+          <LayoutSwitch
+            desktop={
+              <>
+                <Navbar />
+                <AppChrome footer={<Footer />}>{children}</AppChrome>
+              </>
+            }
+            mobile={<MobileAppShell>{children}</MobileAppShell>}
+          />
         </Providers>
       </body>
     </html>

@@ -9,7 +9,8 @@ import { BrandDivider } from "@/components/BrandDivider";
 import { Shield } from "lucide-react";
 import { RememberMeCheckbox, useRememberedEmail } from "@/components/auth/RememberMeField";
 
-export function HostLoginForm() {
+export function HostLoginForm({ mobileApp = false }: { mobileApp?: boolean }) {
+  const base = mobileApp ? "/m" : "";
   const { email, setEmail, rememberMe, setRememberMe, persistOnLogin } = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -28,7 +29,7 @@ export function HostLoginForm() {
         password,
         rememberMe: rememberMe ? "true" : "false",
         redirect: false,
-        callbackUrl: "/admin",
+        callbackUrl: `${base}/admin`,
       });
 
       if (result?.error || result?.ok === false) {
@@ -38,7 +39,7 @@ export function HostLoginForm() {
       }
 
       persistOnLogin(normalizedEmail);
-      window.location.assign("/admin");
+      window.location.assign(`${base}/admin`);
     } catch {
       setError("Could not sign in. Please try again.");
       setLoading(false);
@@ -101,7 +102,7 @@ export function HostLoginForm() {
 
         <p className="mt-6 text-center text-xs text-burgundy/50">
           Members{" "}
-          <Link href="/login" className="font-medium text-gold-muted hover:underline">
+          <Link href={`${base}/login`} className="font-medium text-gold-muted hover:underline">
             sign in here
           </Link>
           .

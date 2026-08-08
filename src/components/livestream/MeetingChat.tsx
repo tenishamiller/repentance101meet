@@ -196,7 +196,7 @@ export function MeetingChat({
           return (
           <div
             key={msg.id}
-            className={cn("mb-3 flex gap-2", isHidden && canModerate && "opacity-60")}
+            className="mb-3 flex gap-2"
           >
             <UserAvatar
               userId={msg.user.id}
@@ -208,11 +208,6 @@ export function MeetingChat({
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-sm font-medium text-gold">{msg.user.name}</span>
                 <span className="text-xs text-gold-light/50">{formatDate(msg.createdAt)}</span>
-                {isHidden && canModerate && (
-                  <span className="rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gold-light/70">
-                    Hidden from members
-                  </span>
-                )}
               </div>
               {msg.content && (
                 <p className="whitespace-pre-wrap break-words text-sm text-cream/90">

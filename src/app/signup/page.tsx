@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
+import { isMobileAppPath } from "@/lib/mobile-paths";
 import {
   JESUS_LOVE_OPTIONS,
   SPIRITUAL_STAGE_OPTIONS,
@@ -16,6 +17,8 @@ type Step = "account" | "questionnaire" | "complete";
 
 export default function SignupPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const base = isMobileAppPath(pathname) ? "/m" : "";
   const [step, setStep] = useState<Step>("account");
 
   const [name, setName] = useState("");
@@ -39,7 +42,7 @@ export default function SignupPage() {
       .then((data) => {
         if (!data) return;
         if (data.questionnaireCompleted && data.status === "PENDING") {
-          router.replace("/messages");
+          router.replace(`${base}/messages`);
           return;
         }
         if (data.status === "PENDING" && !data.questionnaireCompleted) {
@@ -121,7 +124,7 @@ export default function SignupPage() {
   }
 
   function goToMessages() {
-    router.push("/messages");
+    router.push(`${base}/messages`);
   }
 
   return (
@@ -159,7 +162,7 @@ export default function SignupPage() {
 
           <p className="mt-6 text-center text-sm text-burgundy/70">
             Already a member?{" "}
-            <Link href="/login" className="font-medium text-gold-muted hover:underline">
+            <Link href={`${base}/login`} className="font-medium text-gold-muted hover:underline">
               Sign in
             </Link>
           </p>

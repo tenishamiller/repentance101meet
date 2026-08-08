@@ -1,15 +1,18 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import { Camera, Loader2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { BrandDivider } from "@/components/BrandDivider";
+import { isMobileAppPath } from "@/lib/mobile-paths";
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
+  const homePath = isMobileAppPath(pathname) ? "/m" : "/";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(session?.user?.name ?? "");
   const [email, setEmail] = useState(session?.user?.email ?? "");
@@ -101,7 +104,7 @@ export default function SettingsPage() {
 
     const res = await fetch("/api/user/delete", { method: "DELETE" });
     if (res.ok) {
-      router.push("/");
+      router.push(homePath);
     } else {
       const data = await res.json();
       setError(data.error);

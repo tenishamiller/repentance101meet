@@ -6,7 +6,8 @@ import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { RememberMeCheckbox, useRememberedEmail } from "@/components/auth/RememberMeField";
 
-export function MemberLoginForm() {
+export function MemberLoginForm({ mobileApp = false }: { mobileApp?: boolean }) {
+  const base = mobileApp ? "/m" : "";
   const { email, setEmail, rememberMe, setRememberMe, persistOnLogin } = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,7 +26,7 @@ export function MemberLoginForm() {
         password,
         rememberMe: rememberMe ? "true" : "false",
         redirect: false,
-        callbackUrl: "/dashboard",
+        callbackUrl: `${base}/dashboard`,
       });
 
       if (result?.error || result?.ok === false) {
@@ -41,13 +42,13 @@ export function MemberLoginForm() {
         const statusData = await statusRes.json();
         if (statusData.status === "PENDING") {
           window.location.assign(
-            statusData.questionnaireCompleted ? "/messages" : "/signup",
+            statusData.questionnaireCompleted ? `${base}/messages` : `${base}/signup`,
           );
           return;
         }
       }
 
-      window.location.assign("/dashboard");
+      window.location.assign(`${base}/dashboard`);
     } catch {
       setError("Could not sign in. Please try again.");
       setLoading(false);
@@ -106,7 +107,7 @@ export function MemberLoginForm() {
 
         <p className="mt-6 text-center text-sm text-burgundy/70">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-gold-muted hover:underline">
+          <Link href={`${base}/signup`} className="font-medium text-gold-muted hover:underline">
             Request membership
           </Link>
         </p>

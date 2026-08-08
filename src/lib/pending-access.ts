@@ -8,10 +8,17 @@ export function isPendingMember(session: Session | null): boolean {
   );
 }
 
+function normalizePath(pathname: string): string {
+  if (pathname === "/m") return "/";
+  if (pathname.startsWith("/m/")) return pathname.slice(2);
+  return pathname;
+}
+
 export function canPendingAccessPath(pathname: string): boolean {
-  if (pathname === "/messages" || pathname.startsWith("/messages/")) return true;
-  if (pathname === "/signup" || pathname.startsWith("/signup/")) return true;
-  if (/^\/personal-ministry\/[^/]+/.test(pathname)) return true;
+  const path = normalizePath(pathname);
+  if (path === "/messages" || path.startsWith("/messages/")) return true;
+  if (path === "/signup" || path.startsWith("/signup/")) return true;
+  if (/^\/personal-ministry\/[^/]+/.test(path)) return true;
   if (pathname.startsWith("/api/messages")) return true;
   if (pathname.startsWith("/api/onboarding")) return true;
   if (pathname.startsWith("/api/private-ministry/")) return true;

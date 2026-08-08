@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { mobileHref } from "@/lib/mobile-paths";
 
 type NavItem = {
   href: string;
@@ -67,10 +68,25 @@ const ITEMS: NavItem[] = [
   },
 ];
 
-export function MobileBottomNav() {
+export function MobileBottomNav({ mobileApp = false }: { mobileApp?: boolean }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [moreOpen, setMoreOpen] = useState(false);
+
+  function link(path: string) {
+    return mobileHref(path, mobileApp);
+  }
+
+  function matchPath(path: string) {
+    if (path.startsWith("/m/")) return path.slice(2);
+    if (path === "/m") return "/";
+    return path;
+  }
+
+  const normalizedPath = matchPath(pathname);
+  const navClass = mobileApp
+    ? "mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-gold/30 bg-cream/95 backdrop-blur-md"
+    : "mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-gold/30 bg-cream/95 backdrop-blur-md md:hidden";
 
   const isAdmin = session?.user?.role === "ADMIN";
   const isApproved =
@@ -79,13 +95,13 @@ export function MobileBottomNav() {
 
   if (isPending) {
     return (
-      <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-gold/30 bg-cream/95 backdrop-blur-md md:hidden">
+      <nav className={navClass}>
         <div className="mx-auto flex max-w-lg items-center justify-center px-2 py-2">
           <Link
-            href="/messages"
+            href={link("/messages")}
             className={cn(
               "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold",
-              pathname.startsWith("/messages") ? "text-burgundy" : "text-burgundy/55",
+              normalizedPath.startsWith("/messages") ? "text-burgundy" : "text-burgundy/55",
             )}
           >
             <MessageCircle className="h-5 w-5" />
@@ -103,32 +119,32 @@ export function MobileBottomNav() {
   }).slice(0, 4);
 
   function isActive(item: NavItem) {
-    return item.match ? item.match(pathname) : pathname === item.href;
+    return item.match ? item.match(normalizedPath) : normalizedPath === item.href;
   }
 
   if (!session?.user) {
     return (
-      <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-gold/30 bg-cream/95 backdrop-blur-md md:hidden">
+      <nav className={navClass}>
         <div className="mx-auto flex max-w-lg items-center justify-around px-2 py-2">
           <Link
-            href="/login"
+            href={link("/login")}
             className="flex flex-1 flex-col items-center gap-0.5 py-1 text-[11px] font-semibold text-burgundy/70"
           >
             <Home className="h-5 w-5" />
             Login
           </Link>
           <Link
-            href="/signup"
+            href={link("/signup")}
             className="flex flex-1 flex-col items-center gap-0.5 py-1 text-[11px] font-semibold text-gold-muted"
           >
             <Heart className="h-5 w-5" />
             Join
           </Link>
           <Link
-            href="/livestream"
+            href={link("/livestream")}
             className={cn(
               "flex flex-1 flex-col items-center gap-0.5 py-1 text-[11px] font-semibold",
-              pathname.startsWith("/livestream") ? "text-burgundy" : "text-burgundy/70",
+              normalizedPath.startsWith("/livestream") ? "text-burgundy" : "text-burgundy/70",
             )}
           >
             <Radio className="h-5 w-5" />
@@ -145,26 +161,31 @@ export function MobileBottomNav() {
         <button
           type="button"
           aria-label="Close menu"
-          className="fixed inset-0 z-50 bg-burgundy-deep/40 md:hidden"
+          className={cn("fixed inset-0 z-50 bg-burgundy-deep/40", !mobileApp && "md:hidden")}
           onClick={() => setMoreOpen(false)}
         />
       )}
 
       {moreOpen && (
-        <div className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-2xl border border-gold/30 bg-cream p-3 shadow-xl md:hidden">
+        <div
+          className={cn(
+            "fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 rounded-2xl border border-gold/30 bg-cream p-3 shadow-xl",
+            !mobileApp && "md:hidden",
+          )}
+        >
           <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-burgundy/50">
             More
           </p>
           <div className="grid grid-cols-2 gap-2">
             <Link
-              href="/channels/guidelines"
+              href={link("/channels/guidelines")}
               onClick={() => setMoreOpen(false)}
               className="rounded-xl border border-gold/25 bg-cream-dark px-3 py-3 text-sm font-medium text-burgundy"
             >
               Guidelines
             </Link>
             <Link
-              href="/settings"
+              href={link("/settings")}
               onClick={() => setMoreOpen(false)}
               className="flex items-center gap-2 rounded-xl border border-gold/25 bg-cream-dark px-3 py-3 text-sm font-medium text-burgundy"
             >
@@ -173,7 +194,7 @@ export function MobileBottomNav() {
             </Link>
             {!isAdmin && isApproved && (
               <Link
-                href="/channels/general"
+                href={link("/channels/general")}
                 onClick={() => setMoreOpen(false)}
                 className="rounded-xl border border-gold/25 bg-cream-dark px-3 py-3 text-sm font-medium text-burgundy"
               >
@@ -182,7 +203,7 @@ export function MobileBottomNav() {
             )}
             {isAdmin && (
               <Link
-                href="/admin"
+                href={link("/admin")}
                 onClick={() => setMoreOpen(false)}
                 className="flex items-center gap-2 rounded-xl border border-gold/25 bg-cream-dark px-3 py-3 text-sm font-medium text-burgundy"
               >
@@ -194,7 +215,7 @@ export function MobileBottomNav() {
         </div>
       )}
 
-      <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-gold/30 bg-cream/95 backdrop-blur-md md:hidden">
+      <nav className={navClass}>
         <div className="mx-auto flex max-w-lg items-stretch justify-around px-1">
           {visibleItems.map((item) => {
             const Icon = item.icon;
@@ -202,7 +223,7 @@ export function MobileBottomNav() {
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={link(item.href)}
                 className={cn(
                   "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold transition",
                   active ? "text-burgundy" : "text-burgundy/55",

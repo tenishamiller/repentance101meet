@@ -68,7 +68,7 @@ export function ChannelMessageItem({
 
   return (
     <div
-      className={cn("group flex gap-3", isOwn && "flex-row-reverse", isHidden && "opacity-60")}
+      className={cn("group flex gap-3", isOwn && "flex-row-reverse")}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => {
         setShowActions(false);
@@ -98,11 +98,6 @@ export function ChannelMessageItem({
             {edited && (
               <span className="rounded-full bg-burgundy/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-burgundy/50">
                 Edited
-              </span>
-            )}
-            {isHidden && isAdmin && (
-              <span className="rounded-full bg-burgundy/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-burgundy/70">
-                Hidden from members
               </span>
             )}
           </div>
