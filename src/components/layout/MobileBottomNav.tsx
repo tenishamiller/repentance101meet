@@ -27,6 +27,13 @@ type NavItem = {
 
 const ITEMS: NavItem[] = [
   {
+    href: "/messages",
+    label: "Messages",
+    icon: MessageCircle,
+    match: (p) => p.startsWith("/messages"),
+    memberOnly: true,
+  },
+  {
     href: "/dashboard",
     label: "Home",
     icon: Home,

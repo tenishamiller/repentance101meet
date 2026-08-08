@@ -3,7 +3,7 @@
 import { Pencil, Trash2, Video } from "lucide-react";
 import Link from "next/link";
 import { UserAvatar } from "@/components/UserAvatar";
-import { isMessageEdited } from "@/lib/channel-messages";
+import { isMessageEdited, getEditTimeRemaining } from "@/lib/channel-messages";
 import { canEditMessage, cn } from "@/lib/utils";
 import { formatRequestDateTime } from "@/lib/utils";
 
@@ -26,7 +26,6 @@ export type MembershipMessageData = {
 type Props = {
   message: MembershipMessageData;
   isOwn: boolean;
-  sessionUserId: string;
   editingId: string | null;
   editContent: string;
   onEditContentChange: (value: string) => void;
@@ -34,6 +33,7 @@ type Props = {
   onCancelEdit: () => void;
   onSaveEdit: () => void;
   onDelete: () => void;
+  now?: number;
 };
 
 export function MembershipMessageBubble({
@@ -46,11 +46,13 @@ export function MembershipMessageBubble({
   onCancelEdit,
   onSaveEdit,
   onDelete,
+  now = Date.now(),
 }: Props) {
   const isText = message.type === "TEXT";
-  const canModify = isText && canEditMessage(message.createdAt);
+  const canModify = isText && isOwn && canEditMessage(message.createdAt, now);
   const isEditing = editingId === message.id;
   const edited = isMessageEdited(message.createdAt, message.updatedAt);
+  const editRemaining = canModify ? getEditTimeRemaining(message.createdAt, now) : null;
 
   return (
     <div className={cn("group flex gap-3", isOwn && "flex-row-reverse")}>
@@ -129,16 +131,14 @@ export function MembershipMessageBubble({
                 Edited
               </span>
             )}
+            {editRemaining && !isEditing && (
+              <span className="text-[10px] text-burgundy/40">{editRemaining}</span>
+            )}
           </div>
         </div>
 
-        {isText && canModify && isOwn && !isEditing && (
-          <div
-            className={cn(
-              "mt-1 flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
-              isOwn && "justify-end",
-            )}
-          >
+        {canModify && !isEditing && (
+          <div className={cn("mt-1.5 flex gap-3", isOwn && "justify-end")}>
             <button
               type="button"
               onClick={onStartEdit}

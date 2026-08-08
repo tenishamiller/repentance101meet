@@ -41,8 +41,8 @@ export function formatMemberSince(date: Date | string) {
 
 export const EDIT_WINDOW_MS = 5 * 60 * 1000;
 
-export function canEditMessage(createdAt: Date | string) {
-  return Date.now() - new Date(createdAt).getTime() <= EDIT_WINDOW_MS;
+export function canEditMessage(createdAt: Date | string, now = Date.now()) {
+  return now - new Date(createdAt).getTime() <= EDIT_WINDOW_MS;
 }
 
 export type Attachment = {

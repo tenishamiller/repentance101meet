@@ -56,6 +56,8 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   const [actionLoading, setActionLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const threadUserId = isAdmin ? selectedUserId : session?.user?.id;
@@ -100,6 +102,11 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     }
     setLoading(false);
   }, [isAdmin, onUnreadChange, selectedUserId, sessionStatus]);
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -169,19 +176,31 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
   async function saveEdit(messageId: string) {
     if (!editContent.trim()) return;
-    await fetch(`/api/messages/${messageId}`, {
+    setActionError("");
+    const res = await fetch(`/api/messages/${messageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: editContent.trim() }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setActionError(typeof data.error === "string" ? data.error : "Could not save edit.");
+      return;
+    }
     setEditingId(null);
     setEditContent("");
     void fetchInbox();
   }
 
   async function deleteMessage(messageId: string) {
-    if (!window.confirm("Delete this message permanently?")) return;
-    await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
+    if (!window.confirm("Delete this message permanently? This cannot be undone.")) return;
+    setActionError("");
+    const res = await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setActionError(typeof data.error === "string" ? data.error : "Could not delete message.");
+      return;
+    }
     void fetchInbox();
   }
 
@@ -215,15 +234,14 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       {!embedded && (
         <div className="mb-4">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-muted">
-            Membership Onboarding
+            Membership Messages
           </p>
           <h1 className="font-serif text-2xl font-bold text-burgundy sm:text-3xl">Messages</h1>
           <BrandDivider className="my-3 max-w-xs" />
           {isPending && (
             <div className="rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-burgundy">
-              While your membership is pending, this is your only access on the site.{" "}
-              {MINISTRY_LEADER} will message you here and send your required one-on-one approval
-              meeting link.
+              While your membership is pending, this is your only access on the site. Norman will
+              message you here and send your required one-on-one approval meeting link.
             </div>
           )}
         </div>
@@ -380,13 +398,13 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                     key={msg.id}
                     message={msg}
                     isOwn={msg.sender.id === session?.user?.id}
-                    sessionUserId={session?.user?.id ?? ""}
                     editingId={editingId}
                     editContent={editContent}
                     onEditContentChange={setEditContent}
                     onStartEdit={() => {
                       setEditingId(msg.id);
                       setEditContent(msg.content);
+                      setActionError("");
                     }}
                     onCancelEdit={() => {
                       setEditingId(null);
@@ -394,9 +412,16 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                     }}
                     onSaveEdit={() => void saveEdit(msg.id)}
                     onDelete={() => void deleteMessage(msg.id)}
+                    now={now}
                   />
                 ))}
               </div>
+
+              {actionError && (
+                <p className="shrink-0 border-t border-burgundy/20 bg-burgundy/5 px-4 py-2 text-center text-xs text-burgundy">
+                  {actionError}
+                </p>
+              )}
 
               {memberInfo &&
                 !isAdmin &&

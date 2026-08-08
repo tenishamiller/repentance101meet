@@ -67,7 +67,29 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     include: messageInclude,
   });
 
-  return Response.json({ message: updated });
+  return Response.json({ message: serializeMessage(updated) });
+}
+
+function serializeMessage(message: {
+  id: string;
+  content: string;
+  type: string;
+  createdAt: Date;
+  updatedAt: Date;
+  sender: { id: string; name: string; avatarUrl: string | null; role: string };
+  meeting?: {
+    id: string;
+    linkToken: string;
+    title: string;
+    status: string;
+    isOnboardingApproval: boolean;
+  } | null;
+}) {
+  return {
+    ...message,
+    createdAt: message.createdAt.toISOString(),
+    updatedAt: message.updatedAt.toISOString(),
+  };
 }
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
