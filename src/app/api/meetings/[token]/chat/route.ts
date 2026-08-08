@@ -4,6 +4,14 @@ import { prisma } from "@/lib/db";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
+async function canModerateMeetingChat(
+  meeting: { id: string; createdById: string },
+  userId: string,
+  role: string,
+) {
+  return role === "ADMIN" || meeting.createdById === userId;
+}
+
 export async function GET(_request: Request, { params }: RouteParams) {
   const session = await auth();
   if (!session?.user) {
@@ -16,14 +24,23 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
+  const canModerate = await canModerateMeetingChat(
+    meeting,
+    session.user.id,
+    session.user.role,
+  );
+
   const messages = await prisma.meetingMessage.findMany({
-    where: { meetingId: meeting.id },
+    where: {
+      meetingId: meeting.id,
+      ...(canModerate ? {} : { deletedAt: null }),
+    },
     include: { user: { select: { id: true, name: true, avatarUrl: true } } },
     orderBy: { createdAt: "asc" },
     take: 200,
   });
 
-  return Response.json({ messages });
+  return Response.json({ messages, canModerate });
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {

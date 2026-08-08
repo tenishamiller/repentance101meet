@@ -27,8 +27,9 @@ export default async function DashboardPage() {
         <h1 className="font-serif text-3xl font-bold text-burgundy">Membership Pending</h1>
         <BrandDivider className="mx-auto my-6 max-w-xs" />
         <p className="text-burgundy/70">
-          Hi {session.user.name}, your membership request is being reviewed. You&apos;ll be
-          notified once approved.
+          Hi {session.user.name}, your membership request is being reviewed. Channel chat is
+          unavailable until you are approved. Please speak with {MINISTRY_LEADER} if you need
+          assistance.
         </p>
         {memberProfile?.createdAt && (
           <p className="mt-4 text-sm font-medium text-burgundy/60">
@@ -167,7 +168,9 @@ export default async function DashboardPage() {
                 </Link>
               ) : status === "PENDING" ? (
                 <div className="mt-4">
-                  <p className="text-sm text-gold-muted">Join request pending approval</p>
+                  <p className="text-sm text-gold-muted">
+                    Chat unavailable — pending approval. Speak with {MINISTRY_LEADER}.
+                  </p>
                   {membership?.requestedAt && (
                     <p className="mt-1 text-xs text-burgundy/55">
                       Requested {formatRequestDateTime(membership.requestedAt)}

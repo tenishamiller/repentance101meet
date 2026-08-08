@@ -6,6 +6,7 @@ import {
   Circle,
   Download,
   Hand,
+  MessageCircle,
   Mic,
   MicOff,
   MonitorOff,
@@ -20,6 +21,8 @@ import {
 import { UserAvatar } from "@/components/UserAvatar";
 import { ShowMoreList } from "@/components/ShowMoreList";
 import { useLivestream } from "@/hooks/useLivestream";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
@@ -55,6 +58,8 @@ export function LivestreamRoom({
   hostId,
 }: Props) {
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const [mobileTab, setMobileTab] = useState<"video" | "chat" | "people">("video");
   const [hostGalleryLayout, setHostGalleryLayoutState] = useState<HostGalleryLayout>("sidebar");
   const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
 
@@ -62,6 +67,13 @@ export function LivestreamRoom({
     setHostGalleryLayoutState(getHostGalleryLayout());
     setMemberVideoLayoutState(getMemberVideoLayout());
   }, []);
+
+  useEffect(() => {
+    if (isMobile && isHost) {
+      setHostGalleryLayoutState("bottom");
+      setHostGalleryLayout("bottom");
+    }
+  }, [isMobile, isHost]);
 
   function updateHostGalleryLayout(layout: HostGalleryLayout) {
     setHostGalleryLayoutState(layout);
@@ -139,9 +151,13 @@ export function LivestreamRoom({
   }
 
   return (
-    <div className="flex h-[calc(100vh-80px)] min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:flex-row">
+    <div className="flex h-mobile-immersive min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
       {/* Main stage */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div
+        className={`flex min-h-0 min-w-0 flex-1 flex-col ${
+          isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
+        }`}
+      >
         {isHost ? (
           <>
             {/* Host header — title & status only */}
@@ -445,9 +461,17 @@ export function LivestreamRoom({
         )}
       </div>
 
-      {/* Sidebar — wider chat panel */}
-      <div className="flex min-h-0 w-full flex-col border-t border-gold/20 max-lg:h-[38vh] lg:h-auto lg:w-[28rem] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[32rem]">
-        {isHost && (
+      {/* Sidebar — chat & host tools */}
+      <div
+        className={`flex min-h-0 w-full flex-col border-t border-gold/20 lg:h-auto lg:w-[28rem] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[32rem] ${
+          isMobile
+            ? mobileTab === "video"
+              ? "hidden lg:flex"
+              : "min-h-0 flex-1 border-t-0"
+            : "max-lg:h-[38vh]"
+        }`}
+      >
+        {isHost && (!isMobile || mobileTab === "people") && (
           <div className="shrink-0 border-b border-gold/20 bg-burgundy p-3 sm:p-4">
             <MemberJoinLink meetingToken={meetingToken} variant="room" />
             {(thumbsUp > 0 || thumbsDown > 0) && (
@@ -530,10 +554,26 @@ export function LivestreamRoom({
           </div>
         )}
 
+        {(!isMobile || mobileTab === "chat") && (
         <div className="min-h-0 flex-1">
           <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
         </div>
+        )}
       </div>
+
+      {isMobile && (
+        <ImmersiveMobileTabs
+          active={mobileTab}
+          onChange={(id) => setMobileTab(id as "video" | "chat" | "people")}
+          tabs={[
+            { id: "video", label: "Video", icon: Video },
+            { id: "chat", label: "Chat", icon: MessageCircle },
+            ...(isHost
+              ? [{ id: "people", label: "People", icon: Users, badge: viewerCount }]
+              : []),
+          ]}
+        />
+      )}
     </div>
   );
 }

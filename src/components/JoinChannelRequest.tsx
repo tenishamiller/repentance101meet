@@ -43,9 +43,10 @@ export function JoinChannelRequest({ channel, membershipStatus, requestedAt }: P
 
       {status === "PENDING" ? (
         <div className="mt-8 rounded-xl border border-gold/40 bg-gold/10 px-6 py-4 text-burgundy">
-          <p className="font-semibold">Request Pending</p>
-          <p className="mt-1 text-sm">
-            Your request will be reviewed by {MINISTRY_LEADER}. Check back here for updates.
+          <p className="font-semibold">Chat Unavailable — Request Pending</p>
+          <p className="mt-2 text-sm leading-relaxed">
+            You cannot view or send messages in this channel while your access is pending. Please
+            speak with {MINISTRY_LEADER} to continue.
           </p>
           {requestTime && (
             <p className="mt-3 text-xs font-medium text-burgundy/70">

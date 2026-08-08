@@ -3,13 +3,14 @@ import { auth } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
 import { UserAvatar } from "@/components/UserAvatar";
 import { SignOutButton } from "@/components/SignOutButton";
+import { MobileNavDrawer } from "@/components/layout/MobileNavDrawer";
 
 export async function Navbar() {
   const session = await auth();
 
   return (
     <header className="navbar-brand sticky top-0 z-50">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-3 sm:px-4 sm:py-4">
         <Logo size="md" />
 
         <nav className="hidden items-center gap-1 text-sm font-medium md:flex">
@@ -62,6 +63,7 @@ export async function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <MobileNavDrawer />
           {session?.user ? (
             <>
               <UserAvatar

@@ -223,3 +223,59 @@ body {
     radial-gradient(circle at 80% 0%, rgba(107, 45, 45, 0.04), transparent 40%),
     linear-gradient(180deg, rgba(254, 249, 240, 0.9), rgba(245, 237, 224, 0.65));
 }
+
+/* ── Mobile layout utilities ── */
+
+.mobile-main-pad {
+  padding-bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+.mobile-bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mobile-tab-bar {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.h-mobile-app {
+  height: calc(100dvh - 4rem);
+}
+
+.h-mobile-immersive {
+  height: calc(100dvh - 3.5rem);
+}
+
+@media (min-width: 768px) {
+  .h-mobile-app {
+    height: calc(100vh - 5rem);
+  }
+
+  .h-mobile-immersive {
+    height: calc(100vh - 4rem);
+  }
+}
+
+@media (min-width: 1024px) {
+  .h-mobile-app,
+  .h-mobile-immersive {
+    height: calc(100vh - 5rem);
+  }
+}
+
+.mobile-immersive-main {
+  min-height: 0;
+}
+
+/* Touch-friendly tap targets on mobile */
+@media (max-width: 1023px) {
+  .btn-primary,
+  .btn-burgundy,
+  .btn-secondary {
+    min-height: 44px;
+  }
+
+  .input-field {
+    font-size: 16px;
+  }
+}

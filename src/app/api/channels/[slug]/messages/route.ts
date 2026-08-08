@@ -8,17 +8,19 @@ type RouteParams = { params: Promise<{ slug: string }> };
 
 async function canAccessChannel(slug: string, userId: string, role: string) {
   const channel = await prisma.channel.findUnique({ where: { slug } });
-  if (!channel) return null;
+  if (!channel) return { channel: null, membershipStatus: null as string | null };
 
-  if (channel.type === "PUBLIC") return channel;
-  if (role === "ADMIN") return channel;
+  if (channel.type === "PUBLIC") return { channel, membershipStatus: "APPROVED" };
+  if (role === "ADMIN") return { channel, membershipStatus: "APPROVED" };
 
   const membership = await prisma.channelMembership.findUnique({
     where: { userId_channelId: { userId, channelId: channel.id } },
   });
 
-  if (membership?.status !== "APPROVED") return null;
-  return channel;
+  if (membership?.status !== "APPROVED") {
+    return { channel: null, membershipStatus: membership?.status ?? null };
+  }
+  return { channel, membershipStatus: "APPROVED" };
 }
 
 export async function GET(_request: Request, { params }: RouteParams) {
@@ -28,14 +30,26 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }
 
   const { slug } = await params;
-  const channel = await canAccessChannel(slug, session.user.id, session.user.role);
+  const { channel, membershipStatus } = await canAccessChannel(
+    slug,
+    session.user.id,
+    session.user.role,
+  );
 
   if (!channel) {
-    return Response.json({ error: "Access denied" }, { status: 403 });
+    return Response.json(
+      { error: "Access denied", membershipStatus },
+      { status: 403 },
+    );
   }
 
+  const isAdmin = session.user.role === "ADMIN";
+
   const messages = await prisma.channelMessage.findMany({
-    where: { channelId: channel.id, deletedAt: null },
+    where: {
+      channelId: channel.id,
+      ...(isAdmin ? {} : { deletedAt: null }),
+    },
     include: {
       user: { select: { id: true, name: true, avatarUrl: true } },
     },
@@ -53,7 +67,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   const { slug } = await params;
-  const channel = await canAccessChannel(slug, session.user.id, session.user.role);
+  const { channel } = await canAccessChannel(slug, session.user.id, session.user.role);
 
   if (!channel) {
     return Response.json({ error: "Access denied" }, { status: 403 });

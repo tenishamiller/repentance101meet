@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Paperclip, Smile } from "lucide-react";
+import { Paperclip, RotateCcw, Smile, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
-import { formatDate, type Attachment } from "@/lib/utils";
+import { formatDate, type Attachment, cn } from "@/lib/utils";
 import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
 import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { EmojiPicker } from "@/components/livestream/EmojiPicker";
@@ -13,6 +13,7 @@ type MeetingMessage = {
   content: string;
   attachments: Attachment[] | null;
   createdAt: string;
+  deletedAt: string | null;
   user: { id: string; name: string; avatarUrl: string | null };
 };
 
@@ -26,6 +27,7 @@ export function MeetingChat({
   isAdmin: boolean;
 }) {
   const [messages, setMessages] = useState<MeetingMessage[]>([]);
+  const [canModerate, setCanModerate] = useState(isAdmin);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -40,6 +42,9 @@ export function MeetingChat({
     if (res.ok) {
       const data = await res.json();
       setMessages(data.messages);
+      if (typeof data.canModerate === "boolean") {
+        setCanModerate(data.canModerate);
+      }
     }
   }, [meetingToken]);
 
@@ -140,7 +145,7 @@ export function MeetingChat({
   }
 
   async function blockUser(targetUserId: string) {
-    if (!isAdmin) return;
+    if (!canModerate) return;
     await fetch(`/api/meetings/${meetingToken}/chat`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -151,6 +156,22 @@ export function MeetingChat({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "kick", toUserId: targetUserId, payload: {} }),
     });
+  }
+
+  async function hideMessage(messageId: string) {
+    await fetch(`/api/meetings/${meetingToken}/chat/${messageId}`, {
+      method: "DELETE",
+    });
+    fetchMessages();
+  }
+
+  async function restoreMessage(messageId: string) {
+    await fetch(`/api/meetings/${meetingToken}/chat/${messageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "restore" }),
+    });
+    fetchMessages();
   }
 
   return (
@@ -170,8 +191,13 @@ export function MeetingChat({
             Say hello! Share files 📎 or tap 😊 for emojis.
           </p>
         )}
-        {messages.map((msg) => (
-          <div key={msg.id} className="mb-3 flex gap-2">
+        {messages.map((msg) => {
+          const isHidden = Boolean(msg.deletedAt);
+          return (
+          <div
+            key={msg.id}
+            className={cn("mb-3 flex gap-2", isHidden && canModerate && "opacity-60")}
+          >
             <UserAvatar
               userId={msg.user.id}
               name={msg.user.name}
@@ -179,9 +205,14 @@ export function MeetingChat({
               size="md"
             />
             <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2">
+              <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-sm font-medium text-gold">{msg.user.name}</span>
                 <span className="text-xs text-gold-light/50">{formatDate(msg.createdAt)}</span>
+                {isHidden && canModerate && (
+                  <span className="rounded-full bg-gold/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gold-light/70">
+                    Hidden from members
+                  </span>
+                )}
               </div>
               {msg.content && (
                 <p className="whitespace-pre-wrap break-words text-sm text-cream/90">
@@ -191,18 +222,60 @@ export function MeetingChat({
               {msg.attachments && msg.attachments.length > 0 && (
                 <MessageAttachments attachments={msg.attachments} />
               )}
-              {isAdmin && msg.user.id !== userId && (
+              {canModerate && msg.user.id !== userId && (
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => blockUser(msg.user.id)}
+                    className="text-xs text-gold-light/60 hover:text-gold"
+                  >
+                    Block
+                  </button>
+                  {isHidden ? (
+                    <button
+                      type="button"
+                      onClick={() => restoreMessage(msg.id)}
+                      className="inline-flex items-center gap-1 text-xs text-gold-light/60 hover:text-gold"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Restore
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => hideMessage(msg.id)}
+                      className="inline-flex items-center gap-1 text-xs text-gold-light/60 hover:text-gold"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Hide
+                    </button>
+                  )}
+                </div>
+              )}
+              {canModerate && msg.user.id === userId && !isHidden && (
                 <button
                   type="button"
-                  onClick={() => blockUser(msg.user.id)}
-                  className="mt-1 text-xs text-gold-light/60 hover:text-gold"
+                  onClick={() => hideMessage(msg.id)}
+                  className="mt-1 inline-flex items-center gap-1 text-xs text-gold-light/60 hover:text-gold"
                 >
-                  Block
+                  <Trash2 className="h-3 w-3" />
+                  Hide
+                </button>
+              )}
+              {canModerate && msg.user.id === userId && isHidden && (
+                <button
+                  type="button"
+                  onClick={() => restoreMessage(msg.id)}
+                  className="mt-1 inline-flex items-center gap-1 text-xs text-gold-light/60 hover:text-gold"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  Restore
                 </button>
               )}
             </div>
           </div>
-        ))}
+        );
+        })}
         </div>
 
         {showScrollDown && (

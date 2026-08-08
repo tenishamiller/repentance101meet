@@ -42,7 +42,7 @@ export function AdminShell({ activeTab, onTabChange, badges, children }: Props) 
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-8">
       {/* Header */}
-      <section className="hero-brand mb-8 overflow-hidden rounded-3xl px-6 py-8 md:px-10">
+      <section className="hero-brand mb-6 overflow-hidden rounded-3xl px-4 py-6 sm:mb-8 sm:px-6 sm:py-8 md:px-10">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-5">
             {admin ? (
@@ -61,7 +61,7 @@ export function AdminShell({ activeTab, onTabChange, badges, children }: Props) 
                 <Shield className="h-3.5 w-3.5" />
                 Host Portal · {MINISTRY_NAME}
               </p>
-              <h1 className="font-serif text-3xl font-bold text-cream md:text-4xl">
+              <h1 className="font-serif text-2xl font-bold text-cream sm:text-3xl md:text-4xl">
                 Admin Console
               </h1>
               <p className="mt-1 text-gold-light/90">
@@ -88,9 +88,37 @@ export function AdminShell({ activeTab, onTabChange, badges, children }: Props) 
         <BrandDivider light className="my-6" />
       </section>
 
-      <div className="flex flex-col gap-8 lg:flex-row">
-        {/* Sidebar */}
-        <aside className="lg:w-64 lg:shrink-0">
+      <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
+        {/* Mobile tab strip */}
+        <div className="scrollbar-none flex gap-2 overflow-x-auto pb-1 lg:hidden">
+          {NAV.map(({ id, label, icon: Icon }) => {
+            const active = activeTab === id;
+            const badge = badges[id];
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => onTabChange(id)}
+                className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                  active
+                    ? "border-burgundy bg-burgundy text-cream"
+                    : "border-gold/30 bg-cream text-burgundy"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+                {badge != null && badge > 0 && (
+                  <span className="rounded-full bg-gold px-1.5 text-[10px] font-bold text-burgundy-deep">
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Desktop sidebar */}
+        <aside className="hidden lg:block lg:w-64 lg:shrink-0">
           <nav className="card-brand sticky top-24 space-y-1 p-3">
             {NAV.map(({ id, label, icon: Icon, description }) => {
               const active = activeTab === id;

@@ -9,6 +9,7 @@ type Props = {
   onContentChange: (value: string) => void;
   onSubmit: (event: React.FormEvent) => void;
   fileRef: React.RefObject<HTMLInputElement | null>;
+  compact?: boolean;
 };
 
 export function ChannelComposer({
@@ -17,14 +18,15 @@ export function ChannelComposer({
   onContentChange,
   onSubmit,
   fileRef,
+  compact = false,
 }: Props) {
   function insertEmoji(emoji: string) {
     onContentChange(content + emoji);
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-4 space-y-2">
-      <QuickEmojiBar onSelect={insertEmoji} />
+    <form onSubmit={onSubmit} className={compact ? "mt-2 space-y-1" : "mt-4 space-y-2"}>
+      {!compact && <QuickEmojiBar onSelect={insertEmoji} />}
 
       <div className="flex items-end gap-2 rounded-2xl border border-gold/35 bg-cream p-2 shadow-sm">
         <input
@@ -70,7 +72,7 @@ export function ChannelComposer({
         </button>
       </div>
 
-      <p className="text-center text-xs text-burgundy/45">
+      <p className={`text-center text-burgundy/45 ${compact ? "hidden text-[10px] sm:block" : "text-xs"}`}>
         Press Enter to send · Shift+Enter for a new line · Edit or delete your messages within 5 minutes
       </p>
     </form>

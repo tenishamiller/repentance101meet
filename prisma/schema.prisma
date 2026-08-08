@@ -213,12 +213,13 @@ model MeetingParticipant {
 }
 
 model MeetingMessage {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   meetingId   String
   userId      String
-  content     String   @db.Text
+  content     String    @db.Text
   attachments Json?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
 
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -13,7 +13,7 @@ type Props = {
 
 export function EmojiPicker({ onSelect, onClose }: Props) {
   return (
-    <div className="absolute bottom-full left-0 z-10 mb-2 w-64 rounded-xl border border-gold/40 bg-burgundy p-3 shadow-xl">
+    <div className="absolute bottom-full left-0 z-10 mb-2 w-[min(16rem,calc(100vw-2rem))] rounded-xl border border-gold/40 bg-burgundy p-3 shadow-xl">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-gold-light/70">
           Emojis

@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, MessageCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageCircle } from "lucide-react";
 import type { Channel } from "@/generated/prisma/client";
 import { ChannelComposer } from "@/components/channels/ChannelComposer";
 import {
   ChannelMessageItem,
   type ChannelMessageData,
 } from "@/components/channels/ChannelMessageItem";
+import { JoinChannelRequest } from "@/components/JoinChannelRequest";
 import { BrandDivider } from "@/components/BrandDivider";
 import { formatDateSeparator, shouldShowDateSeparator } from "@/lib/channel-messages";
 import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
@@ -27,6 +28,9 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [accessBlocked, setAccessBlocked] = useState(false);
+  const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
+  const [headerOpen, setHeaderOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const fileRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -35,6 +39,13 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
 
   const fetchMessages = useCallback(async () => {
     const res = await fetch(`/api/channels/${channel.slug}/messages`);
+    if (res.status === 403) {
+      const data = await res.json().catch(() => ({}));
+      setAccessBlocked(true);
+      setMembershipStatus(data.membershipStatus ?? "PENDING");
+      setLoading(false);
+      return;
+    }
     if (res.ok) {
       const data = await res.json();
       setMessages(data.messages);
@@ -143,9 +154,24 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
   }
 
   async function handleDelete(messageId: string) {
-    setMessages((prev) => prev.filter((message) => message.id !== messageId));
+    if (isAdmin) {
+      await fetch(`/api/channels/${channel.slug}/messages/${messageId}`, {
+        method: "DELETE",
+      });
+    } else {
+      setMessages((prev) => prev.filter((message) => message.id !== messageId));
+      await fetch(`/api/channels/${channel.slug}/messages/${messageId}`, {
+        method: "DELETE",
+      });
+    }
+    fetchMessages();
+  }
+
+  async function handleRestore(messageId: string) {
     await fetch(`/api/channels/${channel.slug}/messages/${messageId}`, {
-      method: "DELETE",
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "restore" }),
     });
     fetchMessages();
   }
@@ -159,21 +185,50 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
     fetchMessages();
   }
 
+  if (accessBlocked) {
+    return (
+      <JoinChannelRequest
+        channel={channel}
+        membershipStatus={membershipStatus}
+      />
+    );
+  }
+
   return (
-    <div className="mx-auto flex h-[calc(100vh-80px)] max-w-5xl flex-col px-4 py-6">
-      <div className="mb-4 rounded-2xl border border-gold/30 bg-gradient-to-r from-burgundy/5 via-cream to-gold/10 p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-muted">
+    <div className="mx-auto flex h-mobile-app max-w-5xl flex-col px-2 py-3 sm:px-4 sm:py-6 lg:h-[calc(100vh-80px)]">
+      <div className="mb-2 rounded-2xl border border-gold/30 bg-gradient-to-r from-burgundy/5 via-cream to-gold/10 p-3 shadow-sm sm:mb-4 sm:p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gold-muted sm:text-xs">
               Ministry Channel
             </p>
-            <h1 className="font-serif text-3xl font-bold text-burgundy">{channel.name}</h1>
-            <BrandDivider className="my-2 max-w-xs" />
-            <p className="max-w-2xl text-sm text-burgundy/70">{channel.description}</p>
+            <h1 className="truncate font-serif text-xl font-bold text-burgundy sm:text-3xl">
+              {channel.name}
+            </h1>
+            <BrandDivider className="my-2 hidden max-w-xs lg:block" />
+            <p className="hidden max-w-2xl text-xs text-burgundy/70 sm:text-sm lg:block">
+              {channel.description}
+            </p>
+            {headerOpen && (
+              <>
+                <BrandDivider className="my-2 max-w-xs lg:hidden" />
+                <p className="text-xs text-burgundy/70 sm:text-sm lg:hidden">{channel.description}</p>
+              </>
+            )}
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-gold/30 bg-cream/80 px-4 py-2 text-sm text-burgundy">
-            <MessageCircle className="h-4 w-4 text-gold-muted" />
-            <span>{messages.length} messages</span>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <button
+              type="button"
+              onClick={() => setHeaderOpen((v) => !v)}
+              className="rounded-lg border border-gold/30 p-1.5 text-burgundy/60 lg:hidden"
+              aria-label={headerOpen ? "Collapse channel info" : "Expand channel info"}
+            >
+              {headerOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            <div className="flex items-center gap-1.5 rounded-full border border-gold/30 bg-cream/80 px-2.5 py-1 text-xs text-burgundy sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
+              <MessageCircle className="h-3.5 w-3.5 text-gold-muted sm:h-4 sm:w-4" />
+              <span>{messages.length}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -182,7 +237,7 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="channel-feed card-brand h-full overflow-y-auto p-4 shadow-inner sm:p-6"
+          className="channel-feed card-brand h-full overflow-y-auto p-3 shadow-inner sm:p-6"
         >
           {loading ? (
             <div className="flex h-full items-center justify-center">
@@ -232,6 +287,7 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
                       onCancelEdit={() => setEditingId(null)}
                       onSaveEdit={() => handleEdit(message.id)}
                       onDelete={() => handleDelete(message.id)}
+                      onRestore={isAdmin ? () => handleRestore(message.id) : undefined}
                       onToggleReaction={(emoji) => handleToggleReaction(message.id, emoji)}
                       now={now}
                     />
@@ -260,6 +316,7 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
         onContentChange={setContent}
         onSubmit={handleSend}
         fileRef={fileRef}
+        compact
       />
     </div>
   );

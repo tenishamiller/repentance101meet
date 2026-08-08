@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { QuickEmojiBar } from "@/components/channels/EmojiPicker";
 import {
@@ -36,6 +36,7 @@ type Props = {
   onCancelEdit: () => void;
   onSaveEdit: () => void;
   onDelete: () => void;
+  onRestore?: () => void;
   onToggleReaction: (emoji: string) => void;
   now: number;
 };
@@ -52,6 +53,7 @@ export function ChannelMessageItem({
   onCancelEdit,
   onSaveEdit,
   onDelete,
+  onRestore,
   onToggleReaction,
   now,
 }: Props) {
@@ -62,10 +64,11 @@ export function ChannelMessageItem({
   const edited = isMessageEdited(message.createdAt, message.updatedAt);
   const editRemaining = isOwn && canEdit ? getEditTimeRemaining(message.createdAt, now) : null;
   const reactionEntries = Object.entries(message.reactions ?? {});
+  const isHidden = Boolean(message.deletedAt);
 
   return (
     <div
-      className={cn("group flex gap-3", isOwn && "flex-row-reverse")}
+      className={cn("group flex gap-3", isOwn && "flex-row-reverse", isHidden && "opacity-60")}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => {
         setShowActions(false);
@@ -95,6 +98,11 @@ export function ChannelMessageItem({
             {edited && (
               <span className="rounded-full bg-burgundy/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-burgundy/50">
                 Edited
+              </span>
+            )}
+            {isHidden && isAdmin && (
+              <span className="rounded-full bg-burgundy/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-burgundy/70">
+                Hidden from members
               </span>
             )}
           </div>
@@ -181,15 +189,17 @@ export function ChannelMessageItem({
                 isOwn ? "left-2" : "right-2",
               )}
             >
-              <button
-                type="button"
-                onClick={() => setShowReactBar((value) => !value)}
-                className="rounded-full px-2 py-1 text-sm hover:bg-gold/15"
-                title="React"
-              >
-                😊
-              </button>
-              {isOwn && canEdit && (
+              {!isHidden && (
+                <button
+                  type="button"
+                  onClick={() => setShowReactBar((value) => !value)}
+                  className="rounded-full px-2 py-1 text-sm hover:bg-gold/15"
+                  title="React"
+                >
+                  😊
+                </button>
+              )}
+              {isOwn && canEdit && !isHidden && (
                 <button
                   type="button"
                   onClick={onStartEdit}
@@ -199,12 +209,22 @@ export function ChannelMessageItem({
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
               )}
-              {(isOwn && canEdit) || isAdmin ? (
+              {isHidden && isAdmin && onRestore ? (
+                <button
+                  type="button"
+                  onClick={onRestore}
+                  className="rounded-full p-1.5 text-burgundy/60 hover:bg-gold/15 hover:text-burgundy"
+                  title="Restore message for everyone"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+              {((isOwn && canEdit && !isHidden) || (isAdmin && !isHidden)) ? (
                 <button
                   type="button"
                   onClick={onDelete}
                   className="rounded-full p-1.5 text-burgundy/60 hover:bg-burgundy/10 hover:text-burgundy"
-                  title="Delete message"
+                  title={isAdmin ? "Hide message from members" : "Delete message"}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>

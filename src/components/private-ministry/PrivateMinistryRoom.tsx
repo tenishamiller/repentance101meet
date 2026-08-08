@@ -6,6 +6,7 @@ import {
   Circle,
   Download,
   Heart,
+  MessageCircle,
   Mic,
   MicOff,
   PhoneOff,
@@ -15,6 +16,8 @@ import {
 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useLivestream } from "@/hooks/useLivestream";
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
 import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
@@ -50,6 +53,8 @@ export function PrivateMinistryRoom({
   peer,
 }: Props) {
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
   const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
 
   useEffect(() => {
@@ -91,8 +96,12 @@ export function PrivateMinistryRoom({
   const peerLabel = isHost ? peer.name : "Session host";
 
   return (
-    <div className="flex h-[calc(100vh-80px)] min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:flex-row">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex h-mobile-immersive min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
+      <div
+        className={`flex min-h-0 min-w-0 flex-1 flex-col ${
+          isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
+        }`}
+      >
         {isHost && (
           <div className="shrink-0 border-b border-gold/30 bg-gradient-to-r from-burgundy-deep to-burgundy px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -237,7 +246,17 @@ export function PrivateMinistryRoom({
         </div>
       </div>
 
-      <div className="flex min-h-0 w-full flex-col border-t border-gold/20 max-lg:h-[38vh] lg:h-auto lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0 xl:w-96">
+      <div
+        className={`flex min-h-0 w-full flex-col border-t border-gold/20 lg:h-auto lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0 xl:w-96 ${
+          isMobile
+            ? mobileTab === "video"
+              ? "hidden lg:flex"
+              : "min-h-0 flex-1 border-t-0"
+            : "max-lg:h-[38vh]"
+        }`}
+      >
+        {(!isMobile || mobileTab === "chat") && (
+        <>
         <div className="shrink-0 border-b border-gold/20 bg-burgundy p-4">
           <div className="flex items-center gap-3">
             <UserAvatar
@@ -258,7 +277,20 @@ export function PrivateMinistryRoom({
         <div className="min-h-0 flex-1">
           <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
         </div>
+        </>
+        )}
       </div>
+
+      {isMobile && (
+        <ImmersiveMobileTabs
+          active={mobileTab}
+          onChange={(id) => setMobileTab(id as "video" | "chat")}
+          tabs={[
+            { id: "video", label: "Video", icon: Video },
+            { id: "chat", label: "Chat", icon: MessageCircle },
+          ]}
+        />
+      )}
     </div>
   );
 }
