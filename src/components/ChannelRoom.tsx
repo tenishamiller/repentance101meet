@@ -136,7 +136,7 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
                 userId={msg.user.id}
                 name={msg.user.name}
                 avatarUrl={msg.user.avatarUrl}
-                size="sm"
+                size="md"
               />
               <div className="flex-1">
                 <div className="flex items-baseline gap-2">

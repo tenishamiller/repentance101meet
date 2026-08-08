@@ -2,14 +2,15 @@
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import Image from "next/image";
-import { getInitials } from "@/lib/utils";
+import { useRef, useState } from "react";
+import { Camera, Loader2 } from "lucide-react";
+import { UserAvatar } from "@/components/UserAvatar";
 import { BrandDivider } from "@/components/BrandDivider";
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(session?.user?.name ?? "");
   const [email, setEmail] = useState(session?.user?.email ?? "");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -18,6 +19,7 @@ export default function SettingsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [avatarUrl, setAvatarUrl] = useState(session?.user?.avatarUrl ?? "");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   async function handleProfileUpdate(e: React.FormEvent) {
     e.preventDefault();
@@ -36,7 +38,8 @@ export default function SettingsPage() {
       return;
     }
 
-    await update({ name, avatarUrl });
+    await update({ name, avatarUrl: data.user.avatarUrl });
+    setAvatarUrl(data.user.avatarUrl ?? "");
     setMessage("Profile updated!");
   }
 
@@ -66,12 +69,27 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: form });
-    if (res.ok) {
+    setUploadingAvatar(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/user/avatar", { method: "POST", body: form });
       const data = await res.json();
-      setAvatarUrl(data.url);
+
+      if (!res.ok) {
+        setError(data.error ?? "Could not upload photo");
+        return;
+      }
+
+      setAvatarUrl(data.avatarUrl ?? "");
+      await update({ avatarUrl: data.avatarUrl });
+      setMessage("Profile photo updated! Everyone in meetings and chat will see it.");
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -102,6 +120,10 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-2xl px-4 py-10">
       <h1 className="font-serif text-3xl font-bold text-burgundy">Account Settings</h1>
       <BrandDivider className="my-4 max-w-xs" />
+      <p className="text-burgundy/70">
+        Upload a profile photo so members and Norman can recognize you in live meetings, chat, and
+        channels.
+      </p>
 
       {message && (
         <div className="mt-4 rounded-lg border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-burgundy">
@@ -115,18 +137,43 @@ export default function SettingsPage() {
       )}
 
       <section className="card-brand mt-8 p-6">
-        <h2 className="mb-4 font-serif font-semibold text-burgundy">Profile Photo</h2>
-        <div className="flex items-center gap-4">
-          <div className="h-20 w-20 overflow-hidden rounded-full bg-burgundy/10 ring-2 ring-gold/40">
-            {avatarUrl ? (
-              <Image src={avatarUrl} alt="Avatar" width={80} height={80} className="object-cover" />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-2xl font-bold text-burgundy">
-                {getInitials(name || "U")}
-              </span>
-            )}
+        <h2 className="mb-1 font-serif font-semibold text-burgundy">Profile Photo</h2>
+        <p className="mb-5 text-sm text-burgundy/60">
+          JPG, PNG, or WebP up to 5 MB. Shown in livestream, chat, and your profile.
+        </p>
+        <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start">
+          <UserAvatar
+            userId={session.user.id}
+            name={name || session.user.name || "Member"}
+            avatarUrl={avatarUrl}
+            size="2xl"
+            interactive={false}
+          />
+          <div className="flex flex-col gap-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(e) => void handleAvatarUpload(e)}
+              className="hidden"
+            />
+            <button
+              type="button"
+              disabled={uploadingAvatar}
+              onClick={() => fileInputRef.current?.click()}
+              className="btn-primary inline-flex items-center gap-2 disabled:opacity-60"
+            >
+              {uploadingAvatar ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
+              {uploadingAvatar ? "Uploading..." : avatarUrl ? "Change Photo" : "Upload Photo"}
+            </button>
+            <p className="text-xs text-burgundy/55">
+              Saves automatically — no need to click Save Profile for your photo.
+            </p>
           </div>
-          <input type="file" accept="image/*" onChange={handleAvatarUpload} className="text-sm text-burgundy/70" />
         </div>
       </section>
 

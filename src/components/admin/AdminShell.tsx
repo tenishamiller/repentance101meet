@@ -72,6 +72,9 @@ export function AdminShell({ activeTab, onTabChange, badges, children }: Props) 
             <Link href="/dashboard" className="btn-secondary !px-5 !py-2.5 text-sm">
               ← Member View
             </Link>
+            <Link href="/settings" className="btn-secondary inline-flex items-center gap-2 !px-5 !py-2.5 text-sm">
+              Profile Photo
+            </Link>
           </div>
         </div>
         <BrandDivider light className="my-6" />

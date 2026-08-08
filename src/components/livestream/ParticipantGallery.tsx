@@ -37,8 +37,8 @@ function ParticipantTile({
   const showVideo = memberVideoEnabled && member.cameraOn && member.stream;
 
   return (
-    <div className="flex w-36 shrink-0 flex-col overflow-hidden rounded-xl border border-gold/30 bg-burgundy-dark sm:w-40">
-      <div className="relative aspect-video bg-black">
+    <div className="flex w-44 shrink-0 flex-col overflow-hidden rounded-xl border border-gold/30 bg-burgundy-dark sm:w-48">
+      <div className="relative aspect-[4/3] bg-black">
         {showVideo ? (
           <video
             ref={videoRef}
@@ -48,14 +48,16 @@ function ParticipantTile({
             className="h-full w-full object-cover"
           />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 bg-burgundy px-2">
+          <div className="flex h-full flex-col items-center justify-center gap-3 bg-burgundy px-3 py-4">
             <UserAvatar
               userId={member.userId}
               name={member.name}
               avatarUrl={member.avatarUrl}
-              size="md"
+              size="xl"
+              interactive={false}
+              className="ring-gold/50"
             />
-            <p className="line-clamp-2 text-center text-xs font-medium text-cream">{member.name}</p>
+            <p className="line-clamp-2 text-center text-sm font-medium text-cream">{member.name}</p>
           </div>
         )}
         <div className="absolute bottom-1 right-1 flex gap-1">

@@ -139,7 +139,7 @@ export function MeetingChat({
               userId={msg.user.id}
               name={msg.user.name}
               avatarUrl={msg.user.avatarUrl}
-              size="sm"
+              size="md"
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2">

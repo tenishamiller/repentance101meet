@@ -68,7 +68,7 @@ export async function Navbar() {
                 userId={session.user.id}
                 name={session.user.name ?? "Member"}
                 avatarUrl={session.user.avatarUrl}
-                size="sm"
+                size="md"
               />
               <Link
                 href="/settings"

@@ -401,7 +401,7 @@ export function LivestreamRoom({
                         userId={p.user.id}
                         name={p.user.name}
                         avatarUrl={p.user.avatarUrl}
-                        size="sm"
+                        size="md"
                       />
                       <span className="truncate text-sm text-cream">{p.user.name}</span>
                       {p.handRaised && <span title="Hand raised">✋</span>}
