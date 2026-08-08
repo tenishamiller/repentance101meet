@@ -17,10 +17,24 @@ export async function listVideoInputDevices() {
   return devices.filter((device) => device.kind === "videoinput");
 }
 
+export async function listAudioInputDevices() {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) {
+    return [];
+  }
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter((device) => device.kind === "audioinput");
+}
+
 export function videoDeviceLabel(device: MediaDeviceInfo, index: number) {
   const trimmed = device.label.trim();
   if (trimmed) return trimmed;
   return `Camera ${index + 1}`;
+}
+
+export function audioDeviceLabel(device: MediaDeviceInfo, index: number) {
+  const trimmed = device.label.trim();
+  if (trimmed) return trimmed;
+  return `Microphone ${index + 1}`;
 }
 
 const CAMERA_DEVICE_STORAGE_KEY = "repentance101meet:camera-device-id";
@@ -38,6 +52,26 @@ export function savePreferredCameraDeviceId(deviceId: string) {
   if (typeof window === "undefined" || !deviceId) return;
   try {
     window.localStorage.setItem(CAMERA_DEVICE_STORAGE_KEY, deviceId);
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+const MIC_DEVICE_STORAGE_KEY = "repentance101meet:mic-device-id";
+
+export function loadPreferredAudioDeviceId() {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(MIC_DEVICE_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function savePreferredAudioDeviceId(deviceId: string) {
+  if (typeof window === "undefined" || !deviceId) return;
+  try {
+    window.localStorage.setItem(MIC_DEVICE_STORAGE_KEY, deviceId);
   } catch {
     /* ignore quota / private mode */
   }

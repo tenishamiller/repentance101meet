@@ -28,6 +28,7 @@ import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
 import { ParticipantGallery } from "@/components/livestream/ParticipantGallery";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
+import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
 import { RecordingTimer } from "@/components/livestream/RecordingTimer";
 import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
@@ -96,10 +97,13 @@ export function LivestreamRoom({
     isSavingRecording,
     recordingElapsedSeconds,
     videoInputDevices,
+    audioInputDevices,
     selectedVideoDeviceId,
+    selectedAudioDeviceId,
     switchVideoDevice,
+    switchAudioDevice,
     switchFacingMode,
-    refreshVideoInputDevices,
+    refreshMediaInputDevices,
     isRefreshingDevices,
     participants,
     galleryMembers,
@@ -264,9 +268,16 @@ export function LivestreamRoom({
                   devices={videoInputDevices}
                   selectedDeviceId={selectedVideoDeviceId}
                   onChange={(deviceId) => void switchVideoDevice(deviceId)}
-                  onRefresh={() => void refreshVideoInputDevices()}
+                  onRefresh={() => void refreshMediaInputDevices()}
                   onFlip={() => void switchFacingMode()}
                   showFlip={isMobile}
+                  refreshing={isRefreshingDevices}
+                />
+                <AudioDeviceSelect
+                  devices={audioInputDevices}
+                  selectedDeviceId={selectedAudioDeviceId}
+                  onChange={(deviceId) => void switchAudioDevice(deviceId)}
+                  onRefresh={() => void refreshMediaInputDevices()}
                   refreshing={isRefreshingDevices}
                 />
                 <VideoLayoutSelect
@@ -393,9 +404,16 @@ export function LivestreamRoom({
                 devices={videoInputDevices}
                 selectedDeviceId={selectedVideoDeviceId}
                 onChange={(deviceId) => void switchVideoDevice(deviceId)}
-                onRefresh={() => void refreshVideoInputDevices()}
+                onRefresh={() => void refreshMediaInputDevices()}
                 onFlip={() => void switchFacingMode()}
                 showFlip={isMobile}
+                refreshing={isRefreshingDevices}
+              />
+              <AudioDeviceSelect
+                devices={audioInputDevices}
+                selectedDeviceId={selectedAudioDeviceId}
+                onChange={(deviceId) => void switchAudioDevice(deviceId)}
+                onRefresh={() => void refreshMediaInputDevices()}
                 refreshing={isRefreshingDevices}
               />
               <VideoLayoutSelect

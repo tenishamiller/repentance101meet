@@ -20,6 +20,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
+import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
 import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { OnboardingDecisionModal } from "@/components/onboarding/OnboardingDecisionModal";
@@ -84,10 +85,13 @@ export function PrivateMinistryRoom({
     isRecording,
     isSavingRecording,
     videoInputDevices,
+    audioInputDevices,
     selectedVideoDeviceId,
+    selectedAudioDeviceId,
     switchVideoDevice,
+    switchAudioDevice,
     switchFacingMode,
-    refreshVideoInputDevices,
+    refreshMediaInputDevices,
     isRefreshingDevices,
     error,
     toggleMute,
@@ -277,9 +281,16 @@ export function PrivateMinistryRoom({
             devices={videoInputDevices}
             selectedDeviceId={selectedVideoDeviceId}
             onChange={(deviceId) => void switchVideoDevice(deviceId)}
-            onRefresh={() => void refreshVideoInputDevices()}
+            onRefresh={() => void refreshMediaInputDevices()}
             onFlip={() => void switchFacingMode()}
             showFlip={isMobile}
+            refreshing={isRefreshingDevices}
+          />
+          <AudioDeviceSelect
+            devices={audioInputDevices}
+            selectedDeviceId={selectedAudioDeviceId}
+            onChange={(deviceId) => void switchAudioDevice(deviceId)}
+            onRefresh={() => void refreshMediaInputDevices()}
             refreshing={isRefreshingDevices}
           />
           <VideoLayoutSelect

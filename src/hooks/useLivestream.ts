@@ -20,8 +20,11 @@ import {
 } from "@/lib/recording";
 import { RecordingCompositor } from "@/lib/recording-compositor";
 import {
+  listAudioInputDevices,
   listVideoInputDevices,
+  loadPreferredAudioDeviceId,
   loadPreferredCameraDeviceId,
+  savePreferredAudioDeviceId,
   savePreferredCameraDeviceId,
 } from "@/lib/media-devices";
 
@@ -123,11 +126,14 @@ export function useLivestream({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [videoInputDevices, setVideoInputDevices] = useState<MediaDeviceInfo[]>([]);
+  const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedVideoDeviceId, setSelectedVideoDeviceId] = useState("");
+  const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState("");
   const [isRefreshingDevices, setIsRefreshingDevices] = useState(false);
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
 
   const selectedVideoDeviceIdRef = useRef("");
+  const selectedAudioDeviceIdRef = useRef("");
   const facingModeRef = useRef<"user" | "environment">("user");
   const recordingStartedAtRef = useRef<number | null>(null);
 
@@ -152,20 +158,34 @@ export function useLivestream({
   const viewerAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
   const useCompositorRecording = isHost && mode === "livestream";
 
-  const refreshVideoInputDevices = useCallback(async () => {
+  const refreshMediaInputDevices = useCallback(async () => {
     setIsRefreshingDevices(true);
     try {
-      const devices = await listVideoInputDevices();
-      setVideoInputDevices(devices);
+      const [videoDevices, audioDevices] = await Promise.all([
+        listVideoInputDevices(),
+        listAudioInputDevices(),
+      ]);
+      setVideoInputDevices(videoDevices);
+      setAudioInputDevices(audioDevices);
 
-      if (devices.length === 0) return;
+      if (videoDevices.length > 0) {
+        const currentVideoId = selectedVideoDeviceIdRef.current;
+        const videoStillAvailable = videoDevices.some((device) => device.deviceId === currentVideoId);
+        if (!videoStillAvailable) {
+          const nextVideoId = videoDevices[0].deviceId;
+          selectedVideoDeviceIdRef.current = nextVideoId;
+          setSelectedVideoDeviceId(nextVideoId);
+        }
+      }
 
-      const currentId = selectedVideoDeviceIdRef.current;
-      const stillAvailable = devices.some((device) => device.deviceId === currentId);
-      if (!stillAvailable) {
-        const nextId = devices[0].deviceId;
-        selectedVideoDeviceIdRef.current = nextId;
-        setSelectedVideoDeviceId(nextId);
+      if (audioDevices.length > 0) {
+        const currentAudioId = selectedAudioDeviceIdRef.current;
+        const audioStillAvailable = audioDevices.some((device) => device.deviceId === currentAudioId);
+        if (!audioStillAvailable) {
+          const nextAudioId = audioDevices[0].deviceId;
+          selectedAudioDeviceIdRef.current = nextAudioId;
+          setSelectedAudioDeviceId(nextAudioId);
+        }
       }
     } catch {
       /* ignore — device list unavailable */
@@ -173,6 +193,8 @@ export function useLivestream({
       setIsRefreshingDevices(false);
     }
   }, []);
+
+  const refreshVideoInputDevices = refreshMediaInputDevices;
 
   const syncVideoDeviceFromStream = useCallback(
     (stream: MediaStream) => {
@@ -187,9 +209,23 @@ export function useLivestream({
         setSelectedVideoDeviceId(deviceId);
         savePreferredCameraDeviceId(deviceId);
       }
-      void refreshVideoInputDevices();
+      void refreshMediaInputDevices();
     },
-    [refreshVideoInputDevices],
+    [refreshMediaInputDevices],
+  );
+
+  const syncAudioDeviceFromStream = useCallback(
+    (stream: MediaStream) => {
+      const track = stream.getAudioTracks()[0];
+      const deviceId = track?.getSettings().deviceId;
+      if (deviceId) {
+        selectedAudioDeviceIdRef.current = deviceId;
+        setSelectedAudioDeviceId(deviceId);
+        savePreferredAudioDeviceId(deviceId);
+      }
+      void refreshMediaInputDevices();
+    },
+    [refreshMediaInputDevices],
   );
 
   const syncViewerMedia = useCallback(() => {
@@ -835,6 +871,16 @@ export function useLivestream({
 
     try {
       const preferredDeviceId = selectedVideoDeviceIdRef.current;
+      const preferredAudioId = selectedAudioDeviceIdRef.current;
+      const audioConstraints: MediaTrackConstraints = preferredAudioId
+        ? {
+            deviceId: { ideal: preferredAudioId },
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          }
+        : { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: preferredDeviceId
           ? {
@@ -843,20 +889,30 @@ export function useLivestream({
               height: { ideal: 720 },
             }
           : { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: { echoCancellation: true, noiseSuppression: true },
+        audio: audioConstraints,
       });
       localStreamRef.current = stream;
       attachLocalStream(stream);
       syncVideoDeviceFromStream(stream);
+      syncAudioDeviceFromStream(stream);
       markLive();
       applyMemberMediaPolicyRef.current();
     } catch {
       try {
+        const preferredAudioId = selectedAudioDeviceIdRef.current;
         const audioOnly = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
+          audio: preferredAudioId
+            ? {
+                deviceId: { ideal: preferredAudioId },
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              }
+            : { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
         });
         localStreamRef.current = audioOnly;
         attachLocalStream(audioOnly);
+        syncAudioDeviceFromStream(audioOnly);
         setIsCameraOff(true);
         markLive();
         applyMemberMediaPolicyRef.current();
@@ -872,7 +928,7 @@ export function useLivestream({
         );
       }
     }
-  }, [attachLocalStream, hostId, isHost, sendSignal, syncVideoDeviceFromStream]);
+  }, [attachLocalStream, hostId, isHost, sendSignal, syncAudioDeviceFromStream, syncVideoDeviceFromStream]);
 
   const stopAll = useCallback(() => {
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -1004,19 +1060,24 @@ export function useLivestream({
       selectedVideoDeviceIdRef.current = savedDeviceId;
       setSelectedVideoDeviceId(savedDeviceId);
     }
+    const savedAudioId = loadPreferredAudioDeviceId();
+    if (savedAudioId) {
+      selectedAudioDeviceIdRef.current = savedAudioId;
+      setSelectedAudioDeviceId(savedAudioId);
+    }
   }, []);
 
   useEffect(() => {
     if (!publishMedia || typeof navigator === "undefined" || !navigator.mediaDevices) return;
 
     const handleDeviceChange = () => {
-      void refreshVideoInputDevices();
+      void refreshMediaInputDevices();
     };
 
-    void refreshVideoInputDevices();
+    void refreshMediaInputDevices();
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
     return () => navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
-  }, [publishMedia, refreshVideoInputDevices]);
+  }, [publishMedia, refreshMediaInputDevices]);
 
   useEffect(() => {
     if (!isRecording || !compositorRef.current) return;
@@ -1132,17 +1193,57 @@ export function useLivestream({
 
       const outboundStream = localStreamRef.current ?? newStream;
 
-      for (const pc of peerConnectionsRef.current.values()) {
-        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-        if (sender) {
-          await sender.replaceTrack(videoTrack);
-        } else if (outboundStream) {
-          pc.addTrack(videoTrack, outboundStream);
+      for (const [viewerId, pc] of peerConnectionsRef.current.entries()) {
+        try {
+          const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+          if (sender) {
+            await sender.replaceTrack(videoTrack);
+          } else if (outboundStream) {
+            pc.addTrack(videoTrack, outboundStream);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            await sendSignal("offer", viewerId, { sdp: offer });
+          }
+        } catch (error) {
+          console.error("Failed to update video track for viewer", viewerId, error);
         }
       }
-      await renegotiateAllViewers();
+      updateRecordingVideoTrack();
     },
-    [renegotiateAllViewers],
+    [sendSignal, updateRecordingVideoTrack],
+  );
+
+  const replaceAudioOnAllConnections = useCallback(
+    async (stream: MediaStream) => {
+      const audioTrack = stream.getAudioTracks()[0];
+      if (!audioTrack) return;
+
+      const outboundStream = localStreamRef.current ?? stream;
+
+      for (const [viewerId, pc] of peerConnectionsRef.current.entries()) {
+        try {
+          const sender = pc.getSenders().find((s) => s.track?.kind === "audio");
+          if (sender) {
+            await sender.replaceTrack(audioTrack);
+          } else if (outboundStream) {
+            pc.addTrack(audioTrack, outboundStream);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            await sendSignal("offer", viewerId, { sdp: offer });
+          }
+        } catch (error) {
+          console.error("Failed to update audio track for viewer", viewerId, error);
+        }
+      }
+
+      if (compositorRef.current) {
+        compositorRef.current.syncHostAndScreenAudio(
+          localStreamRef.current,
+          screenStreamRef.current,
+        );
+      }
+    },
+    [sendSignal],
   );
 
   const applyNewVideoTrack = useCallback(
@@ -1185,17 +1286,101 @@ export function useLivestream({
       }
 
       syncViewerMediaRef.current();
-      void refreshVideoInputDevices();
+      void refreshMediaInputDevices();
       setError("");
     },
     [
       attachLocalStream,
       isCameraOff,
       isScreenSharing,
-      refreshVideoInputDevices,
+      refreshMediaInputDevices,
       replaceVideoOnAllConnections,
       updateRecordingVideoTrack,
     ],
+  );
+
+  const requestAudioTrack = useCallback(async (constraints: MediaTrackConstraints) => {
+    const preview = await navigator.mediaDevices.getUserMedia({
+      audio: constraints,
+      video: false,
+    });
+    const newTrack = preview.getAudioTracks()[0];
+    if (!newTrack) {
+      preview.getTracks().forEach((track) => track.stop());
+      throw new Error("No microphone track");
+    }
+    for (const track of preview.getVideoTracks()) {
+      track.stop();
+    }
+    return newTrack;
+  }, []);
+
+  const applyNewAudioTrack = useCallback(
+    async (newTrack: MediaStreamTrack) => {
+      let stream = localStreamRef.current;
+      if (!stream) {
+        stream = new MediaStream();
+        localStreamRef.current = stream;
+      }
+
+      const keepMuted = isMuted;
+      for (const oldTrack of stream.getAudioTracks()) {
+        stream.removeTrack(oldTrack);
+        oldTrack.stop();
+      }
+
+      newTrack.enabled = !keepMuted;
+      stream.addTrack(newTrack);
+      setLocalStream(new MediaStream(stream.getTracks()));
+
+      await replaceAudioOnAllConnections(stream);
+
+      const settings = newTrack.getSettings();
+      if (settings.deviceId) {
+        selectedAudioDeviceIdRef.current = settings.deviceId;
+        setSelectedAudioDeviceId(settings.deviceId);
+        savePreferredAudioDeviceId(settings.deviceId);
+      }
+
+      void refreshMediaInputDevices();
+      setError("");
+    },
+    [isMuted, refreshMediaInputDevices, replaceAudioOnAllConnections],
+  );
+
+  const switchAudioDevice = useCallback(
+    async (deviceId: string) => {
+      if (!deviceId || deviceId === selectedAudioDeviceIdRef.current) return;
+
+      selectedAudioDeviceIdRef.current = deviceId;
+      setSelectedAudioDeviceId(deviceId);
+      savePreferredAudioDeviceId(deviceId);
+
+      try {
+        let newTrack: MediaStreamTrack;
+        try {
+          newTrack = await requestAudioTrack({
+            deviceId: { exact: deviceId },
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          });
+        } catch {
+          newTrack = await requestAudioTrack({
+            deviceId: { ideal: deviceId },
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          });
+        }
+        await applyNewAudioTrack(newTrack);
+      } catch {
+        setError(
+          "Could not switch to that microphone. Try another device or check browser permissions.",
+        );
+      }
+    },
+    [applyNewAudioTrack, requestAudioTrack],
   );
 
   const requestVideoTrack = useCallback(
@@ -1285,28 +1470,64 @@ export function useLivestream({
       return;
     }
 
+    if (!localStreamRef.current) {
+      setError("Allow camera or microphone access before sharing your screen.");
+      return;
+    }
+
     try {
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: "monitor" },
-        audio: true,
-      });
+      let screenStream: MediaStream;
+      try {
+        screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true,
+        });
+      } catch {
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      }
+
+      const videoTrack = screenStream.getVideoTracks()[0];
+      if (!videoTrack) {
+        screenStream.getTracks().forEach((track) => track.stop());
+        throw new Error("No screen video track");
+      }
+
       screenStreamRef.current = screenStream;
-      attachLocalStream(screenStream);
+      void bindStreamToVideo(localVideoRef.current, screenStream);
       await replaceVideoOnAllConnections(screenStream);
+
       if (compositorRef.current && localVideoRef.current) {
         compositorRef.current.setMainVideo(localVideoRef.current);
         compositorRef.current.syncHostAndScreenAudio(localStreamRef.current, screenStream);
       }
+
       setIsScreenSharing(true);
       if (isHost) setIsLive(true);
 
-      screenStream.getVideoTracks()[0]?.addEventListener("ended", () => {
-        void stopScreenShare();
-      });
+      videoTrack.addEventListener(
+        "ended",
+        () => {
+          void stopScreenShare();
+        },
+        { once: true },
+      );
+      setError("");
     } catch {
+      screenStreamRef.current?.getTracks().forEach((track) => track.stop());
+      screenStreamRef.current = null;
+      if (localStreamRef.current) {
+        attachLocalStream(localStreamRef.current);
+      }
+      setIsScreenSharing(false);
       setError("Could not share screen. Choose a window or tab when prompted, or try Chrome.");
     }
-  }, [attachLocalStream, isHost, isScreenSharing, replaceVideoOnAllConnections, stopScreenShare]);
+  }, [
+    attachLocalStream,
+    isHost,
+    isScreenSharing,
+    replaceVideoOnAllConnections,
+    stopScreenShare,
+  ]);
 
   const endBroadcast = useCallback(async () => {
     if (!isHost || meetingEndedRef.current || endingBroadcastRef.current) return null;
@@ -1487,10 +1708,14 @@ export function useLivestream({
     isSavingRecording,
     recordingElapsedSeconds,
     videoInputDevices,
+    audioInputDevices,
     selectedVideoDeviceId,
+    selectedAudioDeviceId,
     switchVideoDevice,
+    switchAudioDevice,
     switchFacingMode,
     refreshVideoInputDevices,
+    refreshMediaInputDevices,
     isRefreshingDevices,
     participants,
     galleryMembers,
