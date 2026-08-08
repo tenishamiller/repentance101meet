@@ -167,19 +167,6 @@ export function AdminLivestreamPanel({
                 </div>
 
                 <MemberJoinLink meetingToken={m.linkToken} variant="row" />
-
-                {m.recordingUrl && m.status === "ENDED" && (
-                  <a
-                    href={m.recordingUrl}
-                    download
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 inline-flex items-center gap-2 rounded-lg bg-gold px-4 py-2.5 text-sm font-bold text-burgundy-deep shadow hover:bg-gold-light"
-                  >
-                    <Download className="h-4 w-4" />
-                    Download Recording
-                  </a>
-                )}
               </div>
             ))}
           </div>
@@ -190,12 +177,18 @@ export function AdminLivestreamPanel({
       <section className="card-brand p-6">
         <h2 className="mb-1 font-serif text-xl font-semibold text-burgundy">Recording Library</h2>
         <p className="mb-4 text-sm text-burgundy/60">
-          Downloadable recordings appear here after you end a session with recording enabled.
+          Cloud recordings appear here after you <strong className="font-semibold text-burgundy">Record</strong> during
+          a live session and finish with <strong className="font-semibold text-burgundy">End &amp; Download</strong> in
+          the meeting room. Ending from Admin alone does not save a recording.
         </p>
         {recordings.length === 0 ? (
-          <p className="rounded-xl bg-cream-dark px-4 py-6 text-center text-burgundy/60">
-            No recordings yet.
-          </p>
+          <div className="rounded-xl bg-cream-dark px-4 py-6 text-center">
+            <p className="font-medium text-burgundy/70">No recordings in the library yet.</p>
+            <p className="mt-2 text-sm text-burgundy/55">
+              Your browser also downloads a copy when you use End &amp; Download — check your Downloads folder if
+              you recorded but nothing appears here (upload may have failed).
+            </p>
+          </div>
         ) : (
           <ul className="divide-y divide-gold/15">
             {recordings.map((r) => (
@@ -211,14 +204,11 @@ export function AdminLivestreamPanel({
                 </div>
                 {r.recordingUrl && (
                   <a
-                    href={r.recordingUrl}
-                    download
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href={`/api/admin/recordings/${r.id}/download`}
                     className="inline-flex items-center gap-2 rounded-lg bg-gold px-4 py-2 text-sm font-bold text-burgundy-deep hover:bg-gold-light"
                   >
                     <Download className="h-4 w-4" />
-                    Download MP4/WebM
+                    Download
                   </a>
                 )}
               </li>
