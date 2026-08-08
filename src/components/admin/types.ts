@@ -2,6 +2,7 @@ export type AdminTab =
   | "overview"
   | "members"
   | "messages"
+  | "surveys"
   | "channels"
   | "livestream"
   | "private"

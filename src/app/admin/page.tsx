@@ -10,6 +10,7 @@ import { AdminLivestreamPanel } from "@/components/admin/AdminLivestreamPanel";
 import { AdminPrivateMinistryPanel } from "@/components/admin/AdminPrivateMinistryPanel";
 import { AdminBlocksPanel } from "@/components/admin/AdminBlocksPanel";
 import { AdminContentPanel } from "@/components/admin/AdminContentPanel";
+import { AdminSurveyAnswersPanel } from "@/components/admin/AdminSurveyAnswersPanel";
 import { MembershipMessageCenter } from "@/components/messages/MembershipMessageCenter";
 import type {
   AdminTab,
@@ -74,6 +75,7 @@ export default function AdminPage() {
       "overview",
       "members",
       "messages",
+      "surveys",
       "channels",
       "livestream",
       "private",
@@ -257,6 +259,8 @@ export default function AdminPage() {
       {tab === "messages" && (
         <MembershipMessageCenter embedded onUnreadChange={setMessageUnread} />
       )}
+
+      {tab === "surveys" && <AdminSurveyAnswersPanel />}
 
       {tab === "channels" && (
         <AdminChannelsPanel

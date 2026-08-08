@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import {
   Ban,
   BookOpen,
+  ClipboardList,
   Heart,
   Home,
   LayoutDashboard,
@@ -23,6 +24,7 @@ const NAV: { id: AdminTab; label: string; icon: typeof Home; description: string
   { id: "overview", label: "Overview", icon: Home, description: "Dashboard & quick actions" },
   { id: "members", label: "Members", icon: Users, description: "Approvals & directory" },
   { id: "messages", label: "Messages", icon: MessageCircle, description: "Member conversations" },
+  { id: "surveys", label: "Survey Answers", icon: ClipboardList, description: "Signup questionnaire responses" },
   { id: "channels", label: "Channels", icon: LayoutDashboard, description: "Join requests & access" },
   { id: "livestream", label: "Livestream", icon: Radio, description: "Teaching room & recordings" },
   { id: "private", label: "Personal Ministry", icon: Heart, description: "Private 1-on-1 sessions" },
