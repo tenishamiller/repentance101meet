@@ -5,6 +5,18 @@ export type CompositorParticipant = {
   cameraOn: boolean;
 };
 
+function cloneAudioTrack(track: MediaStreamTrack): MediaStreamTrack {
+  try {
+    return track.clone();
+  } catch {
+    return track;
+  }
+}
+
+function liveAudioTrack(stream: MediaStream | null | undefined) {
+  return stream?.getAudioTracks().find((t) => t.readyState === "live" && t.enabled);
+}
+
 function drawCover(
   ctx: CanvasRenderingContext2D,
   video: HTMLVideoElement,
@@ -58,10 +70,30 @@ export class RecordingCompositor {
   connectAudioTrack(id: string, track: MediaStreamTrack) {
     if (track.readyState === "ended") return;
     this.disconnectAudioTrack(id);
-    const stream = new MediaStream([track]);
+    const stream = new MediaStream([cloneAudioTrack(track)]);
     const source = this.audioContext.createMediaStreamSource(stream);
     source.connect(this.destination);
     this.audioSources.set(id, source);
+  }
+
+  /** Mix host microphone and screen/tab audio into the recording. */
+  syncHostAndScreenAudio(
+    localStream: MediaStream | null | undefined,
+    screenStream: MediaStream | null | undefined,
+  ) {
+    const hostTrack = liveAudioTrack(localStream);
+    if (hostTrack) {
+      this.connectAudioTrack("host", hostTrack);
+    } else {
+      this.disconnectAudioTrack("host");
+    }
+
+    const screenTrack = liveAudioTrack(screenStream);
+    if (screenTrack) {
+      this.connectAudioTrack("screen-audio", screenTrack);
+    } else {
+      this.disconnectAudioTrack("screen-audio");
+    }
   }
 
   disconnectAudioTrack(id: string) {
@@ -147,8 +179,11 @@ export class RecordingCompositor {
     for (const track of videoStream.getVideoTracks()) {
       composite.addTrack(track);
     }
-    for (const track of this.destination.stream.getAudioTracks()) {
-      composite.addTrack(track);
+    const mixedAudio = this.destination.stream.getAudioTracks();
+    if (mixedAudio.length > 0) {
+      for (const track of mixedAudio) {
+        composite.addTrack(track);
+      }
     }
     return composite;
   }

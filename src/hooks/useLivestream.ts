@@ -15,6 +15,7 @@ import {
 import {
   buildRecordingFilename,
   getRecordingMimeType,
+  RECORDING_CONTENT_TYPE,
   triggerBrowserDownload,
   uploadRecordingBlob,
 } from "@/lib/recording";
@@ -278,6 +279,8 @@ export function useLivestream({
     const compositor = compositorRef.current;
     if (!compositor) return;
 
+    compositor.syncHostAndScreenAudio(localStreamRef.current, screenStreamRef.current);
+
     const videoAllowed = memberVideoEnabledRef.current;
     const micAllowed = memberMicEnabledRef.current;
     const items = [];
@@ -383,15 +386,34 @@ export function useLivestream({
   }, []);
 
   const buildRecordingStream = useCallback(() => {
-    const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+    const audioTracks: MediaStreamTrack[] = [];
+    const hostMic = localStreamRef.current?.getAudioTracks()[0];
+    const screenAudio = screenStreamRef.current?.getAudioTracks()[0];
+    if (hostMic?.readyState === "live") {
+      try {
+        audioTracks.push(hostMic.clone());
+      } catch {
+        audioTracks.push(hostMic);
+      }
+    }
+    if (screenAudio?.readyState === "live" && screenAudio !== hostMic) {
+      try {
+        audioTracks.push(screenAudio.clone());
+      } catch {
+        audioTracks.push(screenAudio);
+      }
+    }
+
     const videoTrack =
       screenStreamRef.current?.getVideoTracks()[0] ??
       localStreamRef.current?.getVideoTracks()[0];
-    if (!videoTrack && !audioTrack) return null;
+    if (!videoTrack && audioTracks.length === 0) return null;
 
     const stream = new MediaStream();
     if (videoTrack) stream.addTrack(videoTrack);
-    if (audioTrack) stream.addTrack(audioTrack);
+    for (const track of audioTracks) {
+      stream.addTrack(track);
+    }
     return stream;
   }, []);
 
@@ -406,13 +428,20 @@ export function useLivestream({
         if (localVideoRef.current) {
           compositor.setMainVideo(localVideoRef.current);
         }
-        const hostAudio = localStreamRef.current?.getAudioTracks()[0];
-        if (hostAudio) {
-          compositor.connectAudioTrack("host", hostAudio);
-        }
+        compositor.syncHostAndScreenAudio(localStreamRef.current, screenStreamRef.current);
         updateCompositorParticipants();
         compositor.startDrawing();
         stream = compositor.getStream();
+        if (stream.getAudioTracks().length === 0) {
+          const fallback = buildRecordingStream();
+          if (fallback) {
+            for (const track of fallback.getAudioTracks()) {
+              if (!stream.getAudioTracks().includes(track)) {
+                stream.addTrack(track);
+              }
+            }
+          }
+        }
       } catch {
         setError("Could not start recording. Try a different browser (Chrome recommended).");
         return;
@@ -433,10 +462,16 @@ export function useLivestream({
         recorder = new MediaRecorder(stream, {
           mimeType: recordingMimeRef.current,
           videoBitsPerSecond: 2_500_000,
+          audioBitsPerSecond: 128_000,
         });
       } catch {
-        recorder = new MediaRecorder(stream, { videoBitsPerSecond: 2_500_000 });
-        recordingMimeRef.current = recorder.mimeType || "video/webm";
+        recorder = new MediaRecorder(stream, {
+          videoBitsPerSecond: 2_500_000,
+          audioBitsPerSecond: 128_000,
+        });
+        recordingMimeRef.current = recorder.mimeType.includes("webm")
+          ? recorder.mimeType
+          : "video/webm";
       }
 
       recorder.ondataavailable = (event) => {
@@ -497,7 +532,7 @@ export function useLivestream({
           return;
         }
         const blob = new Blob(recordingChunksRef.current, {
-          type: recordingMimeRef.current,
+          type: RECORDING_CONTENT_TYPE,
         });
         recordingChunksRef.current = [];
         resolve(blob);
@@ -942,6 +977,21 @@ export function useLivestream({
   }, [publishMedia, refreshVideoInputDevices]);
 
   useEffect(() => {
+    if (!isRecording || !compositorRef.current) return;
+
+    const syncAudio = () => {
+      compositorRef.current?.syncHostAndScreenAudio(
+        localStreamRef.current,
+        screenStreamRef.current,
+      );
+    };
+
+    syncAudio();
+    const interval = window.setInterval(syncAudio, 3000);
+    return () => window.clearInterval(interval);
+  }, [isRecording]);
+
+  useEffect(() => {
     if (!isRecording) return;
 
     const tick = () => {
@@ -968,6 +1018,9 @@ export function useLivestream({
     }
     setIsMuted((m) => !m);
     setError("");
+    if (compositorRef.current) {
+      compositorRef.current.syncHostAndScreenAudio(localStreamRef.current, screenStreamRef.current);
+    }
   }, [isHost]);
 
   const toggleCamera = useCallback(() => {
@@ -1122,6 +1175,10 @@ export function useLivestream({
     } else {
       await renegotiateAllViewers();
     }
+    if (compositorRef.current && localVideoRef.current) {
+      compositorRef.current.setMainVideo(localVideoRef.current);
+      compositorRef.current.syncHostAndScreenAudio(localStreamRef.current, null);
+    }
     setIsScreenSharing(false);
   }, [attachLocalStream, replaceVideoOnAllConnections, renegotiateAllViewers]);
 
@@ -1139,6 +1196,10 @@ export function useLivestream({
       screenStreamRef.current = screenStream;
       attachLocalStream(screenStream);
       await replaceVideoOnAllConnections(screenStream);
+      if (compositorRef.current && localVideoRef.current) {
+        compositorRef.current.setMainVideo(localVideoRef.current);
+        compositorRef.current.syncHostAndScreenAudio(localStreamRef.current, screenStream);
+      }
       setIsScreenSharing(true);
       if (isHost) setIsLive(true);
 
@@ -1162,7 +1223,7 @@ export function useLivestream({
     let recordingUrl: string | null = null;
 
     if (blob && blob.size > 0) {
-      const filename = buildRecordingFilename(meetingTitle, blob.type);
+      const filename = buildRecordingFilename(meetingTitle, RECORDING_CONTENT_TYPE);
       triggerBrowserDownload(blob, filename);
 
       try {

@@ -1,10 +1,11 @@
-/** Best recording MIME type the browser supports (prefers WebM — widest MediaRecorder support). */
+/** WebM-only recording MIME types (Norman prefers .webm downloads). */
 export function getRecordingMimeType(): string {
   const candidates = [
     "video/webm;codecs=vp9,opus",
     "video/webm;codecs=vp8,opus",
+    "video/webm;codecs=vp9",
+    "video/webm;codecs=vp8",
     "video/webm",
-    "video/mp4",
   ];
   for (const type of candidates) {
     if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(type)) {
@@ -14,20 +15,22 @@ export function getRecordingMimeType(): string {
   return "video/webm";
 }
 
-export function getRecordingExtension(mimeType: string) {
-  if (mimeType.includes("mp4")) return "mp4";
+/** Livestream recordings are always saved and downloaded as WebM. */
+export function getRecordingExtension(_mimeType?: string) {
   return "webm";
 }
 
-export function buildRecordingFilename(title: string, mimeType: string) {
+export function buildRecordingFilename(title: string, _mimeType?: string) {
   const safe = title
     .replace(/[^a-zA-Z0-9-_ ]/g, "")
     .trim()
     .replace(/\s+/g, "-")
     .slice(0, 40) || "teaching";
   const date = new Date().toISOString().slice(0, 10);
-  return `repentance101-${safe}-${date}.${getRecordingExtension(mimeType)}`;
+  return `repentance101-${safe}-${date}.webm`;
 }
+
+export const RECORDING_CONTENT_TYPE = "video/webm";
 
 /** Vercel serverless request body limit — larger recordings must upload direct to Supabase. */
 const SERVER_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
@@ -81,7 +84,7 @@ async function uploadViaSignedUrl(
   const signRes = await fetch(`/api/meetings/${meetingToken}/recording`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filename, contentType: blob.type || "video/webm" }),
+    body: JSON.stringify({ filename, contentType: RECORDING_CONTENT_TYPE }),
   });
 
   if (!signRes.ok) {
@@ -115,7 +118,7 @@ async function uploadViaSignedUrl(
       }
       const supabase = createSupabaseBrowser()!;
       const { error } = await supabase.storage.from("uploads").uploadToSignedUrl(path, token, blob, {
-        contentType: blob.type || "video/webm",
+        contentType: RECORDING_CONTENT_TYPE,
         upsert: true,
       });
       if (error) throw new Error(error.message);

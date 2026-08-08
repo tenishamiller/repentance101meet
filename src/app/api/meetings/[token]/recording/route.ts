@@ -4,6 +4,7 @@ import path from "path";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { createSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { RECORDING_CONTENT_TYPE } from "@/lib/recording";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   const { filename, contentType } = await request.json();
-  const ext = path.extname(filename ?? "") || ".webm";
+  const ext = ".webm";
   const storagePath = `recordings/${ctx.meeting.id}/${Date.now()}${ext}`;
 
   if (isSupabaseConfigured()) {
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     path: storagePath,
     publicUrl: null,
     signedUrl: null,
-    contentType: contentType ?? "video/webm",
+    contentType: RECORDING_CONTENT_TYPE,
   });
 }
 
@@ -85,14 +86,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
-  const ext = path.extname(file.name) || ".webm";
+  const ext = ".webm";
   const storagePath = `recordings/${ctx.meeting.id}/${Date.now()}${ext}`;
 
   if (isSupabaseConfigured()) {
     const supabase = createSupabaseAdmin()!;
     const { error } = await supabase.storage
       .from("uploads")
-      .upload(storagePath, buffer, { contentType: file.type, upsert: true });
+      .upload(storagePath, buffer, { contentType: RECORDING_CONTENT_TYPE, upsert: true });
 
     if (error) {
       return Response.json({ error: error.message }, { status: 500 });
