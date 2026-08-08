@@ -33,7 +33,7 @@ export function HostLoginForm() {
         return;
       }
 
-      window.location.href = result?.url ?? "/admin";
+      window.location.assign("/admin");
     } catch {
       setError("Could not sign in. Please try again.");
       setLoading(false);

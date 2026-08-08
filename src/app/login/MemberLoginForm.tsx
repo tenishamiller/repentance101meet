@@ -30,7 +30,7 @@ export function MemberLoginForm() {
         return;
       }
 
-      window.location.href = result?.url ?? "/dashboard";
+      window.location.assign("/dashboard");
     } catch {
       setError("Could not sign in. Please try again.");
       setLoading(false);

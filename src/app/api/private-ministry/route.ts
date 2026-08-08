@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getAppUrl } from "@/lib/app-url";
 import { v4 as uuidv4 } from "uuid";
 
 export async function GET() {
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = getAppUrl();
 
   return Response.json({
     session: privateSession,

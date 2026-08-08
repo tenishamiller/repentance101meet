@@ -17,6 +17,8 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const VERCEL_PROJECT = "repentance101meet";
+const PRODUCTION_APP_URL =
+  process.env.PRODUCTION_APP_URL ?? "https://repentance101ministry.com";
 
 function loadEnvFile(filename) {
   const path = join(root, filename);
@@ -97,17 +99,26 @@ const keys = [
 
 console.log("Setting environment variables (Repentance 101 project only)...");
 for (const key of keys) {
-  const value = env[key] ?? "";
+  let value = env[key] ?? "";
   if (!value && key.startsWith("LIVEKIT")) continue;
   if (!value) continue;
   console.log(`  + ${key}`);
   for (const target of ["production", "preview", "development"]) {
+    let deployValue = value;
+    if (
+      (key === "NEXTAUTH_URL" || key === "NEXT_PUBLIC_APP_URL") &&
+      target === "production" &&
+      (!deployValue || deployValue.includes("localhost"))
+    ) {
+      deployValue = PRODUCTION_APP_URL;
+      console.log(`    → production uses ${PRODUCTION_APP_URL}`);
+    }
     spawnSync(
       "npx",
       vercelArgs(["vercel", "env", "add", key, target, "--force"]),
       {
         cwd: root,
-        input: value,
+        input: deployValue,
         encoding: "utf8",
         shell: true,
         stdio: ["pipe", "pipe", "pipe"],
@@ -120,6 +131,5 @@ console.log("\nDeploying...");
 run("npx", vercelArgs(["vercel", "--prod", "--yes"]));
 
 console.log(`
-Done! This Vercel project is separate from braidappt.com.
-Update NEXTAUTH_URL and NEXT_PUBLIC_APP_URL to your new Vercel URL in the Vercel dashboard.
+Done! Production NEXTAUTH_URL and NEXT_PUBLIC_APP_URL use ${PRODUCTION_APP_URL} (not localhost).
 `);
