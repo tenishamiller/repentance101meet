@@ -12,7 +12,7 @@ import {
   Video,
 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatRequestDateTime } from "@/lib/utils";
 import type { DashboardStats } from "./types";
 
 type Props = {
@@ -220,7 +220,9 @@ export function AdminOverview({ stats, onGoTo }: Props) {
                   <UserAvatar userId={m.id} name={m.name} avatarUrl={m.avatarUrl} size="sm" />
                   <div>
                     <p className="text-sm font-semibold text-burgundy">{m.name}</p>
-                    <p className="text-xs text-burgundy/60">Membership signup · {formatDate(m.createdAt)}</p>
+                    <p className="text-xs text-burgundy/60">
+                      Membership request · {formatRequestDateTime(m.createdAt)}
+                    </p>
                   </div>
                 </div>
                 <span className="rounded-full bg-gold/20 px-3 py-1 text-xs font-semibold text-burgundy">
@@ -242,7 +244,9 @@ export function AdminOverview({ stats, onGoTo }: Props) {
                   />
                   <div>
                     <p className="text-sm font-semibold text-burgundy">{req.user.name}</p>
-                    <p className="text-xs text-burgundy/60">Wants to join {req.channel.name}</p>
+                    <p className="text-xs text-burgundy/60">
+                      Wants to join {req.channel.name} · {formatRequestDateTime(req.requestedAt)}
+                    </p>
                   </div>
                 </div>
                 <span className="rounded-full bg-burgundy/10 px-3 py-1 text-xs font-semibold text-burgundy">

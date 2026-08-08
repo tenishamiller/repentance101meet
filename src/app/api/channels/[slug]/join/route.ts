@@ -26,13 +26,19 @@ export async function POST(_request: Request, { params }: RouteParams) {
         channelId: channel.id,
       },
     },
-    update: { status: "PENDING" },
+    update: { status: "PENDING", requestedAt: new Date() },
     create: {
       userId: session.user.id,
       channelId: channel.id,
       status: "PENDING",
+      requestedAt: new Date(),
     },
   });
 
-  return Response.json({ membership });
+  return Response.json({
+    membership: {
+      ...membership,
+      requestedAt: membership.requestedAt.toISOString(),
+    },
+  });
 }

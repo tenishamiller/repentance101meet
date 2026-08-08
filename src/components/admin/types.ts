@@ -25,6 +25,7 @@ export type ChannelMembershipStatus = "PENDING" | "APPROVED" | "DENIED";
 
 export type ChannelRequest = {
   id: string;
+  requestedAt: string;
   user: { id: string; name: string; email: string; avatarUrl: string | null };
   channel: { name: string; slug: string };
 };

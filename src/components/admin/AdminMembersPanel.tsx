@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
-import { formatDate } from "@/lib/utils";
+import { formatRequestDateTime } from "@/lib/utils";
 import { ListPagination } from "./ListPagination";
 import { MEMBER_STATUS_OPTIONS, StatusToggle } from "./StatusToggle";
 import type { Member, MemberStatus, PendingMember } from "./types";
@@ -92,7 +92,9 @@ export function AdminMembersPanel({
                   <div>
                     <p className="font-semibold text-burgundy">{m.name}</p>
                     <p className="text-sm text-burgundy/60">{m.email}</p>
-                    <p className="text-xs text-burgundy/50">Signed up {formatDate(m.createdAt)}</p>
+                    <p className="text-xs text-burgundy/50">
+                      Requested {formatRequestDateTime(m.createdAt)}
+                    </p>
                   </div>
                 </div>
                 <StatusToggle
@@ -144,7 +146,9 @@ export function AdminMembersPanel({
                   <tr className="border-b border-gold/20 text-burgundy/60">
                     <th className="pb-3 pr-4 font-semibold">Member</th>
                     <th className="pb-3 pr-4 font-semibold">Status</th>
-                    <th className="pb-3 pr-4 font-semibold">Joined</th>
+                    <th className="pb-3 pr-4 font-semibold">
+                    {statusFilter === "PENDING" ? "Requested" : "Joined"}
+                  </th>
                     <th className="pb-3 font-semibold">Decision</th>
                   </tr>
                 </thead>
@@ -172,7 +176,9 @@ export function AdminMembersPanel({
                           {m.status === "REJECTED" ? "DENIED" : m.status}
                         </span>
                       </td>
-                      <td className="py-3 pr-4 text-burgundy/60">{formatDate(m.createdAt)}</td>
+                      <td className="py-3 pr-4 text-burgundy/60">
+                        {formatRequestDateTime(m.createdAt)}
+                      </td>
                       <td className="py-3">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                           <StatusToggle

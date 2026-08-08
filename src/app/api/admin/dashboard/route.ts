@@ -82,8 +82,18 @@ export async function GET() {
 
   return Response.json({
     pendingMembers,
-    pendingChannelRequests,
-    deniedChannelRequests,
+    pendingChannelRequests: pendingChannelRequests.map((req) => ({
+      id: req.id,
+      requestedAt: req.requestedAt.toISOString(),
+      user: req.user,
+      channel: req.channel,
+    })),
+    deniedChannelRequests: deniedChannelRequests.map((req) => ({
+      id: req.id,
+      requestedAt: req.requestedAt.toISOString(),
+      user: req.user,
+      channel: req.channel,
+    })),
     activeBlocks,
     liveMeetings,
     recentMeetings,

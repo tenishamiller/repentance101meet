@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, ExternalLink, Lock, MessageSquare, UserMinus, Users } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
-import { CHANNELS } from "@/lib/utils";
+import { CHANNELS, formatRequestDateTime } from "@/lib/utils";
 import { CHANNEL_STATUS_OPTIONS, StatusToggle } from "./StatusToggle";
 import type { ChannelMembershipStatus, ChannelRequest, ChannelSummary } from "./types";
 
@@ -46,6 +46,9 @@ function ChannelRequestRow({
           <p className="font-semibold text-burgundy">{req.user.name}</p>
           <p className="text-sm text-burgundy/60">
             <strong>{req.channel.name}</strong>
+          </p>
+          <p className="text-xs text-burgundy/50">
+            Requested {formatRequestDateTime(req.requestedAt)}
           </p>
         </div>
       </div>

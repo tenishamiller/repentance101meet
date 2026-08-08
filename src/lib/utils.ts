@@ -22,6 +22,19 @@ export function formatDate(date: Date | string) {
   }).format(new Date(date));
 }
 
+/** Full date and time for join / approval requests (preserved from database). */
+export function formatRequestDateTime(date: Date | string) {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  }).format(new Date(date));
+}
+
 export const EDIT_WINDOW_MS = 5 * 60 * 1000;
 
 export function canEditMessage(createdAt: Date | string) {

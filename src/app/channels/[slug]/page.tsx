@@ -55,6 +55,7 @@ export default async function ChannelPage({ params }: Props) {
     <JoinChannelRequest
       channel={channel}
       membershipStatus={membership?.status ?? null}
+      requestedAt={membership?.requestedAt.toISOString() ?? null}
     />
   );
 }

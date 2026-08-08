@@ -4,10 +4,19 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { BrandDivider } from "@/components/BrandDivider";
+import { formatRequestDateTime } from "@/lib/utils";
 
 export default async function DashboardPage() {
   const session = await auth();
   if (!session) redirect("/login");
+
+  const memberProfile =
+    session.user.role !== "ADMIN"
+      ? await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { createdAt: true },
+        })
+      : null;
 
   if (session.user.status === "PENDING" && session.user.role !== "ADMIN") {
     return (
@@ -18,6 +27,11 @@ export default async function DashboardPage() {
           Hi {session.user.name}, your membership request is being reviewed. You&apos;ll be
           notified once approved.
         </p>
+        {memberProfile?.createdAt && (
+          <p className="mt-4 text-sm font-medium text-burgundy/60">
+            Requested {formatRequestDateTime(memberProfile.createdAt)}
+          </p>
+        )}
       </div>
     );
   }
@@ -27,9 +41,15 @@ export default async function DashboardPage() {
     ? []
     : await prisma.channelMembership.findMany({
         where: { userId: session.user.id },
+        select: { channelId: true, status: true, requestedAt: true },
       });
 
-  const membershipMap = new Map(memberships.map((m) => [m.channelId, m.status]));
+  const membershipMap = new Map(
+    memberships.map((m) => [
+      m.channelId,
+      { status: m.status, requestedAt: m.requestedAt },
+    ]),
+  );
 
   const privateChannels = channels.filter((c) => c.type !== "PUBLIC");
   const liveMeeting = await prisma.meeting.findFirst({
@@ -123,7 +143,8 @@ export default async function DashboardPage() {
 
       <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {privateChannels.map((channel) => {
-          const status = membershipMap.get(channel.id);
+          const membership = membershipMap.get(channel.id);
+          const status = membership?.status;
           const isAdmin = session.user.role === "ADMIN";
           const isApproved = isAdmin || status === "APPROVED";
 
@@ -145,9 +166,14 @@ export default async function DashboardPage() {
                   Enter Channel →
                 </Link>
               ) : status === "PENDING" ? (
-                <p className="mt-4 text-sm text-gold-muted">
-                  Join request pending approval
-                </p>
+                <div className="mt-4">
+                  <p className="text-sm text-gold-muted">Join request pending approval</p>
+                  {membership?.requestedAt && (
+                    <p className="mt-1 text-xs text-burgundy/55">
+                      Requested {formatRequestDateTime(membership.requestedAt)}
+                    </p>
+                  )}
+                </div>
               ) : status === "DENIED" ? (
                 <p className="mt-4 text-sm text-burgundy">
                   Request denied. Contact {MINISTRY_LEADER} if you believe this was an error.

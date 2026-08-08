@@ -1,8 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { MINISTRY_NAME, MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
+import { formatRequestDateTime } from "@/lib/utils";
 import {
   BookOpen,
   HandHeart,
@@ -14,6 +16,13 @@ import {
 
 export default async function HomePage() {
   const session = await auth();
+  const pendingMemberSince =
+    session?.user?.status === "PENDING" && session.user.role !== "ADMIN"
+      ? await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { createdAt: true },
+        })
+      : null;
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-20 pt-8">
@@ -52,6 +61,11 @@ export default async function HomePage() {
                   <p className="mt-1 text-gold-light">
                     {MINISTRY_LEADER} is reviewing your membership request.
                   </p>
+                  {pendingMemberSince?.createdAt && (
+                    <p className="mt-2 text-xs text-gold-light/80">
+                      Requested {formatRequestDateTime(pendingMemberSince.createdAt)}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <Link href="/dashboard" className="btn-primary">
