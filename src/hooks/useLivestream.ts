@@ -20,6 +20,8 @@ import {
 } from "@/lib/recording";
 import { RecordingCompositor } from "@/lib/recording-compositor";
 
+export type RecordingSaveStatus = "saved" | "upload-failed" | "empty" | "not-recorded";
+
 export type GalleryMember = {
   userId: string;
   name: string;
@@ -108,6 +110,9 @@ export function useLivestream({
   const [thumbsDown, setThumbsDown] = useState(0);
   const [myReaction, setMyReaction] = useState<string | null>(null);
   const [meetingEnded, setMeetingEnded] = useState(false);
+  const [recordingSaveMessage, setRecordingSaveMessage] = useState<RecordingSaveStatus | null>(
+    null,
+  );
   const [memberVideoEnabled, setMemberVideoEnabled] = useState(true);
   const [memberMicEnabled, setMemberMicEnabled] = useState(true);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -348,10 +353,16 @@ export function useLivestream({
     recordingChunksRef.current = [];
 
     try {
-      const recorder = new MediaRecorder(stream, {
-        mimeType: recordingMimeRef.current,
-        videoBitsPerSecond: 2_500_000,
-      });
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, {
+          mimeType: recordingMimeRef.current,
+          videoBitsPerSecond: 2_500_000,
+        });
+      } catch {
+        recorder = new MediaRecorder(stream, { videoBitsPerSecond: 2_500_000 });
+        recordingMimeRef.current = recorder.mimeType || "video/webm";
+      }
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -359,7 +370,7 @@ export function useLivestream({
         }
       };
 
-      recorder.start(10_000);
+      recorder.start(2_000);
       recorderRef.current = recorder;
       setIsRecording(true);
     } catch {
@@ -402,6 +413,8 @@ export function useLivestream({
       }
 
       recorder.onstop = () => {
+        compositorRef.current?.stop();
+        compositorRef.current = null;
         if (recordingChunksRef.current.length === 0) {
           resolve(null);
           return;
@@ -413,8 +426,12 @@ export function useLivestream({
         resolve(blob);
       };
 
+      if (recorder.state === "recording") {
+        recorder.requestData();
+      }
       recorder.stop();
       recorderRef.current = null;
+      setIsRecording(false);
     });
   }, []);
 
@@ -912,6 +929,7 @@ export function useLivestream({
     if (!isHost) return null;
 
     setIsSavingRecording(true);
+    const wasRecording = isRecording || recorderRef.current?.state === "recording";
     const blob = await stopRecording();
 
     await sendSignal("host-ended", null);
@@ -926,11 +944,26 @@ export function useLivestream({
         const result = await uploadRecordingBlob(meetingToken, blob, filename);
         recordingUrl = result.publicUrl;
         onRecordingSavedRef.current?.(result.publicUrl);
-      } catch {
+        setRecordingSaveMessage("saved");
+      } catch (uploadError) {
+        console.error("Recording upload failed:", uploadError);
+        const message =
+          uploadError instanceof Error ? uploadError.message : "Upload failed";
+        setRecordingSaveMessage("upload-failed");
         setError(
-          "Recording downloaded to your device. Cloud upload failed — try again from Admin or check Supabase storage.",
+          `Recording downloaded to your device, but cloud save failed: ${message}. Check Supabase storage, then try again.`,
         );
       }
+    } else if (wasRecording) {
+      setRecordingSaveMessage("empty");
+      setError(
+        "No recording file was created. Record for at least a few seconds, then use End & Download (not Admin → End Session).",
+      );
+    } else {
+      setRecordingSaveMessage("not-recorded");
+      setError(
+        "No recording — click Record before you finish, then use End & Download in the meeting room.",
+      );
     }
 
     await fetch(`/api/meetings/${meetingToken}/recording`, {
@@ -951,6 +984,7 @@ export function useLivestream({
     sendSignal,
     stopAll,
     stopRecording,
+    isRecording,
   ]);
 
   const toggleHand = useCallback(async () => {
@@ -1066,5 +1100,6 @@ export function useLivestream({
     sendReaction,
     kickViewer,
     meetingEnded,
+    recordingSaveMessage,
   };
 }

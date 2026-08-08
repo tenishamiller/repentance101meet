@@ -72,6 +72,7 @@ export function LivestreamRoom({
     sendReaction,
     kickViewer,
     meetingEnded,
+    recordingSaveMessage,
   } = useLivestream({
     meetingToken,
     meetingTitle,
@@ -87,6 +88,7 @@ export function LivestreamRoom({
       <MeetingEndedScreen
         meetingTitle={meetingTitle}
         variant={isHost ? "host" : "viewer"}
+        recordingSaveStatus={recordingSaveMessage}
         onContinue={() => router.push(isHost ? "/admin?recording=1" : "/livestream")}
       />
     );

@@ -156,7 +156,12 @@ export function AdminLivestreamPanel({
                         </Link>
                         <button
                           type="button"
-                          onClick={() => onMeetingAction(m.id, "end")}
+                          onClick={() => {
+                            const ok = window.confirm(
+                              "End this session from Admin?\n\nThis stops the livestream for everyone but does NOT save a recording. To save to the Recording Library, use End & Download in the meeting room while recording.",
+                            );
+                            if (ok) onMeetingAction(m.id, "end");
+                          }}
                           className="rounded-lg border border-burgundy/30 bg-burgundy/10 px-4 py-2 text-sm font-medium text-burgundy hover:bg-burgundy/20"
                         >
                           End Session

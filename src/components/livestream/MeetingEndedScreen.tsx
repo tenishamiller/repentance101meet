@@ -5,13 +5,21 @@ import Image from "next/image";
 import { BrandDivider } from "@/components/BrandDivider";
 import { Heart } from "lucide-react";
 
+export type RecordingSaveStatus = "saved" | "upload-failed" | "empty" | "not-recorded";
+
 type Props = {
   meetingTitle: string;
   variant: "host" | "viewer";
+  recordingSaveStatus?: RecordingSaveStatus | null;
   onContinue?: () => void;
 };
 
-export function MeetingEndedScreen({ meetingTitle, variant, onContinue }: Props) {
+export function MeetingEndedScreen({
+  meetingTitle,
+  variant,
+  recordingSaveStatus,
+  onContinue,
+}: Props) {
   const isHost = variant === "host";
 
   return (
@@ -32,8 +40,28 @@ export function MeetingEndedScreen({ meetingTitle, variant, onContinue }: Props)
       <p className="max-w-md text-lg text-gold-light/90">
         {isHost ? (
           <>
-            <strong className="text-cream">{meetingTitle}</strong> has ended. Your recording
-            download should begin automatically if you were recording.
+            <strong className="text-cream">{meetingTitle}</strong> has ended.{" "}
+            {recordingSaveStatus === "saved" ? (
+              <>Your recording was saved to the Recording Library and downloaded to your device.</>
+            ) : recordingSaveStatus === "upload-failed" ? (
+              <>
+                Your recording downloaded to your device, but the cloud upload failed — check Admin
+                → Recording Library or try again after verifying Supabase storage.
+              </>
+            ) : recordingSaveStatus === "empty" ? (
+              <>
+                No recording file was created. Next time, record for at least a few seconds, then
+                use <strong className="text-cream">End &amp; Download</strong> in the meeting room.
+              </>
+            ) : recordingSaveStatus === "not-recorded" ? (
+              <>
+                No recording was saved. Click <strong className="text-cream">Record</strong> during
+                the session, then finish with{" "}
+                <strong className="text-cream">End &amp; Download</strong> (not Admin → End Session).
+              </>
+            ) : (
+              <>Your recording download should begin automatically if you were recording.</>
+            )}
           </>
         ) : (
           <>
