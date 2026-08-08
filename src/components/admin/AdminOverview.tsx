@@ -88,16 +88,17 @@ export function AdminOverview({ stats, onGoTo }: Props) {
               </p>
               <h2 className="font-serif text-2xl font-bold text-cream">{liveStream.title}</h2>
               <p className="mt-1 text-sm text-gold-light/90">
-                Your teaching session is live — enter as host or share the member link.
+                Your teaching session is live. Open the Livestream tab to return to your broadcast.
               </p>
             </div>
-            <Link
-              href={`/meeting/${liveStream.linkToken}`}
+            <button
+              type="button"
+              onClick={() => onGoTo("livestream")}
               className="btn-primary inline-flex shrink-0 items-center gap-2 !px-6"
             >
               <Video className="h-5 w-5" />
-              Go Live (Host)
-            </Link>
+              Open Livestream Tab
+            </button>
           </div>
         </div>
       )}

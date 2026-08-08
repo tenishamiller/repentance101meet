@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { logMemberActivity } from "@/lib/member-activity";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
@@ -33,6 +34,13 @@ export async function POST(_request: Request, { params }: RouteParams) {
       status: "PENDING",
       requestedAt: new Date(),
     },
+  });
+
+  await logMemberActivity({
+    userId: session.user.id,
+    type: "CHANNEL_REQUESTED",
+    channelId: channel.id,
+    label: `Requested to join ${channel.name}`,
   });
 
   return Response.json({

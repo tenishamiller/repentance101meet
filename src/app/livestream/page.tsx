@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { MINISTRY_NAME, MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { LivestreamEndedBanner } from "@/components/livestream/LivestreamEndedBanner";
+import { UpcomingMeetingsList } from "@/components/livestream/UpcomingMeetingsList";
+import { LiveMeetingBanner } from "@/components/livestream/LiveMeetingBanner";
 import {
   Calendar,
   LogIn,
@@ -54,6 +56,8 @@ function renderMarkdown(content: string) {
     );
   });
 }
+
+export const dynamic = "force-dynamic";
 
 export default async function LivestreamPage() {
   const session = await auth();
@@ -194,24 +198,17 @@ export default async function LivestreamPage() {
             </ol>
           </div>
 
-          {upcomingMeetings.length > 0 && (
-            <div className="card-brand p-6">
-              <h3 className="mb-3 font-serif text-lg font-semibold text-burgundy">Sessions</h3>
-              <ul className="space-y-3">
-                {upcomingMeetings.map((m) => (
-                  <li key={m.id} className="rounded-xl bg-cream-dark px-4 py-3 text-sm">
-                    <p className="font-medium text-burgundy">{m.title}</p>
-                    <p className="mt-0.5 text-burgundy/60">
-                      {m.status === "LIVE" ? (
-                        <span className="font-semibold text-gold-muted">● Live now</span>
-                      ) : (
-                        "Scheduled — waiting for the host to start"
-                      )}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <UpcomingMeetingsList meetings={upcomingMeetings} />
+
+          {isApproved && (
+            <LiveMeetingBanner
+              className="mt-6"
+              initialLive={
+                liveMeeting
+                  ? { title: liveMeeting.title, linkToken: liveMeeting.linkToken }
+                  : null
+              }
+            />
           )}
 
           {!session && (

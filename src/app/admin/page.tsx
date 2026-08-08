@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { isMeetingPendingDeletion } from "@/lib/meeting-deletion-shared";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 import { AdminMembersPanel } from "@/components/admin/AdminMembersPanel";
 import { AdminChannelsPanel } from "@/components/admin/AdminChannelsPanel";
@@ -29,6 +30,7 @@ export default function AdminPage() {
   const [newMeetingTitle, setNewMeetingTitle] = useState("Repentance 101 Teaching");
   const [generatedLinkToken, setGeneratedLinkToken] = useState("");
   const [membersRefreshKey, setMembersRefreshKey] = useState(0);
+  const [goLiveLoading, setGoLiveLoading] = useState(false);
 
   const fetchAll = useCallback(async () => {
     const [dashRes, blocksRes, meetingsRes, channelsRes] = await Promise.all([
@@ -82,10 +84,11 @@ export default function AdminPage() {
   }
 
   async function removeFromChannel(membershipId: string) {
+    const reason = window.prompt("Reason for removal (optional):") ?? "";
     await fetch("/api/admin/channel-requests", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ membershipId }),
+      body: JSON.stringify({ membershipId, reason: reason.trim() || undefined }),
     });
     void fetchAll();
   }
@@ -113,6 +116,47 @@ export default function AdminPage() {
       body: JSON.stringify({ meetingId, action }),
     });
     void fetchAll();
+  }
+
+  async function goLive() {
+    setGoLiveLoading(true);
+    try {
+      const active = meetings.find(
+        (m) =>
+          !isMeetingPendingDeletion(m) && (m.status === "LIVE" || m.status === "SCHEDULED"),
+      );
+
+      let meeting = active;
+      if (!meeting) {
+        const res = await fetch("/api/admin/meetings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: newMeetingTitle }),
+        });
+        const data = await res.json();
+        if (!res.ok) return;
+        meeting = data.meeting;
+        setGeneratedLinkToken(data.meeting.linkToken);
+      }
+
+      if (!meeting) return;
+
+      if (meeting.status === "LIVE") {
+        window.location.assign(`/meeting/${meeting.linkToken}`);
+        return;
+      }
+
+      const startRes = await fetch("/api/admin/meetings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ meetingId: meeting.id, action: "start" }),
+      });
+      if (startRes.ok) {
+        window.location.assign(`/meeting/${meeting.linkToken}`);
+      }
+    } finally {
+      setGoLiveLoading(false);
+    }
   }
 
   async function blockUser(userId: string, reason?: string) {
@@ -183,6 +227,8 @@ export default function AdminPage() {
           onTitleChange={setNewMeetingTitle}
           onCreateMeeting={() => void createMeeting()}
           generatedLinkToken={generatedLinkToken}
+          onGoLive={() => void goLive()}
+          goLiveLoading={goLiveLoading}
           onMeetingAction={meetingAction}
         />
       )}

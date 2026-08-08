@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import { useMemo, useState } from "react";
 import { Download, Mic, Radio, Share2, Trash2, Undo2, Video } from "lucide-react";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { DeleteCountdown } from "@/components/admin/DeleteCountdown";
+import { ListPagination } from "@/components/admin/ListPagination";
 import { formatDate } from "@/lib/utils";
 import { isMeetingPendingDeletion } from "@/lib/meeting-deletion-shared";
 import type { Meeting } from "./types";
@@ -15,6 +16,8 @@ type Props = {
   onTitleChange: (title: string) => void;
   onCreateMeeting: () => void;
   generatedLinkToken: string;
+  onGoLive: () => void;
+  goLiveLoading?: boolean;
   onMeetingAction: (meetingId: string, action: "start" | "end" | "delete" | "undo-delete") => void;
 };
 
@@ -25,9 +28,33 @@ export function AdminLivestreamPanel({
   onTitleChange,
   onCreateMeeting,
   generatedLinkToken,
+  onGoLive,
+  goLiveLoading = false,
   onMeetingAction,
 }: Props) {
+  const [sessionsPage, setSessionsPage] = useState(1);
+  const [recordingsPage, setRecordingsPage] = useState(1);
+  const SESSIONS_PAGE_SIZE = 5;
+  const RECORDINGS_PAGE_SIZE = 8;
+
   const liveMeeting = meetings.find((m) => m.status === "LIVE" && !isMeetingPendingDeletion(m));
+  const scheduledMeeting = meetings.find(
+    (m) => m.status === "SCHEDULED" && !isMeetingPendingDeletion(m),
+  );
+  const activeSession = liveMeeting ?? scheduledMeeting;
+
+  const sessionsTotalPages = Math.max(1, Math.ceil(meetings.length / SESSIONS_PAGE_SIZE));
+  const recordingsTotalPages = Math.max(1, Math.ceil(recordings.length / RECORDINGS_PAGE_SIZE));
+
+  const pagedMeetings = useMemo(() => {
+    const start = (sessionsPage - 1) * SESSIONS_PAGE_SIZE;
+    return meetings.slice(start, start + SESSIONS_PAGE_SIZE);
+  }, [meetings, sessionsPage]);
+
+  const pagedRecordings = useMemo(() => {
+    const start = (recordingsPage - 1) * RECORDINGS_PAGE_SIZE;
+    return recordings.slice(start, start + RECORDINGS_PAGE_SIZE);
+  }, [recordings, recordingsPage]);
 
   function confirmDelete(meeting: Meeting) {
     const endingNote =
@@ -103,14 +130,77 @@ export function AdminLivestreamPanel({
         </div>
       </section>
 
-      {/* Create link */}
+      {/* Single Go Live path for Norman */}
+      <section className="card-brand overflow-hidden p-0">
+        <div className="hero-brand p-6 md:p-8">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-gold-light/90">
+            Host — one step to broadcast
+          </p>
+          <h2 className="font-serif text-2xl font-bold text-cream md:text-3xl">
+            {liveMeeting ? "You are live" : "Ready to teach live?"}
+          </h2>
+          <p className="mt-2 max-w-xl text-sm text-cream/85">
+            {liveMeeting
+              ? "Members can join from the livestream page. Return to the room to share camera, screen, chat, and recording."
+              : "Set your session title, generate the member link if needed, then press Go Live — that starts the session and opens your broadcast room."}
+          </p>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gold-light/80">
+                Session title
+              </label>
+              <input
+                type="text"
+                value={newMeetingTitle}
+                onChange={(e) => onTitleChange(e.target.value)}
+                className="input-field !border-gold/40 !bg-burgundy-dark/60 !text-cream placeholder:!text-cream/40"
+                placeholder="e.g. Repentance 101 — Sunday Teaching"
+                disabled={goLiveLoading}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={onGoLive}
+              disabled={goLiveLoading || !newMeetingTitle.trim()}
+              className="btn-primary inline-flex shrink-0 items-center justify-center gap-2 !px-8 !py-3.5 !text-base disabled:opacity-60"
+            >
+              <Video className="h-5 w-5" />
+              {goLiveLoading
+                ? "Starting..."
+                : liveMeeting
+                  ? "Return to Broadcast"
+                  : "Go Live Now"}
+            </button>
+          </div>
+
+          {!generatedLinkToken && !activeSession && (
+            <p className="mt-4 text-xs text-gold-light/70">
+              Tip: Go Live creates a session automatically. You can also generate a member link first
+              below if you want to share it before you start.
+            </p>
+          )}
+        </div>
+
+        {(generatedLinkToken || activeSession) && (
+          <div className="border-t border-gold/20 bg-cream-dark px-6 py-4">
+            <MemberJoinLink
+              meetingToken={generatedLinkToken || activeSession!.linkToken}
+              title="Member join link — share after you go live"
+              variant="row"
+            />
+          </div>
+        )}
+      </section>
+
+      {/* Create link (optional — for sharing before broadcast) */}
       <section className="card-brand p-6">
         <h2 className="mb-2 font-serif text-xl font-semibold text-burgundy">
-          Generate Member Join Link
+          Generate Link Early (optional)
         </h2>
         <p className="mb-4 text-sm text-burgundy/60">
-          Approved members use this special link to enter your teaching room. They must be logged
-          in with a profile.
+          Only needed if you want a member link before pressing Go Live. Otherwise, Go Live above
+          handles everything.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <input
@@ -131,36 +221,22 @@ export function AdminLivestreamPanel({
         </div>
       </section>
 
-      {generatedLinkToken && (
+      {generatedLinkToken && !activeSession && (
         <MemberJoinLink
           meetingToken={generatedLinkToken}
-          title="New Member Join Link"
+          title="Draft member link (session not started yet)"
           variant="hero"
         />
       )}
 
-      {liveMeeting && (
-        <div className="hero-brand rounded-2xl p-5">
-          <p className="badge-live mb-2 w-fit">● LIVE NOW</p>
-          <p className="font-serif text-xl font-bold text-cream">{liveMeeting.title}</p>
-          <Link
-            href={`/meeting/${liveMeeting.linkToken}`}
-            className="btn-primary mt-4 inline-flex items-center gap-2"
-          >
-            <Video className="h-5 w-5" />
-            Enter as Host
-          </Link>
-        </div>
-      )}
-
-      {/* Active & scheduled meetings */}
+      {/* Session history */}
       <section className="card-brand p-6">
-        <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">Your Sessions</h2>
+        <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">Session History</h2>
         {meetings.length === 0 ? (
           <p className="text-burgundy/60">No sessions yet — generate a member link above.</p>
         ) : (
           <div className="space-y-4">
-            {meetings.map((m) => {
+            {pagedMeetings.map((m) => {
               const pendingDelete = isMeetingPendingDeletion(m);
               return (
               <div
@@ -193,55 +269,39 @@ export function AdminLivestreamPanel({
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {!pendingDelete && m.status === "SCHEDULED" && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onMeetingAction(m.id, "start")}
-                          className="btn-primary !px-4 !py-2 text-sm"
-                        >
-                          Start Meeting
-                        </button>
-                        <Link
-                          href={`/meeting/${m.linkToken}`}
-                          className="btn-outline-gold !px-4 !py-2 text-sm"
-                        >
-                          Open as Host
-                        </Link>
-                      </>
-                    )}
                     {!pendingDelete && m.status === "LIVE" && (
-                      <>
-                        <Link
-                          href={`/meeting/${m.linkToken}`}
-                          className="btn-burgundy !px-4 !py-2 text-sm"
-                        >
-                          Go Live (Host)
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const ok = window.confirm(
-                              "End this session from Admin?\n\nThis stops the livestream for everyone but does NOT save a recording. To save to the Recording Library, use End & Download in the meeting room while recording.",
-                            );
-                            if (ok) onMeetingAction(m.id, "end");
-                          }}
-                          className="rounded-lg border border-burgundy/30 bg-burgundy/10 px-4 py-2 text-sm font-medium text-burgundy hover:bg-burgundy/20"
-                        >
-                          End Session
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const ok = window.confirm(
+                            "End this session from Admin?\n\nThis stops the livestream for everyone but does NOT save a recording. To save to the Recording Library, use End & Download in the meeting room while recording.",
+                          );
+                          if (ok) onMeetingAction(m.id, "end");
+                        }}
+                        className="rounded-lg border border-burgundy/30 bg-burgundy/10 px-4 py-2 text-sm font-medium text-burgundy hover:bg-burgundy/20"
+                      >
+                        End Session
+                      </button>
                     )}
                     {renderDeleteControls(m)}
                   </div>
                 </div>
 
-                {!pendingDelete && <MemberJoinLink meetingToken={m.linkToken} variant="row" />}
+                {!pendingDelete && m.status !== "ENDED" && (
+                  <MemberJoinLink meetingToken={m.linkToken} variant="row" />
+                )}
               </div>
             );
             })}
           </div>
         )}
+        <ListPagination
+          page={sessionsPage}
+          totalPages={sessionsTotalPages}
+          total={meetings.length}
+          pageSize={SESSIONS_PAGE_SIZE}
+          onPageChange={setSessionsPage}
+        />
       </section>
 
       {/* Recording library */}
@@ -262,7 +322,7 @@ export function AdminLivestreamPanel({
           </div>
         ) : (
           <ul className="divide-y divide-gold/15">
-            {recordings.map((r) => {
+            {pagedRecordings.map((r) => {
               const pendingDelete = isMeetingPendingDeletion(r);
               return (
               <li
@@ -301,6 +361,13 @@ export function AdminLivestreamPanel({
             })}
           </ul>
         )}
+        <ListPagination
+          page={recordingsPage}
+          totalPages={recordingsTotalPages}
+          total={recordings.length}
+          pageSize={RECORDINGS_PAGE_SIZE}
+          onPageChange={setRecordingsPage}
+        />
       </section>
     </div>
   );

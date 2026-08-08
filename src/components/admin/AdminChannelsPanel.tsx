@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, ExternalLink, Lock, MessageSquare, UserMinus, Users } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { ShowMoreList } from "@/components/ShowMoreList";
 import { CHANNELS, formatRequestDateTime } from "@/lib/utils";
 import { CHANNEL_STATUS_OPTIONS, StatusToggle } from "./StatusToggle";
 import type { ChannelMembershipStatus, ChannelRequest, ChannelSummary } from "./types";
@@ -165,16 +166,21 @@ export function AdminChannelsPanel({
             No pending channel requests.
           </p>
         ) : (
-          <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-            {pendingRequests.map((req) => (
+          <ShowMoreList
+            items={pendingRequests}
+            initialCount={5}
+            step={5}
+            listClassName="space-y-3"
+            moreLabel="requests"
+            getKey={(req) => req.id}
+            renderItem={(req) => (
               <ChannelRequestRow
-                key={req.id}
                 req={req}
                 currentStatus="PENDING"
                 onStatusChange={onStatusChange}
               />
-            ))}
-          </div>
+            )}
+          />
         )}
       </section>
 
@@ -184,23 +190,34 @@ export function AdminChannelsPanel({
           <p className="mb-4 text-sm text-burgundy/60">
             Switch back to Pending or Approved if you denied someone by mistake.
           </p>
-          <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-            {deniedRequests.map((req) => (
+          <ShowMoreList
+            items={deniedRequests}
+            initialCount={5}
+            step={5}
+            listClassName="space-y-3"
+            moreLabel="requests"
+            getKey={(req) => req.id}
+            renderItem={(req) => (
               <ChannelRequestRow
-                key={req.id}
                 req={req}
                 currentStatus="DENIED"
                 onStatusChange={onStatusChange}
               />
-            ))}
-          </div>
+            )}
+          />
         </section>
       )}
 
       <section className="card-brand p-6">
         <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">All Channels</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {channels.map((ch) => {
+        <ShowMoreList
+          items={channels}
+          initialCount={6}
+          step={4}
+          listClassName="grid gap-4 md:grid-cols-2"
+          moreLabel="channels"
+          getKey={(ch) => ch.id}
+          renderItem={(ch) => {
             const meta = Object.values(CHANNELS).find((c) => c.slug === ch.slug);
             const isPublic = ch.type === "PUBLIC";
             const href =
@@ -211,7 +228,7 @@ export function AdminChannelsPanel({
                   : `/channels/${ch.slug}`;
 
             return (
-              <div key={ch.id} className="rounded-xl border border-gold/25 bg-cream-dark p-5">
+              <div className="rounded-xl border border-gold/25 bg-cream-dark p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-serif text-lg font-semibold text-burgundy">{ch.name}</p>
@@ -253,8 +270,8 @@ export function AdminChannelsPanel({
                 )}
               </div>
             );
-          })}
-        </div>
+          }}
+        />
       </section>
     </div>
   );

@@ -337,8 +337,45 @@ export function useLivestream({
     remoteStreamRef.current = stream;
     setRemoteStream(stream);
     void bindStreamToVideo(remoteVideoRef.current, stream);
+
+    const refreshFromReceivers = () => {
+      void bindStreamToVideo(remoteVideoRef.current, remoteStreamRef.current);
+    };
+    for (const track of stream.getTracks()) {
+      track.onmute = refreshFromReceivers;
+      track.onunmute = refreshFromReceivers;
+      track.onended = refreshFromReceivers;
+    }
+
     setIsLive(true);
   }, []);
+
+  const refreshRemoteStreamFromReceivers = useCallback(
+    (hostPc: RTCPeerConnection) => {
+      const stream = remoteStreamRef.current ?? new MediaStream();
+      let changed = false;
+
+      for (const receiver of hostPc.getReceivers()) {
+        const track = receiver.track;
+        if (!track) continue;
+
+        const sameKind = stream.getTracks().find((t) => t.kind === track.kind);
+        if (sameKind && sameKind.id !== track.id) {
+          stream.removeTrack(sameKind);
+          changed = true;
+        }
+        if (!stream.getTracks().includes(track)) {
+          stream.addTrack(track);
+          changed = true;
+        }
+      }
+
+      if (changed || stream.getTracks().length > 0) {
+        attachRemoteStream(stream);
+      }
+    },
+    [attachRemoteStream],
+  );
 
   const attachLocalStream = useCallback((stream: MediaStream) => {
     setLocalStream(stream);
@@ -649,6 +686,7 @@ export function useLivestream({
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           await sendSignal("answer", hostId, { sdp: answer });
+          refreshRemoteStreamFromReceivers(pc);
         }
         return;
       }
@@ -660,7 +698,7 @@ export function useLivestream({
         }
       }
     },
-    [addLocalTracks, attachRemoteStream, hostId, isPrivate, mode, resolveIncomingStream, sendSignal, userId],
+    [addLocalTracks, attachRemoteStream, hostId, isPrivate, mode, refreshRemoteStreamFromReceivers, resolveIncomingStream, sendSignal, userId],
   );
 
   const pollSignals = useCallback(async () => {
@@ -950,22 +988,67 @@ export function useLivestream({
     setError("");
   }, [isHost, isScreenSharing, updateRecordingVideoTrack]);
 
-  const replaceVideoOnAllConnections = useCallback(async (newStream: MediaStream) => {
-    const videoTrack = newStream.getVideoTracks()[0];
-    if (!videoTrack) return;
+  const renegotiateAllViewers = useCallback(async () => {
+    if (!isHost) return;
 
-    const outboundStream = localStreamRef.current ?? newStream;
+    const videoTrack =
+      screenStreamRef.current?.getVideoTracks()[0] ??
+      localStreamRef.current?.getVideoTracks()[0];
+    const audioTrack = localStreamRef.current?.getAudioTracks()[0];
+    const outboundStream = localStreamRef.current ?? screenStreamRef.current;
 
-    for (const pc of peerConnectionsRef.current.values()) {
-      const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-      if (sender) {
-        await sender.replaceTrack(videoTrack);
-      } else if (outboundStream) {
-        pc.addTrack(videoTrack, outboundStream);
+    for (const viewerId of connectedViewersRef.current) {
+      const pc = peerConnectionsRef.current.get(viewerId);
+      if (!pc) continue;
+
+      const videoSender = pc.getSenders().find((s) => s.track?.kind === "video");
+      const audioSender = pc.getSenders().find((s) => s.track?.kind === "audio");
+
+      if (videoTrack) {
+        if (videoSender) {
+          await videoSender.replaceTrack(videoTrack);
+        } else if (outboundStream) {
+          pc.addTrack(videoTrack, outboundStream);
+        }
+      } else if (videoSender) {
+        await videoSender.replaceTrack(null);
       }
+
+      if (audioTrack) {
+        if (audioSender) {
+          await audioSender.replaceTrack(audioTrack);
+        } else if (outboundStream) {
+          pc.addTrack(audioTrack, outboundStream);
+        }
+      }
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await sendSignal("offer", viewerId, { sdp: offer });
     }
+
     updateRecordingVideoTrack();
-  }, [updateRecordingVideoTrack]);
+  }, [isHost, sendSignal, updateRecordingVideoTrack]);
+
+  const replaceVideoOnAllConnections = useCallback(
+    async (newStream: MediaStream) => {
+      const videoTrack = newStream.getVideoTracks()[0];
+      if (!videoTrack) return;
+
+      const outboundStream = localStreamRef.current ?? newStream;
+
+      for (const pc of peerConnectionsRef.current.values()) {
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        if (sender) {
+          await sender.replaceTrack(videoTrack);
+        } else if (outboundStream) {
+          pc.addTrack(videoTrack, outboundStream);
+        }
+      }
+      await renegotiateAllViewers();
+    },
+    [renegotiateAllViewers],
+  );
 
   const switchVideoDevice = useCallback(
     async (deviceId: string) => {
@@ -1036,9 +1119,11 @@ export function useLivestream({
     if (localStreamRef.current) {
       attachLocalStream(localStreamRef.current);
       await replaceVideoOnAllConnections(localStreamRef.current);
+    } else {
+      await renegotiateAllViewers();
     }
     setIsScreenSharing(false);
-  }, [attachLocalStream, replaceVideoOnAllConnections]);
+  }, [attachLocalStream, replaceVideoOnAllConnections, renegotiateAllViewers]);
 
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {

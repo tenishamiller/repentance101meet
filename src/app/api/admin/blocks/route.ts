@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { logMemberActivity } from "@/lib/member-activity";
 
 export async function GET() {
   const session = await auth();
@@ -61,6 +62,15 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  await logMemberActivity({
+    userId,
+    type: meetingId ? "BLOCKED_MEETING" : "BLOCKED",
+    meetingId: meetingId ?? undefined,
+    reason: reason ?? undefined,
+    actorId: session.user.id,
+    label: meetingId ? "Blocked from live meeting" : "Blocked from ministry meetings",
+  });
+
   return Response.json({ block });
 }
 
@@ -79,6 +89,13 @@ export async function PATCH(request: NextRequest) {
 
   const block = await prisma.blockList.findUnique({ where: { id: blockId } });
   if (block) {
+    await logMemberActivity({
+      userId: block.userId,
+      type: "UNBLOCKED",
+      actorId: session.user.id,
+      label: "Unblocked from ministry meetings",
+    });
+
     await prisma.meetingParticipant.updateMany({
       where: { userId: block.userId },
       data: { blocked: false },

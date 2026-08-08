@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { logMemberActivity } from "@/lib/member-activity";
 
 const signupSchema = z.object({
   name: z.string().min(2).max(100),
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
 
     const passwordHash = await bcrypt.hash(data.password, 12);
 
-    await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         name: data.name,
         email: data.email.toLowerCase(),
@@ -31,6 +32,12 @@ export async function POST(request: Request) {
         role: "MEMBER",
         status: "PENDING",
       },
+    });
+
+    await logMemberActivity({
+      userId: user.id,
+      type: "JOINED",
+      label: "Joined ministry (membership pending approval)",
     });
 
     return Response.json({

@@ -42,6 +42,20 @@ enum MeetingKind {
   PRIVATE
 }
 
+enum MemberActivityType {
+  JOINED
+  MEMBERSHIP_APPROVED
+  MEMBERSHIP_DENIED
+  CHANNEL_REQUESTED
+  CHANNEL_APPROVED
+  CHANNEL_DENIED
+  CHANNEL_REMOVED
+  BLOCKED
+  UNBLOCKED
+  BLOCKED_MEETING
+  UNBLOCKED_MEETING
+}
+
 model User {
   id           String        @id @default(cuid())
   email        String        @unique
@@ -61,6 +75,27 @@ model User {
   blocksReceived      BlockList[]           @relation("BlockedUser")
   blocksIssued        BlockList[]           @relation("BlockedBy")
   meetingParticipants MeetingParticipant[]
+  activityLogs        MemberActivityLog[]   @relation("MemberActivitySubject")
+  activityActions     MemberActivityLog[]   @relation("MemberActivityActor")
+}
+
+model MemberActivityLog {
+  id         String             @id @default(cuid())
+  userId     String
+  type       MemberActivityType
+  occurredAt DateTime           @default(now())
+  channelId  String?
+  meetingId  String?
+  reason     String?
+  actorId    String?
+  label      String?
+
+  user    User     @relation("MemberActivitySubject", fields: [userId], references: [id], onDelete: Cascade)
+  channel Channel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  meeting Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  actor   User?    @relation("MemberActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
 }
 
 model BlockList {
@@ -89,6 +124,7 @@ model Channel {
 
   memberships ChannelMembership[]
   messages    ChannelMessage[]
+  activityLogs MemberActivityLog[]
 }
 
 model ChannelMembership {
@@ -144,6 +180,7 @@ model Meeting {
   participants MeetingParticipant[]
   messages     MeetingMessage[]
   signals      MeetingSignal[]
+  activityLogs MemberActivityLog[]
 }
 
 model MeetingSignal {

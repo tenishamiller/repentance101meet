@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Ban, ShieldOff } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { ShowMoreList } from "@/components/ShowMoreList";
 import { formatDate } from "@/lib/utils";
 import { MemberSearchPicker } from "./MemberSearchPicker";
 import type { Block, Member } from "./types";
@@ -69,12 +70,15 @@ export function AdminBlocksPanel({ blocks, onUnblock, onBlock }: Props) {
             No users are currently blocked.
           </p>
         ) : (
-          <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-            {activeBlocks.map((b) => (
-              <div
-                key={b.id}
-                className="flex flex-col gap-4 rounded-xl border border-gold/25 bg-cream-dark p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
+          <ShowMoreList
+            items={activeBlocks}
+            initialCount={5}
+            step={5}
+            listClassName="space-y-3"
+            moreLabel="blocks"
+            getKey={(b) => b.id}
+            renderItem={(b) => (
+              <div className="flex flex-col gap-4 rounded-xl border border-gold/25 bg-cream-dark p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <UserAvatar
                     userId={b.user.id}
@@ -100,8 +104,8 @@ export function AdminBlocksPanel({ blocks, onUnblock, onBlock }: Props) {
                   Unblock
                 </button>
               </div>
-            ))}
-          </div>
+            )}
+          />
         )}
       </section>
 

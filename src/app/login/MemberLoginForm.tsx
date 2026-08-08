@@ -4,9 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
+import { RememberMeCheckbox, useRememberedEmail } from "@/components/auth/RememberMeField";
 
 export function MemberLoginForm() {
-  const [email, setEmail] = useState("");
+  const { email, setEmail, rememberMe, setRememberMe, persistOnLogin } = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,10 +17,13 @@ export function MemberLoginForm() {
     setLoading(true);
     setError("");
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
       const result = await signIn("credentials", {
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         password,
+        rememberMe: rememberMe ? "true" : "false",
         redirect: false,
         callbackUrl: "/dashboard",
       });
@@ -30,6 +34,7 @@ export function MemberLoginForm() {
         return;
       }
 
+      persistOnLogin(normalizedEmail);
       window.location.assign("/dashboard");
     } catch {
       setError("Could not sign in. Please try again.");
@@ -81,6 +86,7 @@ export function MemberLoginForm() {
               className="input-field"
             />
           </div>
+          <RememberMeCheckbox checked={rememberMe} onChange={setRememberMe} />
           <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
             {loading ? "Signing in..." : "Sign In"}
           </button>

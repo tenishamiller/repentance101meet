@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { BrandDivider } from "@/components/BrandDivider";
+import { LiveMeetingBanner } from "@/components/livestream/LiveMeetingBanner";
 import { formatRequestDateTime } from "@/lib/utils";
+
+export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -132,13 +135,10 @@ export default async function DashboardPage() {
       )}
 
       {liveMeeting && (
-        <div className="mt-8 rounded-2xl border-2 border-gold/50 bg-gold/10 p-6">
-          <p className="font-semibold text-burgundy">Live Meeting in Progress</p>
-          <p className="mt-1 text-burgundy/80">{liveMeeting.title}</p>
-          <Link href={`/meeting/${liveMeeting.linkToken}`} className="btn-burgundy mt-4 inline-block !px-5 !py-2.5 text-sm">
-            Join Meeting
-          </Link>
-        </div>
+        <LiveMeetingBanner
+          className="mt-8"
+          initialLive={{ title: liveMeeting.title, linkToken: liveMeeting.linkToken }}
+        />
       )}
 
       <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">

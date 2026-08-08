@@ -12,14 +12,10 @@ import {
 } from "lucide-react";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
+import { ShowMoreList } from "@/components/ShowMoreList";
+import { MemberSearchPicker } from "@/components/admin/MemberSearchPicker";
 import { formatDate } from "@/lib/utils";
-
-type Member = {
-  id: string;
-  name: string;
-  email: string;
-  avatarUrl: string | null;
-};
+import type { Member } from "@/components/admin/types";
 
 type PrivateSession = {
   id: string;
@@ -34,16 +30,14 @@ type PrivateSession = {
 type Props = {
   isAdmin: boolean;
   userName?: string;
-  /** When true, renders inside admin console without outer page chrome */
   embedded?: boolean;
 };
 
 export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }: Props) {
   const [sessions, setSessions] = useState<PrivateSession[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
-  const [invitedUserId, setInvitedUserId] = useState("");
+  const [invitedMember, setInvitedMember] = useState<Member | null>(null);
   const [creating, setCreating] = useState(false);
   const [lastJoinUrl, setLastJoinUrl] = useState("");
 
@@ -55,7 +49,6 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
     }
     const data = await res.json();
     setSessions(data.sessions);
-    setMembers(data.approvedMembers ?? []);
     setLoading(false);
   }, []);
 
@@ -66,19 +59,19 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
   }, [fetchSessions]);
 
   async function createSession() {
-    if (!invitedUserId) return;
+    if (!invitedMember) return;
     setCreating(true);
     const res = await fetch("/api/private-ministry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, invitedUserId }),
+      body: JSON.stringify({ title, invitedUserId: invitedMember.id }),
     });
     setCreating(false);
     if (res.ok) {
       const data = await res.json();
       setLastJoinUrl(data.joinUrl);
       setTitle("");
-      setInvitedUserId("");
+      setInvitedMember(null);
       void fetchSessions();
     }
   }
@@ -92,39 +85,116 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
     void fetchSessions();
   }
 
-  const liveInvite = sessions.find(
-    (s) => s.status === "LIVE" && !isAdmin,
-  );
+  const liveInvite = sessions.find((s) => s.status === "LIVE" && !isAdmin);
+  const activeSessions = sessions.filter((s) => s.status !== "ENDED");
+  const endedSessions = sessions.filter((s) => s.status === "ENDED");
+
+  function renderSessionCard(s: PrivateSession) {
+    return (
+      <div className="card-brand p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            {s.invitedUser && (
+              <UserAvatar
+                userId={s.invitedUser.id}
+                name={s.invitedUser.name}
+                avatarUrl={s.invitedUser.avatarUrl}
+                size="md"
+              />
+            )}
+            <div>
+              <p className="font-serif text-lg font-semibold text-burgundy">{s.title}</p>
+              <p className="mt-1 text-sm text-burgundy/60">
+                {isAdmin && s.invitedUser ? `With ${s.invitedUser.name}` : "With session host"}
+                {" · "}
+                {formatDate(s.createdAt)}
+              </p>
+              <p className="mt-1 text-sm">
+                {s.status === "LIVE" ? (
+                  <span className="font-bold text-gold-muted">● Live now — ready to join</span>
+                ) : s.status === "SCHEDULED" ? (
+                  <span className="text-burgundy/70">
+                    {isAdmin
+                      ? "Scheduled — click Start when ready"
+                      : "Waiting for the host to start"}
+                  </span>
+                ) : (
+                  <span className="text-burgundy/50">Ended</span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {isAdmin && s.status === "SCHEDULED" && (
+              <button
+                type="button"
+                onClick={() => void sessionAction(s.id, "start")}
+                className="btn-primary !px-4 !py-2 text-sm"
+              >
+                Start Session
+              </button>
+            )}
+            {isAdmin && s.status === "LIVE" && (
+              <>
+                <Link
+                  href={`/personal-ministry/${s.linkToken}`}
+                  className="btn-burgundy !px-4 !py-2 text-sm"
+                >
+                  Enter as Host
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void sessionAction(s.id, "end")}
+                  className="rounded-lg border border-burgundy/30 bg-burgundy/10 px-4 py-2 text-sm font-medium text-burgundy hover:bg-burgundy/20"
+                >
+                  End Session
+                </button>
+              </>
+            )}
+            {!isAdmin && s.status === "LIVE" && (
+              <Link
+                href={`/personal-ministry/${s.linkToken}`}
+                className="btn-primary !px-4 !py-2 text-sm"
+              >
+                Join Private Session
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={embedded ? "" : "mx-auto max-w-5xl px-4 py-10"}>
       {!embedded && (
-      <section className="hero-brand relative overflow-hidden rounded-3xl p-8 text-cream shadow-2xl md:p-12">
-        <div className="pointer-events-none absolute -right-10 top-0 h-48 w-48 rounded-full bg-gold/15 blur-3xl" />
-        <div className="relative">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-gold-light">
-            <Shield className="h-4 w-4" />
-            Private · One-on-One
-          </div>
-          <h1 className="font-serif text-3xl font-bold md:text-4xl">Personal Ministry</h1>
-          <BrandDivider light className="my-4 max-w-md" />
-          <p className="max-w-2xl text-lg text-cream/90">
-            {isAdmin
-              ? "Invite a member for a private video call — personal pastoral care, prayer, and counsel. Separate from the public live teaching room."
-              : "Private one-on-one time with ministry leadership. When you're invited, your session will appear below."}
-          </p>
+        <section className="hero-brand relative overflow-hidden rounded-3xl p-8 text-cream shadow-2xl md:p-12">
+          <div className="pointer-events-none absolute -right-10 top-0 h-48 w-48 rounded-full bg-gold/15 blur-3xl" />
+          <div className="relative">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-gold-light">
+              <Shield className="h-4 w-4" />
+              Private · One-on-One
+            </div>
+            <h1 className="font-serif text-3xl font-bold md:text-4xl">Personal Ministry</h1>
+            <BrandDivider light className="my-4 max-w-md" />
+            <p className="max-w-2xl text-lg text-cream/90">
+              {isAdmin
+                ? "Invite a member for a private video call — personal pastoral care, prayer, and counsel. Separate from the public live teaching room."
+                : "Private one-on-one time with ministry leadership. When you're invited, your session will appear below."}
+            </p>
 
-          {!isAdmin && liveInvite && (
-            <Link
-              href={`/personal-ministry/${liveInvite.linkToken}`}
-              className="btn-primary mt-8 inline-flex items-center gap-2 !px-8 !py-4 !text-lg"
-            >
-              <Video className="h-6 w-6" />
-              Join Private Session
-            </Link>
-          )}
-        </div>
-      </section>
+            {!isAdmin && liveInvite && (
+              <Link
+                href={`/personal-ministry/${liveInvite.linkToken}`}
+                className="btn-primary mt-8 inline-flex items-center gap-2 !px-8 !py-4 !text-lg"
+              >
+                <Video className="h-6 w-6" />
+                Join Private Session
+              </Link>
+            )}
+          </div>
+        </section>
       )}
 
       {embedded && (
@@ -148,8 +218,8 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
             Invite a Member
           </h2>
           <p className="mb-6 text-sm text-burgundy/70">
-            Choose an approved member and start a private session. Only they can enter — no one else
-            sees or joins this room.
+            Search for an approved member — no long dropdown list. Only they can enter this private
+            room.
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             <input
@@ -159,22 +229,15 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
               className="input-field"
               placeholder="e.g. Prayer & counsel — follow-up"
             />
-            <select
-              value={invitedUserId}
-              onChange={(e) => setInvitedUserId(e.target.value)}
-              className="input-field"
-            >
-              <option value="">Select member...</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.email})
-                </option>
-              ))}
-            </select>
+            <MemberSearchPicker
+              value={invitedMember}
+              onChange={setInvitedMember}
+              placeholder="Search member by name or email..."
+            />
           </div>
           <button
             type="button"
-            disabled={!invitedUserId || creating}
+            disabled={!invitedMember || creating}
             onClick={() => void createSession()}
             className="btn-primary mt-4 inline-flex items-center gap-2 disabled:opacity-50"
           >
@@ -212,88 +275,47 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
             </p>
           </div>
         ) : (
-          <ul className="space-y-4">
-            {sessions.map((s) => (
-              <li key={s.id} className="card-brand p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-4">
-                    {s.invitedUser && (
-                      <UserAvatar
-                        userId={s.invitedUser.id}
-                        name={s.invitedUser.name}
-                        avatarUrl={s.invitedUser.avatarUrl}
-                        size="md"
-                      />
-                    )}
-                    <div>
-                      <p className="font-serif text-lg font-semibold text-burgundy">{s.title}</p>
-                      <p className="mt-1 text-sm text-burgundy/60">
-                        {isAdmin && s.invitedUser
-                          ? `With ${s.invitedUser.name}`
-                          : "With session host"}
-                        {" · "}
-                        {formatDate(s.createdAt)}
-                      </p>
-                      <p className="mt-1 text-sm">
-                        {s.status === "LIVE" ? (
-                          <span className="font-bold text-gold-muted">● Live now — ready to join</span>
-                        ) : s.status === "SCHEDULED" ? (
-                          <span className="text-burgundy/70">
-                            {isAdmin ? "Scheduled — click Start when ready" : "Waiting for the host to start"}
-                          </span>
-                        ) : (
-                          <span className="text-burgundy/50">Ended</span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
+          <div className="space-y-6">
+            {activeSessions.length > 0 && (
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-burgundy/55">
+                  Active & scheduled ({activeSessions.length})
+                </p>
+                <ShowMoreList
+                  items={activeSessions}
+                  initialCount={5}
+                  step={5}
+                  listClassName="space-y-4"
+                  getKey={(s) => s.id}
+                  renderItem={(s) => renderSessionCard(s)}
+                />
+              </div>
+            )}
 
-                  <div className="flex flex-wrap gap-2">
-                    {isAdmin && s.status === "SCHEDULED" && (
-                      <button
-                        type="button"
-                        onClick={() => void sessionAction(s.id, "start")}
-                        className="btn-primary !px-4 !py-2 text-sm"
-                      >
-                        Start Session
-                      </button>
-                    )}
-                    {isAdmin && s.status === "LIVE" && (
-                      <>
-                        <Link
-                          href={`/personal-ministry/${s.linkToken}`}
-                          className="btn-burgundy !px-4 !py-2 text-sm"
-                        >
-                          Enter as Host
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => void sessionAction(s.id, "end")}
-                          className="rounded-lg border border-burgundy/30 bg-burgundy/10 px-4 py-2 text-sm font-medium text-burgundy hover:bg-burgundy/20"
-                        >
-                          End Session
-                        </button>
-                      </>
-                    )}
-                    {!isAdmin && s.status === "LIVE" && (
-                      <Link
-                        href={`/personal-ministry/${s.linkToken}`}
-                        className="btn-primary !px-4 !py-2 text-sm"
-                      >
-                        Join Private Session
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+            {endedSessions.length > 0 && (
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-burgundy/55">
+                  Past sessions ({endedSessions.length})
+                </p>
+                <ShowMoreList
+                  items={endedSessions}
+                  initialCount={3}
+                  step={5}
+                  listClassName="space-y-4"
+                  getKey={(s) => s.id}
+                  renderItem={(s) => renderSessionCard(s)}
+                  moreLabel="past sessions"
+                />
+              </div>
+            )}
+          </div>
         )}
       </section>
 
       {!isAdmin && !embedded && (
         <p className="mt-8 text-center text-sm text-burgundy/60">
-          Welcome, {userName}. This space is only for sessions you&apos;re personally invited to — separate from the public live teaching at{" "}
+          Welcome, {userName}. This space is only for sessions you&apos;re personally invited to —
+          separate from the public live teaching at{" "}
           <Link href="/livestream" className="font-medium text-burgundy underline">
             Live Meeting
           </Link>

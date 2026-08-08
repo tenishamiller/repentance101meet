@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Circle,
@@ -18,6 +18,7 @@ import {
   VideoOff,
 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { ShowMoreList } from "@/components/ShowMoreList";
 import { useLivestream } from "@/hooks/useLivestream";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
@@ -117,6 +118,15 @@ export function LivestreamRoom({
     onKicked: () => router.push("/livestream?removed=1"),
   });
 
+  const raisedHands = useMemo(
+    () => participants.filter((p) => p.handRaised && p.user.id !== hostId),
+    [participants, hostId],
+  );
+  const viewers = useMemo(
+    () => participants.filter((p) => p.user.id !== hostId),
+    [participants, hostId],
+  );
+
   if (meetingEnded) {
     return (
       <MeetingEndedScreen
@@ -127,8 +137,6 @@ export function LivestreamRoom({
       />
     );
   }
-
-  const raisedHands = participants.filter((p) => p.handRaised && p.user.id !== hostId);
 
   return (
     <div className="flex h-[calc(100vh-80px)] min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:flex-row">
@@ -462,46 +470,48 @@ export function LivestreamRoom({
               <Users className="h-4 w-4 text-gold" />
               Viewers ({viewerCount})
             </h3>
-            <ul className="max-h-24 space-y-1.5 overflow-y-auto sm:max-h-28">
-              {participants
-                .filter((p) => p.user.id !== hostId)
-                .map((p) => (
-                  <li
-                    key={p.user.id}
-                    className="flex items-center justify-between rounded-lg border border-gold/10 bg-burgundy-dark px-2.5 py-1.5"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <UserAvatar
-                        userId={p.user.id}
-                        name={p.user.name}
-                        avatarUrl={p.user.avatarUrl}
-                        size="md"
+            <ShowMoreList
+              items={viewers}
+              initialCount={8}
+              step={8}
+              maxHeightClass="max-h-48"
+              listClassName="space-y-1.5"
+              moreLabel="viewers"
+              getKey={(p) => p.user.id}
+              emptyMessage={
+                <p className="text-sm text-gold-light/60">Waiting for viewers to join...</p>
+              }
+              renderItem={(p) => (
+                <div className="flex items-center justify-between rounded-lg border border-gold/10 bg-burgundy-dark px-2.5 py-1.5">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <UserAvatar
+                      userId={p.user.id}
+                      name={p.user.name}
+                      avatarUrl={p.user.avatarUrl}
+                      size="md"
+                    />
+                    <span className="truncate text-sm text-cream">{p.user.name}</span>
+                    {p.handRaised && <span title="Hand raised">✋</span>}
+                    {p.reaction === "UP" && (
+                      <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-gold" aria-label="Thumbs up" />
+                    )}
+                    {p.reaction === "DOWN" && (
+                      <ThumbsDown
+                        className="h-3.5 w-3.5 shrink-0 text-cream/70"
+                        aria-label="Thumbs down"
                       />
-                      <span className="truncate text-sm text-cream">{p.user.name}</span>
-                      {p.handRaised && <span title="Hand raised">✋</span>}
-                      {p.reaction === "UP" && (
-                        <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-gold" aria-label="Thumbs up" />
-                      )}
-                      {p.reaction === "DOWN" && (
-                        <ThumbsDown
-                          className="h-3.5 w-3.5 shrink-0 text-cream/70"
-                          aria-label="Thumbs down"
-                        />
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => void kickViewer(p.user.id)}
-                      className="ml-2 shrink-0 text-xs text-gold-light/70 hover:text-gold"
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              {viewerCount === 0 && (
-                <li className="text-sm text-gold-light/60">Waiting for viewers to join...</li>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void kickViewer(p.user.id)}
+                    className="ml-2 shrink-0 text-xs text-gold-light/70 hover:text-gold"
+                  >
+                    Remove
+                  </button>
+                </div>
               )}
-            </ul>
+            />
 
             {raisedHands.length > 0 && (
               <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 p-2.5">

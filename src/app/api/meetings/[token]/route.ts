@@ -10,7 +10,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }
 
   const { token } = await params;
-  const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
+  let meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
 
   if (!meeting || meeting.deletedAt) {
     return Response.json({ error: "Meeting not found" }, { status: 404 });
@@ -35,6 +35,15 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return Response.json({ error: "You are blocked from meetings" }, { status: 403 });
   }
 
+  const isHost = session.user.id === meeting.createdById;
+
+  if (isHost && meeting.status === "SCHEDULED") {
+    meeting = await prisma.meeting.update({
+      where: { id: meeting.id },
+      data: { status: "LIVE", startedAt: new Date() },
+    });
+  }
+
   if (meeting.status !== "LIVE" && session.user.role !== "ADMIN") {
     if (meeting.status === "ENDED") {
       return Response.json(
@@ -52,8 +61,6 @@ export async function GET(_request: Request, { params }: RouteParams) {
   if (!session.user.name) {
     return Response.json({ error: "Complete your profile first" }, { status: 400 });
   }
-
-  const isHost = session.user.id === meeting.createdById;
 
   await prisma.meetingParticipant.upsert({
     where: {

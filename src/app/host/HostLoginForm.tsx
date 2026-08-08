@@ -7,9 +7,10 @@ import { useState } from "react";
 import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { Shield } from "lucide-react";
+import { RememberMeCheckbox, useRememberedEmail } from "@/components/auth/RememberMeField";
 
 export function HostLoginForm() {
-  const [email, setEmail] = useState("");
+  const { email, setEmail, rememberMe, setRememberMe, persistOnLogin } = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,10 +20,13 @@ export function HostLoginForm() {
     setLoading(true);
     setError("");
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
       const result = await signIn("credentials", {
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         password,
+        rememberMe: rememberMe ? "true" : "false",
         redirect: false,
         callbackUrl: "/admin",
       });
@@ -33,6 +37,7 @@ export function HostLoginForm() {
         return;
       }
 
+      persistOnLogin(normalizedEmail);
       window.location.assign("/admin");
     } catch {
       setError("Could not sign in. Please try again.");
@@ -88,6 +93,7 @@ export function HostLoginForm() {
               className="input-field"
             />
           </div>
+          <RememberMeCheckbox id="remember-me-host" checked={rememberMe} onChange={setRememberMe} />
           <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
             {loading ? "Signing in..." : "Enter Admin Console"}
           </button>

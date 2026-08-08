@@ -1,8 +1,15 @@
 import type { NextAuthConfig } from "next-auth";
+import {
+  DEFAULT_SESSION_MAX_AGE_SEC,
+  REMEMBER_ME_MAX_AGE_SEC,
+} from "@/lib/remember-login";
 
 export const authConfig = {
   trustHost: true,
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: REMEMBER_ME_MAX_AGE_SEC,
+  },
   pages: {
     signIn: "/login",
   },
@@ -17,6 +24,11 @@ export const authConfig = {
           | "APPROVED"
           | "REJECTED";
         token.avatarUrl = (user as { avatarUrl?: string | null }).avatarUrl;
+
+        const rememberMe = (user as { rememberMe?: boolean }).rememberMe === true;
+        token.rememberMe = rememberMe;
+        const maxAge = rememberMe ? REMEMBER_ME_MAX_AGE_SEC : DEFAULT_SESSION_MAX_AGE_SEC;
+        token.exp = Math.floor(Date.now() / 1000) + maxAge;
       }
 
       if (trigger === "update" && session) {

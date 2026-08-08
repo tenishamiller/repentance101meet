@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { logMemberActivity } from "@/lib/member-activity";
 import type { Prisma } from "@/generated/prisma/client";
 
 const DEFAULT_LIMIT = 25;
@@ -72,6 +73,22 @@ export async function PATCH(request: NextRequest) {
     where: { id: userId },
     data: { status },
   });
+
+  const activityType =
+    status === "APPROVED"
+      ? "MEMBERSHIP_APPROVED"
+      : status === "REJECTED"
+        ? "MEMBERSHIP_DENIED"
+        : null;
+
+  if (activityType) {
+    await logMemberActivity({
+      userId,
+      type: activityType,
+      actorId: session.user.id,
+      label: status === "APPROVED" ? "Membership approved" : "Membership denied",
+    });
+  }
 
   return Response.json({ user });
 }

@@ -14,6 +14,7 @@ declare module "next-auth" {
     role?: "ADMIN" | "MEMBER";
     status?: "PENDING" | "APPROVED" | "REJECTED";
     avatarUrl?: string | null;
+    rememberMe?: boolean;
   }
 }
 
@@ -23,6 +24,7 @@ declare module "next-auth/jwt" {
     role?: "ADMIN" | "MEMBER";
     status?: "PENDING" | "APPROVED" | "REJECTED";
     avatarUrl?: string | null;
+    rememberMe?: boolean;
   }
 }
 

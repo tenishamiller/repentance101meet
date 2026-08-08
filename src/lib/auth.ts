@@ -12,6 +12,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        rememberMe: { label: "Remember Me", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
@@ -30,6 +31,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (user.status === "REJECTED") return null;
 
+        const rememberMe = String(credentials.rememberMe ?? "") === "true";
+
         return {
           id: user.id,
           email: user.email,
@@ -37,6 +40,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           status: user.status,
           avatarUrl: user.avatarUrl,
+          rememberMe,
         };
       },
     }),

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Ban } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { ShowMoreList } from "@/components/ShowMoreList";
 
 type BlockedEntry = {
   user: { id: string; name: string; email: string; avatarUrl: string | null };
@@ -52,12 +53,16 @@ export function BlockedUsersPanel({ meetingToken }: { meetingToken: string }) {
         <Ban className="h-3.5 w-3.5" />
         Blocked ({blocked.length})
       </p>
-      <ul className="max-h-28 space-y-1.5 overflow-y-auto">
-        {blocked.map((entry) => (
-          <li
-            key={entry.user.id}
-            className="flex items-center justify-between gap-2 rounded-lg border border-gold/10 bg-burgundy px-2 py-1.5"
-          >
+      <ShowMoreList
+        items={blocked}
+        initialCount={5}
+        step={5}
+        maxHeightClass="max-h-28"
+        listClassName="space-y-1.5"
+        moreLabel="blocked users"
+        getKey={(entry) => entry.user.id}
+        renderItem={(entry) => (
+          <div className="flex items-center justify-between gap-2 rounded-lg border border-gold/10 bg-burgundy px-2 py-1.5">
             <div className="flex min-w-0 items-center gap-2">
               <UserAvatar
                 userId={entry.user.id}
@@ -75,9 +80,9 @@ export function BlockedUsersPanel({ meetingToken }: { meetingToken: string }) {
             >
               {busyId === entry.user.id ? "..." : "Unblock"}
             </button>
-          </li>
-        ))}
-      </ul>
+          </div>
+        )}
+      />
     </div>
   );
 }

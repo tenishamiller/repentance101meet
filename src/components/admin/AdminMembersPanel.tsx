@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { ShowMoreList } from "@/components/ShowMoreList";
 import { formatRequestDateTime } from "@/lib/utils";
 import { ListPagination } from "./ListPagination";
 import { MEMBER_STATUS_OPTIONS, StatusToggle } from "./StatusToggle";
+import { MemberDetailPanel } from "./MemberDetailPanel";
 import type { Member, MemberStatus, PendingMember } from "./types";
 
 type Props = {
@@ -36,6 +38,7 @@ export function AdminMembersPanel({
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [detailUserId, setDetailUserId] = useState<string | null>(null);
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
@@ -69,6 +72,9 @@ export function AdminMembersPanel({
 
   return (
     <div className="space-y-8 animate-fade-up">
+      {detailUserId && (
+        <MemberDetailPanel userId={detailUserId} onClose={() => setDetailUserId(null)} />
+      )}
       <section className="card-brand p-6">
         <h2 className="mb-1 font-serif text-xl font-semibold text-burgundy">
           Pending Memberships
@@ -81,16 +87,25 @@ export function AdminMembersPanel({
             No pending membership requests — all caught up!
           </p>
         ) : (
-          <div className="max-h-[28rem] space-y-3 overflow-y-auto pr-1">
-            {pendingMembers.map((m) => (
-              <div
-                key={m.id}
-                className="flex flex-col gap-4 rounded-xl border border-gold/25 bg-cream-dark p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
+          <ShowMoreList
+            items={pendingMembers}
+            initialCount={5}
+            step={5}
+            listClassName="space-y-3"
+            moreLabel="requests"
+            getKey={(m) => m.id}
+            renderItem={(m) => (
+              <div className="flex flex-col gap-4 rounded-xl border border-gold/25 bg-cream-dark p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <UserAvatar userId={m.id} name={m.name} avatarUrl={m.avatarUrl} size="md" />
                   <div>
-                    <p className="font-semibold text-burgundy">{m.name}</p>
+                    <button
+                      type="button"
+                      onClick={() => setDetailUserId(m.id)}
+                      className="text-left font-semibold text-burgundy hover:text-gold-muted hover:underline"
+                    >
+                      {m.name}
+                    </button>
                     <p className="text-sm text-burgundy/60">{m.email}</p>
                     <p className="text-xs text-burgundy/50">
                       Requested {formatRequestDateTime(m.createdAt)}
@@ -103,8 +118,8 @@ export function AdminMembersPanel({
                   onChange={(status) => onStatusChange(m.id, status)}
                 />
               </div>
-            ))}
-          </div>
+            )}
+          />
         )}
       </section>
 
@@ -164,7 +179,13 @@ export function AdminMembersPanel({
                             size="sm"
                           />
                           <div>
-                            <p className="font-medium text-burgundy">{m.name}</p>
+                            <button
+                              type="button"
+                              onClick={() => setDetailUserId(m.id)}
+                              className="text-left font-medium text-burgundy hover:text-gold-muted hover:underline"
+                            >
+                              {m.name}
+                            </button>
                             <p className="text-xs text-burgundy/55">{m.email}</p>
                           </div>
                         </div>
