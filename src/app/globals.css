@@ -214,3 +214,12 @@ body {
   font-weight: 600;
   color: var(--burgundy);
 }
+
+/* Channel conversation feed — subtle parchment texture */
+.channel-feed {
+  background-color: var(--cream);
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(201, 162, 39, 0.06), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(107, 45, 45, 0.04), transparent 40%),
+    linear-gradient(180deg, rgba(254, 249, 240, 0.9), rgba(245, 237, 224, 0.65));
+}

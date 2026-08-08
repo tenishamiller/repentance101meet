@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { bindStreamToVideo } from "@/lib/media-video";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
 import type { GalleryMember } from "@/hooks/useLivestream";
@@ -26,11 +27,9 @@ function ParticipantTile({
     const el = videoRef.current;
     if (!el) return;
     if (memberVideoEnabled && member.cameraOn && member.stream) {
-      if (el.srcObject !== member.stream) {
-        el.srcObject = member.stream;
-      }
+      void bindStreamToVideo(el, member.stream);
     } else {
-      el.srcObject = null;
+      void bindStreamToVideo(el, null);
     }
   }, [member.cameraOn, member.stream, memberVideoEnabled]);
 
@@ -39,15 +38,14 @@ function ParticipantTile({
   return (
     <div className="flex w-44 shrink-0 flex-col overflow-hidden rounded-xl border border-gold/30 bg-burgundy-dark sm:w-48">
       <div className="relative aspect-[4/3] bg-black">
-        {showVideo ? (
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="h-full w-full object-cover"
-          />
-        ) : (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className={`h-full w-full object-cover ${showVideo ? "" : "hidden"}`}
+        />
+        {!showVideo && (
           <div className="flex h-full flex-col items-center justify-center gap-3 bg-burgundy px-3 py-4">
             <UserAvatar
               userId={member.userId}

@@ -112,6 +112,7 @@ model ChannelMessage {
   userId      String
   content     String    @db.Text
   attachments Json?
+  reactions   Json?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?

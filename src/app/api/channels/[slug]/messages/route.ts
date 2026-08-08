@@ -1,14 +1,12 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canEditMessage } from "@/lib/utils";
+import { toggleReaction, type MessageReactions } from "@/lib/channel-messages";
 
 type RouteParams = { params: Promise<{ slug: string }> };
 
-async function canAccessChannel(
-  slug: string,
-  userId: string,
-  role: string,
-) {
+async function canAccessChannel(slug: string, userId: string, role: string) {
   const channel = await prisma.channel.findUnique({ where: { slug } });
   if (!channel) return null;
 
@@ -30,11 +28,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }
 
   const { slug } = await params;
-  const channel = await canAccessChannel(
-    slug,
-    session.user.id,
-    session.user.role,
-  );
+  const channel = await canAccessChannel(slug, session.user.id, session.user.role);
 
   if (!channel) {
     return Response.json({ error: "Access denied" }, { status: 403 });
@@ -59,11 +53,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   const { slug } = await params;
-  const channel = await canAccessChannel(
-    slug,
-    session.user.id,
-    session.user.role,
-  );
+  const channel = await canAccessChannel(slug, session.user.id, session.user.role);
 
   if (!channel) {
     return Response.json({ error: "Access denied" }, { status: 403 });

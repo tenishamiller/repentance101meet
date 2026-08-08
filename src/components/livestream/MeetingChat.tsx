@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, Smile } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatDate, type Attachment } from "@/lib/utils";
+import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
 import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { EmojiPicker } from "@/components/livestream/EmojiPicker";
 
@@ -28,7 +29,10 @@ export function MeetingChat({
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const lastMessageIdRef = useRef<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const fetchMessages = useCallback(async () => {
@@ -46,8 +50,34 @@ export function MeetingChat({
   }, [fetchMessages]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const node = scrollRef.current;
+    if (!node) return;
+
+    const lastId = messages.at(-1)?.id ?? null;
+    const hasNewMessages = lastId !== lastMessageIdRef.current;
+    lastMessageIdRef.current = lastId;
+
+    if (showScrollDown || !hasNewMessages) return;
+    if (!stickToBottomRef.current) return;
+
+    scrollContainerToBottom(node);
+  }, [messages, showScrollDown]);
+
+  function handleScroll() {
+    const node = scrollRef.current;
+    if (!node) return;
+    const nearBottom = isNearBottom(node);
+    stickToBottomRef.current = nearBottom;
+    setShowScrollDown(!nearBottom);
+  }
+
+  function jumpToLatest() {
+    const node = scrollRef.current;
+    if (!node) return;
+    stickToBottomRef.current = true;
+    setShowScrollDown(false);
+    scrollContainerToBottom(node);
+  }
 
   async function uploadFile(file: File): Promise<Attachment | null> {
     const form = new FormData();
@@ -99,6 +129,8 @@ export function MeetingChat({
     setContent("");
     setShowEmoji(false);
     setSending(false);
+    stickToBottomRef.current = true;
+    setShowScrollDown(false);
     fetchMessages();
   }
 
@@ -127,7 +159,12 @@ export function MeetingChat({
         <h3 className="font-serif font-semibold text-cream">Meeting Chat</h3>
         <p className="text-xs text-gold-light/70">Messages, files & emojis — everyone in the room</p>
       </div>
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="h-full overflow-y-auto p-4"
+        >
         {messages.length === 0 && (
           <p className="text-center text-sm text-gold-light/60">
             Say hello! Share files 📎 or tap 😊 for emojis.
@@ -166,7 +203,17 @@ export function MeetingChat({
             </div>
           </div>
         ))}
-        <div ref={bottomRef} />
+        </div>
+
+        {showScrollDown && (
+          <button
+            type="button"
+            onClick={jumpToLatest}
+            className="absolute bottom-3 right-3 rounded-full border border-gold/40 bg-burgundy px-3 py-1.5 text-xs font-semibold text-gold-light shadow-lg hover:bg-burgundy-deep"
+          >
+            ↓ New messages
+          </button>
+        )}
       </div>
       <form onSubmit={sendMessage} className="relative border-t border-gold/20 p-3">
         {showEmoji && (

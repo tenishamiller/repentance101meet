@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  addIceCandidateSafe,
+  bindStreamToVideo,
+  clearPeerConnection,
+  setRemoteDescriptionSafe,
+} from "@/lib/media-video";
+import {
   createPeerConnection,
   type MeetingSignalMessage,
   type SignalPayload,
@@ -70,6 +76,7 @@ export function useLivestream({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const signalCursorRef = useRef<string>(new Date(0).toISOString());
@@ -103,6 +110,8 @@ export function useLivestream({
   const [meetingEnded, setMeetingEnded] = useState(false);
   const [memberVideoEnabled, setMemberVideoEnabled] = useState(true);
   const [memberMicEnabled, setMemberMicEnabled] = useState(true);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
   const memberVideoEnabledRef = useRef(true);
   const memberMicEnabledRef = useRef(true);
@@ -175,6 +184,7 @@ export function useLivestream({
       viewerHiddenVideoRefs.current.set(viewerId, hiddenVideo);
     }
     hiddenVideo.srcObject = stream;
+    void bindStreamToVideo(hiddenVideo, stream);
 
     const onTrackChange = () => syncViewerMediaRef.current();
     for (const track of stream.getTracks()) {
@@ -268,17 +278,28 @@ export function useLivestream({
       });
   }, [participants, viewerMedia, hostId, memberVideoEnabled, memberMicEnabled]);
 
+  const resolveIncomingStream = useCallback(
+    (event: RTCTrackEvent, existing?: MediaStream | null) => {
+      if (event.streams[0]) return event.streams[0];
+      const stream = existing ?? new MediaStream();
+      if (!stream.getTracks().includes(event.track)) {
+        stream.addTrack(event.track);
+      }
+      return stream;
+    },
+    [],
+  );
+
   const attachRemoteStream = useCallback((stream: MediaStream) => {
-    if (remoteVideoRef.current && remoteVideoRef.current.srcObject !== stream) {
-      remoteVideoRef.current.srcObject = stream;
-    }
+    remoteStreamRef.current = stream;
+    setRemoteStream(stream);
+    void bindStreamToVideo(remoteVideoRef.current, stream);
     setIsLive(true);
   }, []);
 
   const attachLocalStream = useCallback((stream: MediaStream) => {
-    if (localVideoRef.current && localVideoRef.current.srcObject !== stream) {
-      localVideoRef.current.srcObject = stream;
-    }
+    setLocalStream(stream);
+    void bindStreamToVideo(localVideoRef.current, stream);
   }, []);
 
   const buildRecordingStream = useCallback(() => {
@@ -436,7 +457,10 @@ export function useLivestream({
 
       if (isPrivate || mode === "livestream") {
         pc.ontrack = (event) => {
-          const [stream] = event.streams;
+          const stream = resolveIncomingStream(
+            event,
+            viewerStreamsRef.current.get(viewerId) ?? null,
+          );
           if (!stream) return;
 
           if (isPrivate && remoteVideoRef.current) {
@@ -455,6 +479,7 @@ export function useLivestream({
             }
             audio.muted = !memberMicEnabledRef.current;
             audio.srcObject = stream;
+            void audio.play().catch(() => {});
             applyHostMemberMediaPolicyRef.current();
           }
         };
@@ -479,7 +504,7 @@ export function useLivestream({
       await sendSignal("offer", viewerId, { sdp: offer });
       connectedViewersRef.current.add(viewerId);
     },
-    [addLocalTracks, attachRemoteStream, attachViewerStream, isPrivate, mode, removeViewerMedia, sendSignal],
+    [addLocalTracks, attachRemoteStream, attachViewerStream, isPrivate, mode, removeViewerMedia, resolveIncomingStream, sendSignal],
   );
 
   const handleHostSignal = useCallback(
@@ -494,7 +519,7 @@ export function useLivestream({
       if (signal.type === "answer") {
         const pc = peerConnectionsRef.current.get(signal.fromUserId);
         if (pc && signal.payload.sdp) {
-          await pc.setRemoteDescription(signal.payload.sdp);
+          await setRemoteDescriptionSafe(pc, signal.payload.sdp);
         }
         return;
       }
@@ -502,7 +527,7 @@ export function useLivestream({
       if (signal.type === "ice") {
         const pc = peerConnectionsRef.current.get(signal.fromUserId);
         if (pc && signal.payload.candidate) {
-          await pc.addIceCandidate(signal.payload.candidate);
+          await addIceCandidateSafe(pc, signal.payload.candidate);
         }
       }
     },
@@ -549,10 +574,8 @@ export function useLivestream({
           }
 
           pc.ontrack = (event) => {
-            const [stream] = event.streams;
-            if (stream) {
-              attachRemoteStream(stream);
-            }
+            const stream = resolveIncomingStream(event, remoteStreamRef.current);
+            attachRemoteStream(stream);
           };
 
           pc.onicecandidate = (event) => {
@@ -563,7 +586,7 @@ export function useLivestream({
         }
 
         if (signal.payload.sdp) {
-          await pc.setRemoteDescription(signal.payload.sdp);
+          await setRemoteDescriptionSafe(pc, signal.payload.sdp);
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           await sendSignal("answer", hostId, { sdp: answer });
@@ -574,11 +597,11 @@ export function useLivestream({
       if (signal.type === "ice" && signal.fromUserId === hostId) {
         const pc = peerConnectionsRef.current.get(hostId);
         if (pc && signal.payload.candidate) {
-          await pc.addIceCandidate(signal.payload.candidate);
+          await addIceCandidateSafe(pc, signal.payload.candidate);
         }
       }
     },
-    [addLocalTracks, attachRemoteStream, hostId, isPrivate, mode, sendSignal, userId],
+    [addLocalTracks, attachRemoteStream, hostId, isPrivate, mode, resolveIncomingStream, sendSignal, userId],
   );
 
   const pollSignals = useCallback(async () => {
@@ -642,10 +665,14 @@ export function useLivestream({
   }, [isHost, meetingToken, userId]);
 
   const startBroadcast = useCallback(async () => {
+    const markLive = () => {
+      if (isHost) setIsLive(true);
+    };
+
     const existing = localStreamRef.current;
     if (existing?.active) {
       attachLocalStream(existing);
-      setIsLive(true);
+      markLive();
       return;
     }
 
@@ -656,7 +683,7 @@ export function useLivestream({
       });
       localStreamRef.current = stream;
       attachLocalStream(stream);
-      setIsLive(true);
+      markLive();
       applyMemberMediaPolicyRef.current();
     } catch {
       try {
@@ -664,16 +691,23 @@ export function useLivestream({
           audio: { echoCancellation: true, noiseSuppression: true },
         });
         localStreamRef.current = audioOnly;
+        attachLocalStream(audioOnly);
         setIsCameraOff(true);
-        setIsLive(true);
+        markLive();
         applyMemberMediaPolicyRef.current();
       } catch {
+        if (!isHost) {
+          // Viewers can still watch without publishing camera/mic.
+          void sendSignal("viewer-ready", hostId);
+        }
         setError(
-          "Microphone access was denied. Allow mic (camera optional) and reload to join.",
+          isHost
+            ? "Microphone access was denied. Allow mic (camera optional) and reload to join."
+            : "",
         );
       }
     }
-  }, [attachLocalStream]);
+  }, [attachLocalStream, hostId, isHost, sendSignal]);
 
   const stopAll = useCallback(() => {
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -685,7 +719,7 @@ export function useLivestream({
     compositorRef.current = null;
 
     for (const pc of peerConnectionsRef.current.values()) {
-      pc.close();
+      clearPeerConnection(pc);
     }
     peerConnectionsRef.current.clear();
     connectedViewersRef.current.clear();
@@ -706,6 +740,9 @@ export function useLivestream({
     localStreamRef.current = null;
     screenStreamRef.current = null;
     recordingStreamRef.current = null;
+    remoteStreamRef.current = null;
+    setLocalStream(null);
+    setRemoteStream(null);
     setIsLive(false);
   }, []);
 
@@ -739,6 +776,28 @@ export function useLivestream({
       stopAll();
     };
   }, [hostId, isHost, meetingToken, publishMedia, sendSignal, startBroadcast, stopAll]);
+
+  useEffect(() => {
+    void bindStreamToVideo(localVideoRef.current, localStream);
+  }, [localStream]);
+
+  useEffect(() => {
+    void bindStreamToVideo(remoteVideoRef.current, remoteStream);
+  }, [remoteStream]);
+
+  useEffect(() => {
+    if (isHost) return;
+
+    const retryInterval = setInterval(() => {
+      if (remoteStream || meetingEndedRef.current) return;
+      const pc = peerConnectionsRef.current.get(hostId);
+      if (!pc || pc.connectionState === "failed" || pc.connectionState === "closed") {
+        void sendSignal("viewer-ready", hostId);
+      }
+    }, 4000);
+
+    return () => clearInterval(retryInterval);
+  }, [hostId, isHost, remoteStream, sendSignal]);
 
   const pollSignalsRef = useRef(pollSignals);
   const fetchParticipantsRef = useRef(fetchParticipants);
@@ -912,8 +971,11 @@ export function useLivestream({
         body: JSON.stringify({ userId: viewerId, action: "block" }),
       });
       await sendSignal("kick", viewerId);
-      peerConnectionsRef.current.get(viewerId)?.close();
-      peerConnectionsRef.current.delete(viewerId);
+      const pc = peerConnectionsRef.current.get(viewerId);
+      if (pc) {
+        clearPeerConnection(pc);
+        peerConnectionsRef.current.delete(viewerId);
+      }
       connectedViewersRef.current.delete(viewerId);
       removeViewerMedia(viewerId);
       void fetchParticipants();

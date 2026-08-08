@@ -268,7 +268,7 @@ export function LivestreamRoom({
                   <p className="font-serif text-lg font-semibold text-cream">
                     Connecting to live stream...
                   </p>
-                  <p className="text-sm text-gold-light/70">Allow camera & mic to participate</p>
+                  <p className="text-sm text-gold-light/70">Waiting for host video</p>
                 </div>
               )}
 

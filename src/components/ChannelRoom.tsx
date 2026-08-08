@@ -1,21 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, MessageCircle } from "lucide-react";
 import type { Channel } from "@/generated/prisma/client";
-import { UserAvatar } from "@/components/UserAvatar";
-import { canEditMessage, type Attachment } from "@/lib/utils";
-import { formatDate } from "@/lib/utils";
+import { ChannelComposer } from "@/components/channels/ChannelComposer";
+import {
+  ChannelMessageItem,
+  type ChannelMessageData,
+} from "@/components/channels/ChannelMessageItem";
 import { BrandDivider } from "@/components/BrandDivider";
-
-type Message = {
-  id: string;
-  content: string;
-  attachments: Attachment[] | null;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-  user: { id: string; name: string; avatarUrl: string | null };
-};
+import { formatDateSeparator, shouldShowDateSeparator } from "@/lib/channel-messages";
+import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
+import { type Attachment } from "@/lib/utils";
 
 type Props = {
   channel: Channel;
@@ -24,14 +20,18 @@ type Props = {
 };
 
 export function ChannelRoom({ channel, userId, isAdmin }: Props) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChannelMessageData[]>([]);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [showScrollDown, setShowScrollDown] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const fileRef = useRef<HTMLInputElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const lastMessageIdRef = useRef<string | null>(null);
 
   const fetchMessages = useCallback(async () => {
     const res = await fetch(`/api/channels/${channel.slug}/messages`);
@@ -44,13 +44,44 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 5000);
+    const interval = setInterval(fetchMessages, 4000);
     return () => clearInterval(interval);
   }, [fetchMessages]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node || loading) return;
+
+    const lastId = messages.at(-1)?.id ?? null;
+    const hasNewMessages = lastId !== lastMessageIdRef.current;
+    lastMessageIdRef.current = lastId;
+
+    if (showScrollDown || !hasNewMessages) return;
+    if (!stickToBottomRef.current) return;
+
+    scrollContainerToBottom(node);
+  }, [loading, messages, showScrollDown]);
+
+  function handleScroll() {
+    const node = scrollRef.current;
+    if (!node) return;
+    const nearBottom = isNearBottom(node);
+    stickToBottomRef.current = nearBottom;
+    setShowScrollDown(!nearBottom);
+  }
+
+  function jumpToLatest() {
+    const node = scrollRef.current;
+    if (!node) return;
+    stickToBottomRef.current = true;
+    setShowScrollDown(false);
+    scrollContainerToBottom(node);
+  }
 
   async function uploadFile(file: File): Promise<Attachment | null> {
     const form = new FormData();
@@ -68,8 +99,8 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
     return { type, url: data.url, name: file.name };
   }
 
-  async function handleSend(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSend(event: React.FormEvent) {
+    event.preventDefault();
     if (!content.trim() && !fileRef.current?.files?.length) return;
 
     setSending(true);
@@ -77,8 +108,8 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
 
     if (fileRef.current?.files?.length) {
       for (const file of Array.from(fileRef.current.files)) {
-        const att = await uploadFile(file);
-        if (att) attachments.push(att);
+        const attachment = await uploadFile(file);
+        if (attachment) attachments.push(attachment);
       }
       fileRef.current.value = "";
     }
@@ -96,6 +127,8 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
 
     setContent("");
     setSending(false);
+    stickToBottomRef.current = true;
+    setShowScrollDown(false);
     fetchMessages();
   }
 
@@ -116,151 +149,117 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
     fetchMessages();
   }
 
+  async function handleToggleReaction(messageId: string, emoji: string) {
+    await fetch(`/api/channels/${channel.slug}/messages/${messageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reaction: emoji }),
+    });
+    fetchMessages();
+  }
+
   return (
-    <div className="mx-auto flex h-[calc(100vh-80px)] max-w-4xl flex-col px-4 py-6">
-      <div className="mb-4">
-        <h1 className="font-serif text-2xl font-bold text-burgundy">{channel.name}</h1>
-        <BrandDivider className="my-2 max-w-xs" />
-        <p className="text-sm text-burgundy/70">{channel.description}</p>
+    <div className="mx-auto flex h-[calc(100vh-80px)] max-w-5xl flex-col px-4 py-6">
+      <div className="mb-4 rounded-2xl border border-gold/30 bg-gradient-to-r from-burgundy/5 via-cream to-gold/10 p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-muted">
+              Ministry Channel
+            </p>
+            <h1 className="font-serif text-3xl font-bold text-burgundy">{channel.name}</h1>
+            <BrandDivider className="my-2 max-w-xs" />
+            <p className="max-w-2xl text-sm text-burgundy/70">{channel.description}</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-gold/30 bg-cream/80 px-4 py-2 text-sm text-burgundy">
+            <MessageCircle className="h-4 w-4 text-gold-muted" />
+            <span>{messages.length} messages</span>
+          </div>
+        </div>
       </div>
 
-      <div className="card-brand flex-1 overflow-y-auto p-4 shadow-inner">
-        {loading ? (
-          <p className="text-center text-burgundy/60">Loading messages...</p>
-        ) : messages.length === 0 ? (
-          <p className="text-center text-burgundy/60">No messages yet. Start the conversation!</p>
-        ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className="mb-4 flex gap-3">
-              <UserAvatar
-                userId={msg.user.id}
-                name={msg.user.name}
-                avatarUrl={msg.user.avatarUrl}
-                size="md"
-              />
-              <div className="flex-1">
-                <div className="flex items-baseline gap-2">
-                  <span className="font-semibold text-burgundy">{msg.user.name}</span>
-                  <span className="text-xs text-burgundy/50">{formatDate(msg.createdAt)}</span>
-                </div>
-
-                {msg.deletedAt ? (
-                  <p className="text-sm italic text-burgundy/50">Message deleted</p>
-                ) : editingId === msg.id ? (
-                  <div className="mt-1">
-                    <textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      className="input-field text-sm"
-                      rows={2}
-                    />
-                    <div className="mt-1 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(msg.id)}
-                        className="text-sm text-gold-muted hover:underline"
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingId(null)}
-                        className="text-sm text-burgundy/50 hover:underline"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {msg.content && (
-                      <p className="mt-1 whitespace-pre-wrap text-burgundy/90">{msg.content}</p>
-                    )}
-                    {msg.attachments?.map((att, i) => (
-                      <div key={i} className="mt-2">
-                        {att.type === "image" ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={att.url} alt={att.name ?? "attachment"} className="max-h-48 rounded-lg border border-gold/30" />
-                        ) : att.type === "video" ? (
-                          <video src={att.url} controls className="max-h-48 rounded-lg" />
-                        ) : att.type === "audio" ? (
-                          <audio src={att.url} controls />
-                        ) : (
-                          <a
-                            href={att.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-gold-muted hover:underline"
-                          >
-                            {att.name ?? att.url}
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </>
-                )}
-
-                {!msg.deletedAt &&
-                  (msg.user.id === userId || isAdmin) &&
-                  canEditMessage(msg.createdAt) &&
-                  editingId !== msg.id && (
-                    <div className="mt-1 flex gap-3 text-xs">
-                      {msg.user.id === userId && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingId(msg.id);
-                              setEditContent(msg.content);
-                            }}
-                            className="text-burgundy/50 hover:text-gold-muted"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(msg.id)}
-                            className="text-burgundy/50 hover:text-burgundy"
-                          >
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-              </div>
-            </div>
-          ))
-        )}
-        <div ref={bottomRef} />
-      </div>
-
-      <form onSubmit={handleSend} className="mt-4 flex gap-2">
-        <input
-          ref={fileRef}
-          type="file"
-          multiple
-          accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
-          className="hidden"
-          id="file-upload"
-        />
-        <label
-          htmlFor="file-upload"
-          className="flex cursor-pointer items-center rounded-lg border border-gold/40 bg-cream px-3 py-2 text-sm text-burgundy hover:bg-cream-dark"
+      <div className="relative flex-1">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="channel-feed card-brand h-full overflow-y-auto p-4 shadow-inner sm:p-6"
         >
-          📎
-        </label>
-        <input
-          type="text"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Type a message, paste a link..."
-          className="input-field flex-1"
-        />
-        <button type="submit" disabled={sending} className="btn-primary !px-5 disabled:opacity-60">
-          Send
-        </button>
-      </form>
+          {loading ? (
+            <div className="flex h-full items-center justify-center">
+              <p className="animate-pulse text-burgundy/60">Loading conversation...</p>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-center">
+              <div className="mb-4 rounded-full bg-gold/15 p-5 text-4xl">🙏</div>
+              <p className="font-serif text-xl font-semibold text-burgundy">Start the conversation</p>
+              <p className="mt-2 max-w-sm text-sm text-burgundy/60">
+                Share encouragement, scripture, prayer requests, or attach photos and files.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {messages.map((message, index) => {
+                const previous = index > 0 ? messages[index - 1] : null;
+                const showSeparator = shouldShowDateSeparator(
+                  message.createdAt,
+                  previous?.createdAt ?? null,
+                );
+
+                return (
+                  <div key={message.id}>
+                    {showSeparator && (
+                      <div className="my-6 flex items-center gap-3">
+                        <div className="h-px flex-1 bg-gold/25" />
+                        <span className="rounded-full border border-gold/25 bg-cream px-3 py-1 text-xs font-medium text-burgundy/55">
+                          {formatDateSeparator(message.createdAt)}
+                        </span>
+                        <div className="h-px flex-1 bg-gold/25" />
+                      </div>
+                    )}
+
+                    <ChannelMessageItem
+                      message={message}
+                      isOwn={message.user.id === userId}
+                      isAdmin={isAdmin}
+                      userId={userId}
+                      editingId={editingId}
+                      editContent={editContent}
+                      onEditContentChange={setEditContent}
+                      onStartEdit={() => {
+                        setEditingId(message.id);
+                        setEditContent(message.content);
+                      }}
+                      onCancelEdit={() => setEditingId(null)}
+                      onSaveEdit={() => handleEdit(message.id)}
+                      onDelete={() => handleDelete(message.id)}
+                      onToggleReaction={(emoji) => handleToggleReaction(message.id, emoji)}
+                      now={now}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {showScrollDown && (
+          <button
+            type="button"
+            onClick={jumpToLatest}
+            className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full border border-gold/40 bg-cream px-4 py-2 text-sm font-medium text-burgundy shadow-lg transition hover:border-gold hover:bg-gold/10"
+          >
+            <ChevronDown className="h-4 w-4" />
+            New messages
+          </button>
+        )}
+      </div>
+
+      <ChannelComposer
+        content={content}
+        sending={sending}
+        onContentChange={setContent}
+        onSubmit={handleSend}
+        fileRef={fileRef}
+      />
     </div>
   );
 }

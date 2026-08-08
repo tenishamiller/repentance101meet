@@ -2,8 +2,24 @@ import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canEditMessage } from "@/lib/utils";
+import { toggleReaction, type MessageReactions } from "@/lib/channel-messages";
 
 type RouteParams = { params: Promise<{ slug: string; messageId: string }> };
+
+async function canAccessChannel(slug: string, userId: string, role: string) {
+  const channel = await prisma.channel.findUnique({ where: { slug } });
+  if (!channel) return null;
+
+  if (channel.type === "PUBLIC") return channel;
+  if (role === "ADMIN") return channel;
+
+  const membership = await prisma.channelMembership.findUnique({
+    where: { userId_channelId: { userId, channelId: channel.id } },
+  });
+
+  if (membership?.status !== "APPROVED") return null;
+  return channel;
+}
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const session = await auth();
@@ -12,7 +28,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const { slug, messageId } = await params;
-  const { content } = await request.json();
+  const body = await request.json();
 
   const message = await prisma.channelMessage.findUnique({
     where: { id: messageId },
@@ -21,6 +37,33 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   if (!message || message.channel.slug !== slug) {
     return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const channel = await canAccessChannel(slug, session.user.id, session.user.role);
+  if (!channel) {
+    return Response.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  if (typeof body.reaction === "string" && body.reaction) {
+    const reactions = toggleReaction(
+      message.reactions as MessageReactions | null,
+      body.reaction,
+      session.user.id,
+    );
+
+    const updated = await prisma.channelMessage.update({
+      where: { id: messageId },
+      data: { reactions },
+      include: {
+        user: { select: { id: true, name: true, avatarUrl: true } },
+      },
+    });
+
+    return Response.json({ message: updated });
+  }
+
+  if (typeof body.content !== "string") {
+    return Response.json({ error: "Invalid request" }, { status: 400 });
   }
 
   if (message.userId !== session.user.id) {
@@ -33,7 +76,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const updated = await prisma.channelMessage.update({
     where: { id: messageId },
-    data: { content, updatedAt: new Date() },
+    data: { content: body.content, updatedAt: new Date() },
+    include: {
+      user: { select: { id: true, name: true, avatarUrl: true } },
+    },
   });
 
   return Response.json({ message: updated });
