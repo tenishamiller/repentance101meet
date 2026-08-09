@@ -212,13 +212,13 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
               {channel.name}
             </h1>
             <BrandDivider className="my-2 hidden max-w-xs lg:block" />
-            <p className="hidden max-w-2xl text-xs text-burgundy/70 sm:text-sm lg:block">
+            <p className="hidden max-w-2xl whitespace-pre-line text-xs text-burgundy/70 sm:text-sm lg:block">
               {channel.description}
             </p>
             {headerOpen && (
               <>
                 <BrandDivider className="my-2 max-w-xs lg:hidden" />
-                <p className="text-xs text-burgundy/70 sm:text-sm lg:hidden">{channel.description}</p>
+                <p className="whitespace-pre-line text-xs text-burgundy/70 sm:text-sm lg:hidden">{channel.description}</p>
               </>
             )}
           </div>

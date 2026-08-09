@@ -80,7 +80,8 @@ export const CHANNELS = {
     slug: "tough-questions",
     name: "Tough Questions, Tough Answers",
     type: "PRIVATE" as const,
-    description: "Hard questions answered with biblical truth",
+    description:
+      "This is a Tough Questions, Tough Answers group. The purpose of this group is to ask very tough questions that go outside the realm of usual topics, usually the type of thing you can't see any other way than the way the sin nature presents it.\n\nThe Tough Answer will come from the perspective of 2 Timothy 3:16 which states \"All Scripture is given by inspiration of the Holy Spirit for correction, for teaching, and for edification.\"",
   },
   general: {
     slug: "general",
