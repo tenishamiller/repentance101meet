@@ -32,6 +32,7 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
   const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
   const [headerOpen, setHeaderOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [pendingFileCount, setPendingFileCount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -94,6 +95,10 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
     scrollContainerToBottom(node);
   }
 
+  function refreshPendingFiles() {
+    setPendingFileCount(fileRef.current?.files?.length ?? 0);
+  }
+
   async function uploadFile(file: File): Promise<Attachment | null> {
     const form = new FormData();
     form.append("file", file);
@@ -123,6 +128,7 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
         if (attachment) attachments.push(attachment);
       }
       fileRef.current.value = "";
+      setPendingFileCount(0);
     }
 
     const linkMatch = content.match(/https?:\/\/[^\s]+/);
@@ -313,9 +319,11 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
       <ChannelComposer
         content={content}
         sending={sending}
+        canSend={Boolean(content.trim()) || pendingFileCount > 0}
         onContentChange={setContent}
         onSubmit={handleSend}
         fileRef={fileRef}
+        onFilesSelected={refreshPendingFiles}
         compact
       />
     </div>

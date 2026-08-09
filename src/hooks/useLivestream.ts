@@ -388,6 +388,14 @@ export function useLivestream({
 
   updateCompositorRef.current = updateCompositorParticipants;
 
+  const getRecordingMainStream = useCallback((): MediaStream | null => {
+    return screenStreamRef.current ?? localStreamRef.current ?? null;
+  }, []);
+
+  const syncCompositorMainStream = useCallback(() => {
+    compositorRef.current?.setMainStream(getRecordingMainStream());
+  }, [getRecordingMainStream]);
+
   const galleryMembers = useMemo((): GalleryMember[] => {
     const mediaById = new Map(viewerMedia.map((entry) => [entry.userId, entry]));
     return participants
@@ -521,13 +529,11 @@ export function useLivestream({
         const compositor = new RecordingCompositor();
         compositorRef.current = compositor;
         await compositor.resumeAudio();
-        if (localVideoRef.current) {
-          compositor.setMainVideo(localVideoRef.current);
-        }
+        compositor.setMainStream(getRecordingMainStream());
         compositor.syncHostAndScreenAudio(localStreamRef.current, screenStreamRef.current);
         updateCompositorParticipants();
-        compositor.startDrawing();
         stream = compositor.getStream();
+        compositor.startDrawing();
         if (stream.getAudioTracks().length === 0) {
           const fallback = buildRecordingStream();
           if (fallback) {
@@ -553,7 +559,7 @@ export function useLivestream({
 
     recordingStreamRef.current = stream;
     return stream;
-  }, [buildRecordingStream, updateCompositorParticipants, useCompositorRecording]);
+  }, [buildRecordingStream, getRecordingMainStream, updateCompositorParticipants, useCompositorRecording]);
 
   const startRecording = useCallback(async () => {
     broadcastConsumersRef.current.add("recording");
@@ -1265,10 +1271,14 @@ export function useLivestream({
       );
     };
 
+    syncCompositorMainStream();
     syncAudio();
-    const interval = window.setInterval(syncAudio, 3000);
+    const interval = window.setInterval(() => {
+      syncCompositorMainStream();
+      syncAudio();
+    }, 2000);
     return () => window.clearInterval(interval);
-  }, [isRecording]);
+  }, [isRecording, isScreenSharing, syncCompositorMainStream]);
 
   useEffect(() => {
     if (!isRecording) return;
@@ -1454,10 +1464,9 @@ export function useLivestream({
       if (!isScreenSharing) {
         attachLocalStream(stream);
         await replaceVideoOnAllConnections(stream);
-        if (compositorRef.current && localVideoRef.current) {
-          compositorRef.current.setMainVideo(localVideoRef.current);
-        }
+        syncCompositorMainStream();
       } else {
+        syncCompositorMainStream();
         updateRecordingVideoTrack();
       }
 
@@ -1471,6 +1480,7 @@ export function useLivestream({
       isScreenSharing,
       refreshMediaInputDevices,
       replaceVideoOnAllConnections,
+      syncCompositorMainStream,
       updateRecordingVideoTrack,
     ],
   );
@@ -1633,12 +1643,12 @@ export function useLivestream({
     } else {
       await renegotiateAllViewers();
     }
-    if (compositorRef.current && localVideoRef.current) {
-      compositorRef.current.setMainVideo(localVideoRef.current);
+    if (compositorRef.current) {
+      syncCompositorMainStream();
       compositorRef.current.syncHostAndScreenAudio(localStreamRef.current, null);
     }
     setIsScreenSharing(false);
-  }, [attachLocalStream, replaceVideoOnAllConnections, renegotiateAllViewers]);
+  }, [attachLocalStream, replaceVideoOnAllConnections, renegotiateAllViewers, syncCompositorMainStream]);
 
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {
@@ -1672,8 +1682,8 @@ export function useLivestream({
       void bindStreamToVideo(localVideoRef.current, screenStream);
       await replaceVideoOnAllConnections(screenStream);
 
-      if (compositorRef.current && localVideoRef.current) {
-        compositorRef.current.setMainVideo(localVideoRef.current);
+      if (compositorRef.current) {
+        syncCompositorMainStream();
         compositorRef.current.syncHostAndScreenAudio(localStreamRef.current, screenStream);
       }
 
@@ -1703,6 +1713,7 @@ export function useLivestream({
     isScreenSharing,
     replaceVideoOnAllConnections,
     stopScreenShare,
+    syncCompositorMainStream,
   ]);
 
   const endBroadcast = useCallback(async () => {

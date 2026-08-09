@@ -6,18 +6,22 @@ import { EmojiPicker, QuickEmojiBar } from "@/components/channels/EmojiPicker";
 type Props = {
   content: string;
   sending: boolean;
+  canSend: boolean;
   onContentChange: (value: string) => void;
   onSubmit: (event: React.FormEvent) => void;
   fileRef: React.RefObject<HTMLInputElement | null>;
+  onFilesSelected?: () => void;
   compact?: boolean;
 };
 
 export function ChannelComposer({
   content,
   sending,
+  canSend,
   onContentChange,
   onSubmit,
   fileRef,
+  onFilesSelected,
   compact = false,
 }: Props) {
   function insertEmoji(emoji: string) {
@@ -36,6 +40,7 @@ export function ChannelComposer({
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
           className="hidden"
           id="channel-file-upload"
+          onChange={() => onFilesSelected?.()}
         />
 
         <label
@@ -64,7 +69,7 @@ export function ChannelComposer({
 
         <button
           type="submit"
-          disabled={sending || !content.trim()}
+          disabled={sending || !canSend}
           className="btn-primary flex h-11 shrink-0 items-center gap-2 !px-4 disabled:opacity-50"
         >
           <SendHorizontal className="h-4 w-4" />

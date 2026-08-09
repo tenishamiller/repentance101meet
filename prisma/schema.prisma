@@ -263,6 +263,7 @@ model MeetingMessage {
   userId      String
   content     String    @db.Text
   attachments Json?
+  editedAt    DateTime?
   createdAt   DateTime  @default(now())
   deletedAt   DateTime?
 

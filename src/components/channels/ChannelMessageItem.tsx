@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { ImageWithLightbox } from "@/components/chat/ImageWithLightbox";
 import { QuickEmojiBar } from "@/components/channels/EmojiPicker";
 import {
   formatMessageTime,
@@ -153,8 +154,7 @@ export function ChannelMessageItem({
               {message.attachments?.map((attachment, index) => (
                 <div key={`${message.id}-att-${index}`} className="mt-3">
                   {attachment.type === "image" ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <ImageWithLightbox
                       src={attachment.url}
                       alt={attachment.name ?? "Shared image"}
                       className="max-h-64 rounded-xl border border-gold/25 object-cover shadow-sm"

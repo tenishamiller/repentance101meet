@@ -34,6 +34,19 @@ function drawCover(
   ctx.drawImage(video, x + (w - sw) / 2, y + (h - sh) / 2, sw, sh);
 }
 
+function createCaptureVideo(width: number, height: number) {
+  const video = document.createElement("video");
+  video.autoplay = true;
+  video.playsInline = true;
+  video.muted = true;
+  video.width = width;
+  video.height = height;
+  video.style.cssText =
+    "position:fixed;left:-9999px;top:-9999px;width:1280px;height:720px;opacity:0;pointer-events:none;";
+  document.body.appendChild(video);
+  return video;
+}
+
 /** Composites host + participant videos and mixed audio for meeting recordings. */
 export class RecordingCompositor {
   private canvas: HTMLCanvasElement;
@@ -42,7 +55,9 @@ export class RecordingCompositor {
   private destination: MediaStreamAudioDestinationNode;
   private audioSources = new Map<string, MediaStreamAudioSourceNode>();
   private rafId = 0;
-  private mainVideo: HTMLVideoElement | null = null;
+  private mainCaptureVideo: HTMLVideoElement;
+  private mainStream: MediaStream | null = null;
+  private captureVideoTrack: MediaStreamTrack | null = null;
   private participants: CompositorParticipant[] = [];
 
   constructor(
@@ -57,10 +72,25 @@ export class RecordingCompositor {
     this.ctx = ctx;
     this.audioContext = new AudioContext();
     this.destination = this.audioContext.createMediaStreamDestination();
+    this.mainCaptureVideo = createCaptureVideo(width, height);
   }
 
-  setMainVideo(video: HTMLVideoElement | null) {
-    this.mainVideo = video;
+  /** Feed camera or screen share into a dedicated off-screen video for stable canvas capture. */
+  setMainStream(stream: MediaStream | null) {
+    this.mainStream = stream;
+
+    if (!stream) {
+      this.mainCaptureVideo.srcObject = null;
+      return;
+    }
+
+    if (this.mainCaptureVideo.srcObject !== stream) {
+      this.mainCaptureVideo.srcObject = stream;
+    }
+
+    void this.mainCaptureVideo.play().catch(() => {
+      /* autoplay may require prior user gesture */
+    });
   }
 
   setParticipants(participants: CompositorParticipant[]) {
@@ -113,68 +143,86 @@ export class RecordingCompositor {
     }
   }
 
-  startDrawing() {
-    const draw = () => {
-      const { ctx, canvas } = this;
-      ctx.fillStyle = "#1a0a0a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  private paintFrame() {
+    const { ctx, canvas } = this;
+    ctx.fillStyle = "#1a0a0a";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const visibleParticipants = this.participants.slice(0, 6);
-      const stripHeight =
-        visibleParticipants.length > 0 ? Math.min(160, Math.floor(canvas.height * 0.2)) : 0;
-      const mainHeight = canvas.height - stripHeight;
+    const visibleParticipants = this.participants.slice(0, 6);
+    const stripHeight =
+      visibleParticipants.length > 0 ? Math.min(160, Math.floor(canvas.height * 0.2)) : 0;
+    const mainHeight = canvas.height - stripHeight;
 
-      if (this.mainVideo && this.mainVideo.readyState >= 2) {
-        drawCover(ctx, this.mainVideo, 0, 0, canvas.width, mainHeight);
-      } else {
-        ctx.fillStyle = "#3D1818";
-        ctx.fillRect(0, 0, canvas.width, mainHeight);
-        ctx.fillStyle = "#E8D5A3";
-        ctx.font = "24px Georgia, serif";
-        ctx.fillText("Repentance 101 Live Teaching", 48, mainHeight / 2);
-      }
+    const mainVideo = this.mainCaptureVideo;
+    if (mainVideo.paused && this.mainStream) {
+      void mainVideo.play().catch(() => {});
+    }
 
-      if (visibleParticipants.length > 0) {
-        const cols = visibleParticipants.length;
-        const tileW = canvas.width / cols;
-        const y = mainHeight;
+    if (mainVideo.readyState >= 2 && mainVideo.videoWidth > 0 && mainVideo.videoHeight > 0) {
+      drawCover(ctx, mainVideo, 0, 0, canvas.width, mainHeight);
+    } else {
+      ctx.fillStyle = "#3D1818";
+      ctx.fillRect(0, 0, canvas.width, mainHeight);
+      ctx.fillStyle = "#E8D5A3";
+      ctx.font = "24px Georgia, serif";
+      ctx.fillText("Repentance 101 Live Teaching", 48, mainHeight / 2);
+    }
 
-        visibleParticipants.forEach((participant, index) => {
-          const x = index * tileW;
-          ctx.fillStyle = "#4A1F1F";
-          ctx.fillRect(x + 2, y + 2, tileW - 4, stripHeight - 4);
+    if (visibleParticipants.length > 0) {
+      const cols = visibleParticipants.length;
+      const tileW = canvas.width / cols;
+      const y = mainHeight;
 
-          const video = participant.video;
-          if (participant.cameraOn && video && video.readyState >= 2) {
-            drawCover(ctx, video, x + 4, y + 4, tileW - 8, stripHeight - 28);
-          } else {
-            ctx.fillStyle = "#6B2D2D";
-            ctx.fillRect(x + 4, y + 4, tileW - 8, stripHeight - 28);
-            ctx.fillStyle = "#FEF9F0";
-            ctx.font = "bold 20px Georgia, serif";
-            ctx.textAlign = "center";
-            ctx.fillText(
-              participant.name.slice(0, 1).toUpperCase(),
-              x + tileW / 2,
-              y + stripHeight / 2,
-            );
-            ctx.textAlign = "left";
-          }
+      visibleParticipants.forEach((participant, index) => {
+        const x = index * tileW;
+        ctx.fillStyle = "#4A1F1F";
+        ctx.fillRect(x + 2, y + 2, tileW - 4, stripHeight - 4);
 
+        const video = participant.video;
+        if (video?.paused) {
+          void video.play().catch(() => {});
+        }
+
+        if (participant.cameraOn && video && video.readyState >= 2) {
+          drawCover(ctx, video, x + 4, y + 4, tileW - 8, stripHeight - 28);
+        } else {
+          ctx.fillStyle = "#6B2D2D";
+          ctx.fillRect(x + 4, y + 4, tileW - 8, stripHeight - 28);
           ctx.fillStyle = "#FEF9F0";
-          ctx.font = "12px sans-serif";
-          ctx.fillText(participant.name.slice(0, 20), x + 8, y + stripHeight - 8);
-        });
-      }
+          ctx.font = "bold 20px Georgia, serif";
+          ctx.textAlign = "center";
+          ctx.fillText(
+            participant.name.slice(0, 1).toUpperCase(),
+            x + tileW / 2,
+            y + stripHeight / 2,
+          );
+          ctx.textAlign = "left";
+        }
 
-      this.rafId = requestAnimationFrame(draw);
+        ctx.fillStyle = "#FEF9F0";
+        ctx.font = "12px sans-serif";
+        ctx.fillText(participant.name.slice(0, 20), x + 8, y + stripHeight - 8);
+      });
+    }
+
+    const track = this.captureVideoTrack;
+    if (track && "requestFrame" in track) {
+      (track as CanvasCaptureMediaStreamTrack).requestFrame();
+    }
+  }
+
+  startDrawing() {
+    const schedule = () => {
+      this.paintFrame();
+      this.rafId = requestAnimationFrame(schedule);
     };
 
-    draw();
+    schedule();
   }
 
   getStream(fps = 30): MediaStream {
     const videoStream = this.canvas.captureStream(fps);
+    this.captureVideoTrack = videoStream.getVideoTracks()[0] ?? null;
     const composite = new MediaStream();
     for (const track of videoStream.getVideoTracks()) {
       composite.addTrack(track);
@@ -198,6 +246,10 @@ export class RecordingCompositor {
       }
     }
     this.audioSources.clear();
+    this.mainCaptureVideo.srcObject = null;
+    this.mainCaptureVideo.remove();
     void this.audioContext.close();
+    this.captureVideoTrack = null;
+    this.mainStream = null;
   }
 }

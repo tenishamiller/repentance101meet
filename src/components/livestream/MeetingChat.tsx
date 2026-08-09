@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Paperclip, RotateCcw, Smile, Trash2 } from "lucide-react";
+import { Paperclip, Pencil, RotateCcw, Smile, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
-import { formatDate, type Attachment, cn } from "@/lib/utils";
+import { formatDate, canEditMessage, type Attachment } from "@/lib/utils";
 import { MEETING_CHAT_MAX_FILE_LABEL } from "@/lib/chat-attachments";
 import { uploadMeetingChatFile } from "@/lib/meeting-chat-upload";
+import { getEditTimeRemaining, isMessageEdited } from "@/lib/channel-messages";
 import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
 import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { EmojiPicker } from "@/components/livestream/EmojiPicker";
@@ -15,6 +16,7 @@ type MeetingMessage = {
   content: string;
   attachments: Attachment[] | null;
   createdAt: string;
+  editedAt: string | null;
   deletedAt: string | null;
   user: { id: string; name: string; avatarUrl: string | null };
 };
@@ -31,14 +33,20 @@ export function MeetingChat({
   const [messages, setMessages] = useState<MeetingMessage[]>([]);
   const [canModerate, setCanModerate] = useState(isAdmin);
   const [content, setContent] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const lastMessageIdRef = useRef<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const canSend = content.trim().length > 0 || pendingFiles.length > 0;
 
   const fetchMessages = useCallback(async () => {
     const res = await fetch(`/api/meetings/${meetingToken}/chat`);
@@ -56,6 +64,11 @@ export function MeetingChat({
     const interval = setInterval(fetchMessages, 2500);
     return () => clearInterval(interval);
   }, [fetchMessages]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -87,6 +100,17 @@ export function MeetingChat({
     scrollContainerToBottom(node);
   }
 
+  function handleFilesSelected() {
+    const files = fileRef.current?.files;
+    setPendingFiles(files ? Array.from(files) : []);
+    setUploadError("");
+  }
+
+  function clearPendingFiles() {
+    setPendingFiles([]);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   async function uploadFile(file: File): Promise<Attachment | null> {
     const result = await uploadMeetingChatFile(meetingToken, file);
     if ("error" in result) {
@@ -106,23 +130,25 @@ export function MeetingChat({
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
-    const hasText = content.trim().length > 0;
-    const hasFiles = (fileRef.current?.files?.length ?? 0) > 0;
-    if (!hasText && !hasFiles) return;
+    if (!canSend) return;
 
     setSending(true);
     const attachments: Attachment[] = [];
 
-    if (fileRef.current?.files?.length) {
-      for (const file of Array.from(fileRef.current.files)) {
-        const att = await uploadFile(file);
-        if (att) attachments.push(att);
-      }
-      fileRef.current.value = "";
+    for (const file of pendingFiles) {
+      const att = await uploadFile(file);
+      if (att) attachments.push(att);
     }
 
+    if (!content.trim() && attachments.length === 0) {
+      setSending(false);
+      return;
+    }
+
+    clearPendingFiles();
+
     const linkMatch = content.match(/https?:\/\/[^\s]+/);
-    if (linkMatch && attachments.length === 0 && !hasText) {
+    if (linkMatch && attachments.length === 0 && !content.trim()) {
       attachments.push({ type: "link", url: linkMatch[0] });
     }
 
@@ -178,11 +204,33 @@ export function MeetingChat({
     fetchMessages();
   }
 
+  async function deleteOwnMessage(messageId: string) {
+    const res = await fetch(`/api/meetings/${meetingToken}/chat/${messageId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      setMessages((prev) => prev.filter((message) => message.id !== messageId));
+    }
+    fetchMessages();
+  }
+
+  async function saveEdit(messageId: string) {
+    const res = await fetch(`/api/meetings/${meetingToken}/chat/${messageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: editContent }),
+    });
+    if (res.ok) {
+      setEditingId(null);
+      setEditContent("");
+      fetchMessages();
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-burgundy-dark">
       <div className="shrink-0 border-b border-gold/20 px-4 py-3">
         <h3 className="font-serif font-semibold text-cream">Meeting Chat</h3>
-        <p className="text-xs text-gold-light/70">Messages, files & emojis — everyone in the room</p>
       </div>
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <div
@@ -197,6 +245,12 @@ export function MeetingChat({
         )}
         {messages.map((msg) => {
           const isHidden = Boolean(msg.deletedAt);
+          const isOwn = msg.user.id === userId;
+          const isEditing = editingId === msg.id;
+          const canModify = isOwn && canEditMessage(msg.createdAt, now);
+          const edited = isMessageEdited(msg.editedAt);
+          const editRemaining = canModify ? getEditTimeRemaining(msg.createdAt, now) : null;
+
           return (
           <div
             key={msg.id}
@@ -212,16 +266,82 @@ export function MeetingChat({
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-sm font-medium text-gold">{msg.user.name}</span>
                 <span className="text-xs text-gold-light/50">{formatDate(msg.createdAt)}</span>
+                {edited && (
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-gold-light/45">
+                    Edited
+                  </span>
+                )}
               </div>
-              {msg.content && (
-                <p className="whitespace-pre-wrap break-words text-sm text-cream/90">
-                  {msg.content}
-                </p>
+
+              {isEditing ? (
+                <div className="mt-1">
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="w-full rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-sm text-cream focus:outline-none focus:ring-2 focus:ring-gold/40"
+                    rows={3}
+                  />
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(msg.id)}
+                      className="rounded-lg bg-gold px-3 py-1.5 text-sm font-bold text-burgundy-deep"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingId(null);
+                        setEditContent("");
+                      }}
+                      className="rounded-lg border border-gold/30 px-3 py-1.5 text-sm text-gold-light"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {msg.content && (
+                    <p className="whitespace-pre-wrap break-words text-sm text-cream/90">
+                      {msg.content}
+                    </p>
+                  )}
+                  {msg.attachments && msg.attachments.length > 0 && (
+                    <MessageAttachments attachments={msg.attachments} />
+                  )}
+                </>
               )}
-              {msg.attachments && msg.attachments.length > 0 && (
-                <MessageAttachments attachments={msg.attachments} />
+
+              {canModify && !isEditing && (
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingId(msg.id);
+                      setEditContent(msg.content);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-gold-light/60 hover:text-gold"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteOwnMessage(msg.id)}
+                    className="inline-flex items-center gap-1 text-xs text-gold-light/60 hover:text-gold"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete
+                  </button>
+                  {editRemaining && (
+                    <span className="text-[10px] text-gold-light/40">{editRemaining}</span>
+                  )}
+                </div>
               )}
-              {canModerate && msg.user.id !== userId && (
+
+              {canModerate && !isOwn && (
                 <div className="mt-1 flex flex-wrap items-center gap-3">
                   <button
                     type="button"
@@ -251,26 +371,6 @@ export function MeetingChat({
                   )}
                 </div>
               )}
-              {canModerate && msg.user.id === userId && !isHidden && (
-                <button
-                  type="button"
-                  onClick={() => hideMessage(msg.id)}
-                  className="mt-1 inline-flex items-center gap-1 text-xs text-gold-light/60 hover:text-gold"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Hide
-                </button>
-              )}
-              {canModerate && msg.user.id === userId && isHidden && (
-                <button
-                  type="button"
-                  onClick={() => restoreMessage(msg.id)}
-                  className="mt-1 inline-flex items-center gap-1 text-xs text-gold-light/60 hover:text-gold"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                  Restore
-                </button>
-              )}
             </div>
           </div>
         );
@@ -291,6 +391,25 @@ export function MeetingChat({
         {uploadError && (
           <p className="mb-2 text-xs text-red-300">{uploadError}</p>
         )}
+        {pendingFiles.length > 0 && (
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            {pendingFiles.map((file) => (
+              <span
+                key={`${file.name}-${file.size}`}
+                className="rounded-full border border-gold/30 bg-burgundy px-2.5 py-1 text-xs text-gold-light"
+              >
+                📎 {file.name}
+              </span>
+            ))}
+            <button
+              type="button"
+              onClick={clearPendingFiles}
+              className="text-xs text-gold-light/60 hover:text-gold"
+            >
+              Clear
+            </button>
+          </div>
+        )}
         {showEmoji && (
           <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmoji(false)} />
         )}
@@ -301,6 +420,7 @@ export function MeetingChat({
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip"
           className="hidden"
           id={`meeting-file-${meetingToken}`}
+          onChange={handleFilesSelected}
         />
         <div className="flex gap-2">
           <label
@@ -327,7 +447,7 @@ export function MeetingChat({
           />
           <button
             type="submit"
-            disabled={sending}
+            disabled={sending || !canSend}
             className="rounded-lg bg-gold px-4 py-2 text-sm font-bold text-burgundy-deep disabled:opacity-60"
           >
             {sending ? "..." : "Send"}

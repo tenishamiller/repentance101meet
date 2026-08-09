@@ -1,6 +1,7 @@
 "use client";
 
 import type { Attachment } from "@/lib/utils";
+import { ImageWithLightbox } from "@/components/chat/ImageWithLightbox";
 
 export function MessageAttachments({ attachments }: { attachments: Attachment[] }) {
   return (
@@ -8,8 +9,7 @@ export function MessageAttachments({ attachments }: { attachments: Attachment[] 
       {attachments.map((att, i) => (
         <div key={i} className="mt-2">
           {att.type === "image" ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <ImageWithLightbox
               src={att.url}
               alt={att.name ?? "Shared image"}
               className="max-h-40 rounded-lg border border-gold/30"
