@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Hand,
@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { ShowMoreList } from "@/components/ShowMoreList";
-import { useLivestream } from "@/hooks/useLivestream";
+import { useLivestream, type GalleryMember } from "@/hooks/useLivestream";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
@@ -30,17 +30,9 @@ import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
 import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
 import { YouTubeStreamPanel } from "@/components/livestream/YouTubeStreamPanel";
-import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { HostPrivateMessagePanel } from "@/components/livestream/HostPrivateMessagePanel";
 import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPopover";
-import {
-  getMemberVideoLayout,
-  setMemberVideoLayout,
-  type MemberVideoLayout,
-} from "@/lib/video-layout";
-import type { GalleryMember } from "@/hooks/useLivestream";
-
 type Props = {
   meetingToken: string;
   meetingTitle: string;
@@ -63,23 +55,11 @@ export function LivestreamRoom({
   const router = useRouter();
   const isMobile = useIsMobile();
   const [mobileTab, setMobileTab] = useState<"video" | "chat" | "people">("video");
-  const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
   const [privateMessageMember, setPrivateMessageMember] = useState<{
     id: string;
     name: string;
     avatarUrl: string | null;
   } | null>(null);
-  const memberChoseLayoutRef = useRef(false);
-
-  useEffect(() => {
-    setMemberVideoLayoutState(getMemberVideoLayout());
-  }, []);
-
-  function updateMemberVideoLayout(layout: MemberVideoLayout) {
-    memberChoseLayoutRef.current = true;
-    setMemberVideoLayoutState(layout);
-    setMemberVideoLayout(layout);
-  }
 
   const {
     localVideoRef,
@@ -92,6 +72,7 @@ export function LivestreamRoom({
     isRemoteScreenSharing,
     isScreenSharing,
     localStream,
+    remoteStream,
     isSavingRecording,
     videoInputDevices,
     audioInputDevices,
@@ -118,6 +99,7 @@ export function LivestreamRoom({
     toggleMemberMic,
     toggleScreenShare,
     endBroadcast,
+    rebindMediaElements,
     toggleHand,
     sendReaction,
     kickViewer,
@@ -172,13 +154,12 @@ export function LivestreamRoom({
     isMuted,
   ]);
 
-  useEffect(() => {
-    if (isHost || memberChoseLayoutRef.current || isRemoteScreenSharing) return;
-    if (isRemoteCameraOff && memberVideoLayout === "pip") {
-      setMemberVideoLayoutState("side-by-side");
-      setMemberVideoLayout("side-by-side");
-    }
-  }, [isHost, isRemoteCameraOff, isRemoteScreenSharing, memberVideoLayout]);
+  const memberStage = isRemoteScreenSharing ? "present" : "split";
+
+  useLayoutEffect(() => {
+    if (isHost) return;
+    rebindMediaElements();
+  }, [isHost, memberStage, localStream, remoteStream, rebindMediaElements]);
 
   if (meetingEnded) {
     return (
@@ -345,8 +326,6 @@ export function LivestreamRoom({
         ) : (
           <>
             {(() => {
-              const splitLayout =
-                memberVideoLayout === "side-by-side" && !isRemoteScreenSharing;
               const presentLayout = isRemoteScreenSharing;
 
               const stageBadges = (
@@ -441,49 +420,9 @@ export function LivestreamRoom({
                 );
               }
 
-              if (splitLayout) {
-                return (
-                  <div className="relative grid min-h-0 flex-1 grid-cols-1 bg-black sm:grid-cols-2">
-                    <div className="relative min-h-0 border-b border-gold/20 sm:border-b-0 sm:border-r">
-                      <video
-                        ref={remoteVideoRef}
-                        autoPlay
-                        playsInline
-                        className={`h-full w-full object-contain ${isRemoteCameraOff ? "hidden" : ""}`}
-                      />
-                      {isLive && isRemoteCameraOff && (
-                        <CameraOffOverlay
-                          userId={hostProfile.userId}
-                          name={hostProfile.name}
-                          avatarUrl={hostProfile.avatarUrl}
-                        />
-                      )}
-                    </div>
-                    <div className="relative min-h-0">
-                      <video
-                        ref={localVideoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
-                      />
-                      {isCameraOff && (
-                        <CameraOffOverlay
-                          userId={userId}
-                          name={userName}
-                          avatarUrl={avatarUrl}
-                          compact
-                        />
-                      )}
-                    </div>
-                    {stageBadges}
-                  </div>
-                );
-              }
-
               return (
-                <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
-                  <div className="absolute inset-0">
+                <div className="relative grid min-h-0 flex-1 grid-cols-1 bg-black sm:grid-cols-2">
+                  <div className="relative min-h-0 border-b border-gold/20 sm:border-b-0 sm:border-r">
                     <video
                       ref={remoteVideoRef}
                       autoPlay
@@ -498,15 +437,13 @@ export function LivestreamRoom({
                       />
                     )}
                   </div>
-                  <div className="absolute bottom-4 right-4 z-10 h-24 w-32 sm:h-28 sm:w-40">
+                  <div className="relative min-h-0">
                     <video
                       ref={localVideoRef}
                       autoPlay
                       playsInline
                       muted
-                      className={`h-full w-full rounded-xl border-2 border-gold/50 object-cover shadow-2xl ${
-                        isCameraOff ? "hidden" : ""
-                      }`}
+                      className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
                     />
                     {isCameraOff && (
                       <CameraOffOverlay
@@ -514,7 +451,6 @@ export function LivestreamRoom({
                         name={userName}
                         avatarUrl={avatarUrl}
                         compact
-                        className="rounded-xl border-2 border-gold/50 shadow-2xl"
                       />
                     )}
                   </div>
@@ -539,11 +475,6 @@ export function LivestreamRoom({
                 onChange={(deviceId) => void switchAudioDevice(deviceId)}
                 onRefresh={() => void refreshMediaInputDevices()}
                 refreshing={isRefreshingDevices}
-              />
-              <VideoLayoutSelect
-                mode="member"
-                value={memberVideoLayout}
-                onChange={updateMemberVideoLayout}
               />
               <ControlButton
                 onClick={toggleMute}

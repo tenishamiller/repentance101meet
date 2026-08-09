@@ -441,6 +441,14 @@ export function useLivestream({
     void bindStreamToVideo(localVideoRef.current, stream);
   }, []);
 
+  const rebindMediaElements = useCallback(() => {
+    void bindStreamToVideo(localVideoRef.current, localStreamRef.current);
+    const remote = remoteStreamRef.current;
+    if (remote) {
+      attachRemoteStream(remote);
+    }
+  }, [attachRemoteStream]);
+
   const buildRecordingStream = useCallback(() => {
     const audioTracks: MediaStreamTrack[] = [];
     const hostMic = localStreamRef.current?.getAudioTracks()[0];
@@ -1848,6 +1856,7 @@ export function useLivestream({
     isRemoteScreenSharing,
     isScreenSharing,
     localStream,
+    remoteStream,
     isRecording,
     isSavingRecording,
     recordingElapsedSeconds,
@@ -1878,6 +1887,7 @@ export function useLivestream({
     toggleScreenShare,
     beginRecording,
     endBroadcast,
+    rebindMediaElements,
     toggleHand,
     sendReaction,
     kickViewer,
