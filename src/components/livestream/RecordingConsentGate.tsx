@@ -14,7 +14,7 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
       <div className="w-full max-w-lg rounded-2xl border border-gold/30 bg-cream p-6 shadow-2xl sm:p-8">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-burgundy">
           <Circle className="h-3 w-3 fill-burgundy text-burgundy" />
-          Recording notice
+          Livestream
         </div>
 
         <h1 className="font-serif text-2xl font-bold text-burgundy sm:text-3xl">
@@ -24,11 +24,11 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
 
         <div className="mt-6 space-y-4 text-sm leading-relaxed text-burgundy/85">
           <p>
-            This livestream may be <strong>recorded</strong>, including video, audio, and chat.
-            Recordings may be saved for ministry use and shared with the Repentance 101 community.
+            This session is a live teaching broadcast. Chat and participation may be visible to other
+            members in the room.
           </p>
           <p>
-            By joining, you consent to being recorded while you participate in this session.
+            By joining, you agree to participate respectfully in this live ministry session.
           </p>
           <div className="rounded-xl border border-gold/25 bg-cream-dark px-4 py-3">
             <p className="flex items-start gap-2 font-semibold text-burgundy">

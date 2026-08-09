@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   members: GalleryMember[];
+  /** Host camera tile while screen sharing — shown first in the gallery. */
+  hostTile?: GalleryMember | null;
   memberVideoEnabled?: boolean;
   memberMicEnabled?: boolean;
   layout?: HostGalleryLayout;
@@ -111,12 +113,15 @@ function ParticipantTile({
 
 export function ParticipantGallery({
   members,
+  hostTile = null,
   memberVideoEnabled = true,
   memberMicEnabled = true,
   layout = "bottom",
   className,
 }: Props) {
-  if (members.length === 0) {
+  const tiles = hostTile ? [hostTile, ...members] : members;
+
+  if (tiles.length === 0) {
     if (layout === "sidebar") {
       return (
         <div
@@ -150,10 +155,10 @@ export function ParticipantGallery({
         )}
       >
         <p className="shrink-0 border-b border-gold/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
-          Members ({members.length})
+          In room ({tiles.length})
         </p>
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
-          {members.map((member) => (
+        <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-2 p-2">
+          {tiles.map((member) => (
             <ParticipantTile
               key={member.userId}
               member={member}
@@ -170,10 +175,10 @@ export function ParticipantGallery({
   return (
     <div className={cn("shrink-0 border-t border-gold/20 bg-burgundy-dark/90 px-3 py-3", className)}>
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
-        Members in room ({members.length})
+        In room ({tiles.length})
       </p>
-      <div className="flex gap-3 overflow-x-auto pb-1">
-        {members.map((member) => (
+      <div className="chat-scroll flex gap-3 pb-1">
+        {tiles.map((member) => (
           <ParticipantTile
             key={member.userId}
             member={member}

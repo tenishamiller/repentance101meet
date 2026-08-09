@@ -26,7 +26,7 @@ const NAV: { id: AdminTab; label: string; icon: typeof Home; description: string
   { id: "messages", label: "Messages", icon: MessageCircle, description: "Member conversations" },
   { id: "surveys", label: "Survey Answers", icon: ClipboardList, description: "Signup questionnaire responses" },
   { id: "channels", label: "Channels", icon: LayoutDashboard, description: "Join requests & access" },
-  { id: "livestream", label: "Livestream", icon: Radio, description: "Teaching room & recordings" },
+  { id: "livestream", label: "Livestream", icon: Radio, description: "Teaching room & YouTube" },
   { id: "private", label: "Personal Ministry", icon: Heart, description: "Private 1-on-1 sessions" },
   { id: "blocks", label: "Block List", icon: Ban, description: "Manage blocked users" },
   { id: "content", label: "Site Content", icon: BookOpen, description: "Guidelines & schedule" },

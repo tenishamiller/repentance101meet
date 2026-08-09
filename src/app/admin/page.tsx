@@ -275,7 +275,6 @@ export default function AdminPage() {
       {tab === "livestream" && (
         <AdminLivestreamPanel
           meetings={meetings}
-          recordings={stats.recordings}
           newMeetingTitle={newMeetingTitle}
           onTitleChange={setNewMeetingTitle}
           onGoLive={() => void goLive()}

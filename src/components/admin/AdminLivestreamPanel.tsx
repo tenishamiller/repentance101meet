@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, Mic, Share2, Trash2, Undo2, Video } from "lucide-react";
+import { Mic, Share2, Trash2, Undo2, Video } from "lucide-react";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { DeleteCountdown } from "@/components/admin/DeleteCountdown";
 import { ListPagination } from "@/components/admin/ListPagination";
@@ -11,7 +11,6 @@ import type { Meeting } from "./types";
 
 type Props = {
   meetings: Meeting[];
-  recordings: Meeting[];
   newMeetingTitle: string;
   onTitleChange: (title: string) => void;
   onGoLive: () => void;
@@ -21,7 +20,6 @@ type Props = {
 
 export function AdminLivestreamPanel({
   meetings,
-  recordings,
   newMeetingTitle,
   onTitleChange,
   onGoLive,
@@ -29,9 +27,7 @@ export function AdminLivestreamPanel({
   onMeetingAction,
 }: Props) {
   const [sessionsPage, setSessionsPage] = useState(1);
-  const [recordingsPage, setRecordingsPage] = useState(1);
   const SESSIONS_PAGE_SIZE = 5;
-  const RECORDINGS_PAGE_SIZE = 8;
 
   const liveMeeting = meetings.find((m) => m.status === "LIVE" && !isMeetingPendingDeletion(m));
   const scheduledMeeting = meetings.find(
@@ -40,25 +36,15 @@ export function AdminLivestreamPanel({
   const activeSession = liveMeeting ?? scheduledMeeting;
 
   const sessionsTotalPages = Math.max(1, Math.ceil(meetings.length / SESSIONS_PAGE_SIZE));
-  const recordingsTotalPages = Math.max(1, Math.ceil(recordings.length / RECORDINGS_PAGE_SIZE));
 
   const pagedMeetings = useMemo(() => {
     const start = (sessionsPage - 1) * SESSIONS_PAGE_SIZE;
     return meetings.slice(start, start + SESSIONS_PAGE_SIZE);
   }, [meetings, sessionsPage]);
 
-  const pagedRecordings = useMemo(() => {
-    const start = (recordingsPage - 1) * RECORDINGS_PAGE_SIZE;
-    return recordings.slice(start, start + RECORDINGS_PAGE_SIZE);
-  }, [recordings, recordingsPage]);
-
   function confirmDelete(meeting: Meeting) {
     const endingNote =
-      meeting.status === "LIVE"
-        ? " This will also end the live broadcast for everyone."
-        : meeting.recordingUrl
-          ? " The cloud recording will be removed permanently after 15 minutes."
-          : "";
+      meeting.status === "LIVE" ? " This will also end the live broadcast for everyone." : "";
     return window.confirm(
       `Delete "${meeting.title}"?${endingNote}\n\nYou can undo within 15 minutes. After that, deletion is permanent.`,
     );
@@ -99,22 +85,21 @@ export function AdminLivestreamPanel({
 
   return (
     <div className="space-y-8 animate-fade-up">
-      {/* Feature guide */}
       <section className="rounded-2xl border border-gold/30 bg-gradient-to-br from-cream-dark to-cream p-6">
         <h2 className="mb-3 font-serif text-xl font-semibold text-burgundy">
           Live Teaching Room
         </h2>
         <p className="mb-4 text-sm text-burgundy/70">
           Press Go Live to start your session and broadcast with full controls — camera, mic, screen
-          share, recording, chat with attachments, raise hand, and member reactions. Share the member
-          link from inside the livestream room.
+          share, YouTube streaming, chat with attachments, raise hand, and member reactions. Share the
+          member link from inside the livestream room.
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             { icon: Share2, label: "Share member link" },
             { icon: Video, label: "Camera & screen share" },
             { icon: Mic, label: "Mute & raise hand" },
-            { icon: Download, label: "Download recording" },
+            { icon: Video, label: "Stream to YouTube" },
           ].map(({ icon: Icon, label }) => (
             <div
               key={label}
@@ -127,7 +112,6 @@ export function AdminLivestreamPanel({
         </div>
       </section>
 
-      {/* Single Go Live path for Norman */}
       <section className="card-brand overflow-hidden p-0">
         <div className="hero-brand p-6 md:p-8">
           <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-gold-light/90">
@@ -138,7 +122,7 @@ export function AdminLivestreamPanel({
           </h2>
           <p className="mt-2 max-w-xl text-sm text-cream/85">
             {liveMeeting
-              ? "Members can join from the livestream page. Return to the room to share camera, screen, chat, and recording."
+              ? "Members can join from the livestream page. Return to the room to share camera, screen, chat, and YouTube."
               : "Set your session title and press Go Live — that starts the session and opens your broadcast room."}
           </p>
 
@@ -183,7 +167,6 @@ export function AdminLivestreamPanel({
         )}
       </section>
 
-      {/* Session history */}
       <section className="card-brand p-6">
         <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">Session History</h2>
         {meetings.length === 0 ? (
@@ -228,7 +211,7 @@ export function AdminLivestreamPanel({
                         type="button"
                         onClick={() => {
                           const ok = window.confirm(
-                            "End this session from Admin?\n\nThis stops the livestream for everyone but does NOT save a recording. To save to the Recording Library, click Record in the meeting room, then End Livestream when finished.",
+                            "End this session from Admin?\n\nThis stops the livestream for everyone immediately.",
                           );
                           if (ok) onMeetingAction(m.id, "end");
                         }}
@@ -255,72 +238,6 @@ export function AdminLivestreamPanel({
           total={meetings.length}
           pageSize={SESSIONS_PAGE_SIZE}
           onPageChange={setSessionsPage}
-        />
-      </section>
-
-      {/* Recording library */}
-      <section className="card-brand p-6">
-        <h2 className="mb-1 font-serif text-xl font-semibold text-burgundy">Recording Library</h2>
-        <p className="mb-4 text-sm text-burgundy/60">
-          Cloud recordings appear here after you <strong className="font-semibold text-burgundy">Record</strong> during
-          a live session and finish with <strong className="font-semibold text-burgundy">End Livestream</strong> in
-          the meeting room. Ending from Admin alone does not save a recording.
-        </p>
-        {recordings.length === 0 ? (
-          <div className="rounded-xl bg-cream-dark px-4 py-6 text-center">
-            <p className="font-medium text-burgundy/70">No recordings in the library yet.</p>
-            <p className="mt-2 text-sm text-burgundy/55">
-              If you recorded but nothing appears here, the upload may have failed — check your
-              storage settings and try again next session.
-            </p>
-          </div>
-        ) : (
-          <ul className="divide-y divide-gold/15">
-            {pagedRecordings.map((r) => {
-              const pendingDelete = isMeetingPendingDeletion(r);
-              return (
-              <li
-                key={r.id}
-                className={`flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0 ${
-                  pendingDelete ? "rounded-lg bg-amber-50/80 px-3 -mx-3" : ""
-                }`}
-              >
-                <div>
-                  <p
-                    className={`font-medium ${pendingDelete ? "text-burgundy/70 line-through" : "text-burgundy"}`}
-                  >
-                    {r.title}
-                  </p>
-                  <p className="text-xs text-burgundy/55">
-                    {pendingDelete ? (
-                      <span className="font-semibold text-amber-800">Scheduled for deletion · </span>
-                    ) : null}
-                    Ended {r.endedAt ? formatDate(r.endedAt) : formatDate(r.createdAt)}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {r.recordingUrl && !pendingDelete && (
-                    <a
-                      href={`/api/admin/recordings/${r.id}/download`}
-                      className="inline-flex items-center gap-2 rounded-lg bg-gold px-4 py-2 text-sm font-bold text-burgundy-deep hover:bg-gold-light"
-                    >
-                      <Download className="h-4 w-4" />
-                      Download
-                    </a>
-                  )}
-                  {renderDeleteControls(r, true)}
-                </div>
-              </li>
-            );
-            })}
-          </ul>
-        )}
-        <ListPagination
-          page={recordingsPage}
-          totalPages={recordingsTotalPages}
-          total={recordings.length}
-          pageSize={RECORDINGS_PAGE_SIZE}
-          onPageChange={setRecordingsPage}
         />
       </section>
     </div>

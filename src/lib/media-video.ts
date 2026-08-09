@@ -70,3 +70,12 @@ export function clearPeerConnection(pc: RTCPeerConnection) {
   pendingIceCandidates.delete(pc);
   pc.close();
 }
+
+/** Heuristic for display-capture vs camera video tracks from getDisplayMedia / getUserMedia. */
+export function isScreenShareTrack(track: MediaStreamTrack): boolean {
+  if (track.kind !== "video") return false;
+  const settings = track.getSettings() as MediaTrackSettings & { displaySurface?: string };
+  if (settings.displaySurface) return true;
+  const label = track.label.toLowerCase();
+  return /screen|window|display|monitor|tab|capture|share/.test(label);
+}

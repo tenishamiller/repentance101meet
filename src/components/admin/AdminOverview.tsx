@@ -4,7 +4,6 @@ import Link from "next/link";
 import {
   AlertCircle,
   Ban,
-  Download,
   Heart,
   Radio,
   UserCheck,
@@ -263,46 +262,6 @@ export function AdminOverview({ stats, onGoTo }: Props) {
           >
             Review all pending items →
           </button>
-        </section>
-      )}
-
-      {/* Recent recordings */}
-      {stats.recordings.length > 0 && (
-        <section className="card-brand p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-serif text-xl font-semibold text-burgundy">Recent Recordings</h2>
-            <button
-              type="button"
-              onClick={() => onGoTo("livestream")}
-              className="text-sm font-semibold text-gold-muted hover:underline"
-            >
-              View all
-            </button>
-          </div>
-          <ul className="space-y-2">
-            {stats.recordings.slice(0, 3).map((r) => (
-              <li
-                key={r.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-cream-dark px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium text-burgundy">{r.title}</p>
-                  <p className="text-xs text-burgundy/60">
-                    {r.endedAt ? formatDate(r.endedAt) : formatDate(r.createdAt)}
-                  </p>
-                </div>
-                {r.recordingUrl && (
-                  <a
-                    href={`/api/admin/recordings/${r.id}/download`}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-gold px-3 py-1.5 text-xs font-bold text-burgundy-deep hover:bg-gold-light"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Download
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
         </section>
       )}
     </div>

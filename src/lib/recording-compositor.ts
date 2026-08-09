@@ -283,7 +283,7 @@ export class RecordingCompositor {
       ctx.fillStyle = "#E8D5A3";
       ctx.globalAlpha = 0.55;
       ctx.font = "600 11px sans-serif";
-      ctx.fillText(`MEMBERS (${this.participants.length})`, mainW + 12, 22);
+      ctx.fillText(`IN ROOM (${this.participants.length})`, mainW + 12, 22);
       ctx.globalAlpha = 1;
 
       const tileH = Math.min(120, Math.floor((canvas.height - 36) / Math.max(this.participants.length, 1)));
@@ -309,7 +309,7 @@ export class RecordingCompositor {
       ctx.fillStyle = "#E8D5A3";
       ctx.globalAlpha = 0.55;
       ctx.font = "600 11px sans-serif";
-      ctx.fillText(`MEMBERS IN ROOM (${this.participants.length})`, 12, mainH + 18);
+      ctx.fillText(`IN ROOM (${this.participants.length})`, 12, mainH + 18);
       ctx.globalAlpha = 1;
 
       const visible = this.participants.slice(0, 6);

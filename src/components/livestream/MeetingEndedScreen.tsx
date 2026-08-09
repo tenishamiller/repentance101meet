@@ -45,36 +45,8 @@ export function MeetingEndedScreen({
       <p className="max-w-md text-lg text-gold-light/90">
         {isHost ? (
           <>
-            <strong className="text-cream">{meetingTitle}</strong> has ended.{" "}
-            {recordingSaveStatus === "saved" ? (
-              <>
-                Your recording was saved to the Recording Library. Download it anytime from Admin →
-                Livestream.
-              </>
-            ) : recordingSaveStatus === "uploading" ? (
-              <>
-                Saving your recording to the library… This may take a minute for longer teachings.
-                You can leave this page — we&apos;ll keep uploading in the background.
-              </>
-            ) : recordingSaveStatus === "upload-failed" ? (
-              <>
-                The recording could not be saved to the library. A copy should have downloaded to
-                your device automatically. Check Admin → Livestream or try again next session.
-              </>
-            ) : recordingSaveStatus === "empty" ? (
-              <>
-                Recording was too short to save. Next time, record for at least a few seconds before
-                ending the livestream.
-              </>
-            ) : recordingSaveStatus === "not-recorded" ? (
-              <>
-                No recording was saved because Record was not used. Click{" "}
-                <strong className="text-cream">Record</strong> during a session to add it to your
-                library when you end the livestream.
-              </>
-            ) : (
-              <>The livestream has ended for everyone.</>
-            )}
+            <strong className="text-cream">{meetingTitle}</strong> has ended. The livestream is closed
+            for everyone.
           </>
         ) : (
           <>

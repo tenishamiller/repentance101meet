@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Circle,
   Hand,
   MessageCircle,
   Mic,
@@ -30,7 +29,7 @@ import { ParticipantGallery } from "@/components/livestream/ParticipantGallery";
 import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
 import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
-import { RecordingTimer } from "@/components/livestream/RecordingTimer";
+import { YouTubeStreamPanel } from "@/components/livestream/YouTubeStreamPanel";
 import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { HostPrivateMessagePanel } from "@/components/livestream/HostPrivateMessagePanel";
@@ -43,6 +42,7 @@ import {
   type HostGalleryLayout,
   type MemberVideoLayout,
 } from "@/lib/video-layout";
+import type { GalleryMember } from "@/hooks/useLivestream";
 
 type Props = {
   meetingToken: string;
@@ -73,6 +73,7 @@ export function LivestreamRoom({
     name: string;
     avatarUrl: string | null;
   } | null>(null);
+  const memberChoseLayoutRef = useRef(false);
 
   useEffect(() => {
     setHostGalleryLayoutState(getHostGalleryLayout());
@@ -87,6 +88,7 @@ export function LivestreamRoom({
   }, [isMobile, isHost]);
 
   function updateMemberVideoLayout(layout: MemberVideoLayout) {
+    memberChoseLayoutRef.current = true;
     setMemberVideoLayoutState(layout);
     setMemberVideoLayout(layout);
   }
@@ -94,14 +96,15 @@ export function LivestreamRoom({
   const {
     localVideoRef,
     remoteVideoRef,
+    remoteHostCameraVideoRef,
     isLive,
     isMuted,
     isCameraOff,
     isRemoteCameraOff,
+    isRemoteScreenSharing,
     isScreenSharing,
-    isRecording,
+    localStream,
     isSavingRecording,
-    recordingElapsedSeconds,
     videoInputDevices,
     audioInputDevices,
     selectedVideoDeviceId,
@@ -126,14 +129,11 @@ export function LivestreamRoom({
     toggleMemberVideo,
     toggleMemberMic,
     toggleScreenShare,
-    beginRecording,
     endBroadcast,
     toggleHand,
     sendReaction,
     kickViewer,
     meetingEnded,
-    recordingSaveMessage,
-    syncRecordingView,
   } = useLivestream({
     meetingToken,
     meetingTitle,
@@ -147,7 +147,6 @@ export function LivestreamRoom({
   function updateHostGalleryLayout(layout: HostGalleryLayout) {
     setHostGalleryLayoutState(layout);
     setHostGalleryLayout(layout);
-    syncRecordingView();
   }
 
   const raisedHands = useMemo(
@@ -168,13 +167,42 @@ export function LivestreamRoom({
     };
   }, [participants, hostId, meetingTitle]);
 
+  const hostSelfTile = useMemo((): GalleryMember | null => {
+    if (!isHost || !isScreenSharing || !localStream) return null;
+    return {
+      userId,
+      name: userName,
+      avatarUrl: avatarUrl ?? null,
+      stream: localStream,
+      cameraOn: !isCameraOff,
+      micOn: !isMuted,
+      connected: true,
+    };
+  }, [
+    isHost,
+    isScreenSharing,
+    localStream,
+    userId,
+    userName,
+    avatarUrl,
+    isCameraOff,
+    isMuted,
+  ]);
+
+  useEffect(() => {
+    if (isHost || memberChoseLayoutRef.current || isRemoteScreenSharing) return;
+    if (isRemoteCameraOff && memberVideoLayout === "pip") {
+      setMemberVideoLayoutState("side-by-side");
+      setMemberVideoLayout("side-by-side");
+    }
+  }, [isHost, isRemoteCameraOff, isRemoteScreenSharing, memberVideoLayout]);
+
   if (meetingEnded) {
     return (
       <MeetingEndedScreen
         meetingTitle={meetingTitle}
         variant={isHost ? "host" : "viewer"}
-        recordingSaveStatus={recordingSaveMessage}
-        onContinue={() => router.push(isHost ? "/admin?recording=1" : "/livestream")}
+        onContinue={() => router.push(isHost ? "/admin" : "/livestream")}
       />
     );
   }
@@ -201,13 +229,6 @@ export function LivestreamRoom({
                       <span className="inline-flex items-center gap-1 rounded-full bg-burgundy-dark px-2 py-0.5 font-bold text-gold">
                         <span className="h-1.5 w-1.5 rounded-full bg-gold" />
                         LIVE
-                      </span>
-                    )}
-                    {isRecording && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/50 px-2 py-0.5 font-bold text-gold">
-                        <Circle className="h-2 w-2 fill-gold text-gold" />
-                        REC
-                        <RecordingTimer elapsedSeconds={recordingElapsedSeconds} />
                       </span>
                     )}
                     {isScreenSharing && (
@@ -250,6 +271,7 @@ export function LivestreamRoom({
 
               {hostGalleryLayout === "sidebar" && (
                 <ParticipantGallery
+                  hostTile={hostSelfTile}
                   members={galleryMembers}
                   memberVideoEnabled={memberVideoEnabled}
                   memberMicEnabled={memberMicEnabled}
@@ -260,6 +282,7 @@ export function LivestreamRoom({
 
             {hostGalleryLayout === "bottom" && (
               <ParticipantGallery
+                hostTile={hostSelfTile}
                 members={galleryMembers}
                 memberVideoEnabled={memberVideoEnabled}
                 memberMicEnabled={memberMicEnabled}
@@ -267,25 +290,10 @@ export function LivestreamRoom({
               />
             )}
 
-            {/* Host controls — always visible dock with Record, Share, etc. */}
+            {/* Host controls */}
             <div className="z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark px-2 py-2.5 sm:px-4 sm:py-3">
               <div className="flex flex-wrap items-center justify-center gap-2">
-                {!isRecording ? (
-                  <button
-                    type="button"
-                    onClick={beginRecording}
-                    disabled={!isLive}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gold bg-gold px-3 py-2 text-xs font-bold text-burgundy-deep transition hover:bg-gold-light disabled:opacity-50 sm:text-sm"
-                  >
-                    <Circle className="h-4 w-4 fill-burgundy text-burgundy" />
-                    Record
-                  </button>
-                ) : (
-                  <span className="inline-flex items-center gap-2 rounded-lg border border-gold/50 bg-gold/15 px-3 py-2 text-xs font-bold text-gold-light sm:text-sm">
-                    <Circle className="h-3 w-3 fill-gold text-gold" />
-                    <RecordingTimer elapsedSeconds={recordingElapsedSeconds} />
-                  </span>
-                )}
+                <YouTubeStreamPanel meetingTitle={meetingTitle} disabled={!isLive} />
                 <button
                   type="button"
                   disabled={isSavingRecording}
@@ -370,93 +378,184 @@ export function LivestreamRoom({
           </>
         ) : (
           <>
-            <div
-              className={`relative min-h-0 flex-1 overflow-hidden bg-black ${
-                memberVideoLayout === "side-by-side" ? "grid grid-cols-1 sm:grid-cols-2" : ""
-              }`}
-            >
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className={`h-full w-full object-contain ${
-                  memberVideoLayout === "side-by-side" ? "border-r border-gold/20" : ""
-                } ${isRemoteCameraOff ? "hidden" : ""}`}
-              />
-              {isLive && isRemoteCameraOff && (
-                <CameraOffOverlay
-                  userId={hostProfile.userId}
-                  name={hostProfile.name}
-                  avatarUrl={hostProfile.avatarUrl}
-                />
-              )}
-              <div
-                className={
-                  memberVideoLayout === "side-by-side"
-                    ? "relative h-full w-full"
-                    : "absolute bottom-4 right-4 z-10 h-24 w-32 sm:h-28 sm:w-40"
-                }
-              >
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className={
-                    memberVideoLayout === "side-by-side"
-                      ? `h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`
-                      : `h-full w-full rounded-xl border-2 border-gold/50 object-cover shadow-2xl ${
-                          isCameraOff ? "hidden" : ""
-                        }`
-                  }
-                />
-                {isCameraOff && (
-                  <CameraOffOverlay
-                    userId={userId}
-                    name={userName}
-                    avatarUrl={avatarUrl}
-                    compact
-                    className={
-                      memberVideoLayout === "side-by-side"
-                        ? undefined
-                        : "rounded-xl border-2 border-gold/50 shadow-2xl"
-                    }
-                  />
-                )}
-              </div>
-              {!isLive && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
-                  <Radio className="h-10 w-10 animate-pulse text-gold" />
-                  <p className="font-serif text-lg font-semibold text-cream">
-                    Connecting to live stream...
-                  </p>
-                  <p className="text-sm text-gold-light/70">Waiting for host video</p>
-                </div>
-              )}
+            {(() => {
+              const splitLayout =
+                memberVideoLayout === "side-by-side" && !isRemoteScreenSharing;
+              const presentLayout = isRemoteScreenSharing;
 
-              <div className="pointer-events-none absolute left-4 top-4 z-10">
-                {isLive && (
-                  <div className="badge-live">
-                    <span className="relative flex h-2 w-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75" />
-                      <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
-                    </span>
-                    LIVE
+              const stageBadges = (
+                <>
+                  {!isLive && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
+                      <Radio className="h-10 w-10 animate-pulse text-gold" />
+                      <p className="font-serif text-lg font-semibold text-cream">
+                        Connecting to live stream...
+                      </p>
+                      <p className="text-sm text-gold-light/70">Waiting for host video</p>
+                    </div>
+                  )}
+                  <div className="pointer-events-none absolute left-4 top-4 z-10">
+                    {isLive && (
+                      <div className="badge-live">
+                        <span className="relative flex h-2 w-2">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75" />
+                          <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
+                        </span>
+                        LIVE
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                  <div className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-xl border border-gold/30 bg-burgundy-dark/80 px-4 py-2 backdrop-blur">
+                    <p className="font-serif text-sm font-semibold text-cream">{meetingTitle}</p>
+                    <p className="text-xs text-gold-light/80">
+                      Live meeting
+                      {isMuted ? " · muted" : ""}
+                      {isCameraOff ? " · camera off" : ""}
+                      {!memberMicEnabled ? " · mics off by host" : ""}
+                      {!memberVideoEnabled ? " · cameras off by host" : ""}
+                    </p>
+                  </div>
+                </>
+              );
 
-              <div className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-xl border border-gold/30 bg-burgundy-dark/80 px-4 py-2 backdrop-blur">
-                <p className="font-serif text-sm font-semibold text-cream">{meetingTitle}</p>
-                <p className="text-xs text-gold-light/80">
-                  Live meeting
-                  {isMuted ? " · muted" : ""}
-                  {isCameraOff ? " · camera off" : ""}
-                  {!memberMicEnabled ? " · mics off by host" : ""}
-                  {!memberVideoEnabled ? " · cameras off by host" : ""}
-                </p>
-              </div>
-            </div>
+              if (presentLayout) {
+                return (
+                  <div className="relative flex min-h-0 flex-1 overflow-hidden bg-black">
+                    <div className="relative min-h-0 min-w-0 flex-1">
+                      <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        playsInline
+                        className="h-full w-full object-contain"
+                      />
+                      {stageBadges}
+                    </div>
+                    <div className="flex w-36 shrink-0 flex-col border-l border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
+                      <div className="relative aspect-video shrink-0 border-b border-gold/10">
+                        <video
+                          ref={remoteHostCameraVideoRef}
+                          autoPlay
+                          playsInline
+                          className={`h-full w-full object-cover ${isRemoteCameraOff ? "hidden" : ""}`}
+                        />
+                        {isLive && isRemoteCameraOff && (
+                          <CameraOffOverlay
+                            userId={hostProfile.userId}
+                            name={hostProfile.name}
+                            avatarUrl={hostProfile.avatarUrl}
+                            compact
+                          />
+                        )}
+                        <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
+                          Host
+                        </p>
+                      </div>
+                      <div className="relative min-h-0 flex-1">
+                        <video
+                          ref={localVideoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
+                        />
+                        {isCameraOff && (
+                          <CameraOffOverlay
+                            userId={userId}
+                            name={userName}
+                            avatarUrl={avatarUrl}
+                            compact
+                          />
+                        )}
+                        <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
+                          You
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              if (splitLayout) {
+                return (
+                  <div className="relative grid min-h-0 flex-1 grid-cols-1 bg-black sm:grid-cols-2">
+                    <div className="relative min-h-0 border-b border-gold/20 sm:border-b-0 sm:border-r">
+                      <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        playsInline
+                        className={`h-full w-full object-contain ${isRemoteCameraOff ? "hidden" : ""}`}
+                      />
+                      {isLive && isRemoteCameraOff && (
+                        <CameraOffOverlay
+                          userId={hostProfile.userId}
+                          name={hostProfile.name}
+                          avatarUrl={hostProfile.avatarUrl}
+                        />
+                      )}
+                    </div>
+                    <div className="relative min-h-0">
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
+                      />
+                      {isCameraOff && (
+                        <CameraOffOverlay
+                          userId={userId}
+                          name={userName}
+                          avatarUrl={avatarUrl}
+                          compact
+                        />
+                      )}
+                    </div>
+                    {stageBadges}
+                  </div>
+                );
+              }
+
+              return (
+                <div className="relative min-h-0 flex-1 overflow-hidden bg-black">
+                  <div className="absolute inset-0">
+                    <video
+                      ref={remoteVideoRef}
+                      autoPlay
+                      playsInline
+                      className={`h-full w-full object-contain ${isRemoteCameraOff ? "hidden" : ""}`}
+                    />
+                    {isLive && isRemoteCameraOff && (
+                      <CameraOffOverlay
+                        userId={hostProfile.userId}
+                        name={hostProfile.name}
+                        avatarUrl={hostProfile.avatarUrl}
+                      />
+                    )}
+                  </div>
+                  <div className="absolute bottom-4 right-4 z-10 h-24 w-32 sm:h-28 sm:w-40">
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className={`h-full w-full rounded-xl border-2 border-gold/50 object-cover shadow-2xl ${
+                        isCameraOff ? "hidden" : ""
+                      }`}
+                    />
+                    {isCameraOff && (
+                      <CameraOffOverlay
+                        userId={userId}
+                        name={userName}
+                        avatarUrl={avatarUrl}
+                        compact
+                        className="rounded-xl border-2 border-gold/50 shadow-2xl"
+                      />
+                    )}
+                  </div>
+                  {stageBadges}
+                </div>
+              );
+            })()}
 
             <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-gold/20 bg-burgundy-dark px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
               <CameraDeviceSelect
