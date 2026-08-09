@@ -20,6 +20,7 @@ import {
   uploadRecordingBlob,
 } from "@/lib/recording";
 import { RecordingCompositor } from "@/lib/recording-compositor";
+import { getHostGalleryLayout } from "@/lib/video-layout";
 import {
   listAudioInputDevices,
   listVideoInputDevices,
@@ -77,6 +78,7 @@ export function useLivestream({
   meetingToken,
   meetingTitle,
   userId,
+  userName,
   isHost,
   hostId,
   mode = "livestream",
@@ -357,53 +359,6 @@ export function useLivestream({
 
   applyMemberMediaPolicyRef.current = applyMemberMediaPolicy;
 
-  const updateCompositorParticipants = useCallback(() => {
-    const compositor = compositorRef.current;
-    if (!compositor) return;
-
-    compositor.syncHostAndScreenAudio(localStreamRef.current, screenStreamRef.current);
-
-    const videoAllowed = memberVideoEnabledRef.current;
-    const micAllowed = memberMicEnabledRef.current;
-    const items = [];
-    for (const [viewerUserId, stream] of viewerStreamsRef.current) {
-      const participant = participants.find((p) => p.user.id === viewerUserId);
-      const video = viewerHiddenVideoRefs.current.get(viewerUserId) ?? null;
-      const videoTrack = stream.getVideoTracks()[0];
-      items.push({
-        id: viewerUserId,
-        name: participant?.user.name ?? "Member",
-        video,
-        cameraOn: videoAllowed && trackIsActive(videoTrack),
-      });
-      const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack && micAllowed) {
-        compositor.connectAudioTrack(viewerUserId, audioTrack);
-      } else {
-        compositor.disconnectAudioTrack(viewerUserId);
-      }
-    }
-    compositor.setParticipants(items);
-  }, [participants]);
-
-  updateCompositorRef.current = updateCompositorParticipants;
-
-  const getRecordingMainStream = useCallback((): MediaStream | null => {
-    return screenStreamRef.current ?? localStreamRef.current ?? null;
-  }, []);
-
-  const needsCompositorLayout = useCallback(() => {
-    if (!memberVideoEnabledRef.current) return false;
-    for (const stream of viewerStreamsRef.current.values()) {
-      if (trackIsActive(stream.getVideoTracks()[0])) return true;
-    }
-    return false;
-  }, []);
-
-  const syncCompositorMainStream = useCallback(() => {
-    compositorRef.current?.setMainStream(getRecordingMainStream());
-  }, [getRecordingMainStream]);
-
   const galleryMembers = useMemo((): GalleryMember[] => {
     const mediaById = new Map(viewerMedia.map((entry) => [entry.userId, entry]));
     return participants
@@ -421,6 +376,67 @@ export function useLivestream({
         };
       });
   }, [participants, viewerMedia, hostId, memberVideoEnabled, memberMicEnabled]);
+
+  const getRecordingMainStream = useCallback((): MediaStream | null => {
+    return screenStreamRef.current ?? localStreamRef.current ?? null;
+  }, []);
+
+  const syncCompositorMainStream = useCallback(() => {
+    compositorRef.current?.setMainStream(getRecordingMainStream());
+  }, [getRecordingMainStream]);
+
+  const updateCompositorParticipants = useCallback(() => {
+    const compositor = compositorRef.current;
+    if (!compositor) return;
+
+    compositor.setGalleryLayout(getHostGalleryLayout());
+
+    const hostParticipant = participants.find((p) => p.user.id === hostId);
+    const hostDisplayName = hostParticipant?.user.name ?? userName ?? meetingTitle;
+    const localVideoTrack = localStreamRef.current?.getVideoTracks()[0];
+    compositor.setHostState({
+      name: hostDisplayName,
+      showVideo: isScreenSharing || (!isCameraOff && trackIsActive(localVideoTrack)),
+    });
+
+    syncCompositorMainStream();
+    compositor.syncHostAndScreenAudio(localStreamRef.current, screenStreamRef.current);
+
+    const videoAllowed = memberVideoEnabledRef.current;
+    const micAllowed = memberMicEnabledRef.current;
+    const items = [];
+
+    for (const member of galleryMembers) {
+      const video = viewerHiddenVideoRefs.current.get(member.userId) ?? null;
+      items.push({
+        id: member.userId,
+        name: member.name,
+        video,
+        cameraOn: videoAllowed && member.cameraOn && member.connected,
+      });
+
+      const stream = viewerStreamsRef.current.get(member.userId);
+      const audioTrack = stream?.getAudioTracks()[0];
+      if (audioTrack && micAllowed && member.connected) {
+        compositor.connectAudioTrack(member.userId, audioTrack);
+      } else {
+        compositor.disconnectAudioTrack(member.userId);
+      }
+    }
+
+    compositor.setParticipants(items);
+  }, [
+    galleryMembers,
+    participants,
+    hostId,
+    userName,
+    meetingTitle,
+    isScreenSharing,
+    isCameraOff,
+    syncCompositorMainStream,
+  ]);
+
+  updateCompositorRef.current = updateCompositorParticipants;
 
   const resolveIncomingStream = useCallback(
     (event: RTCTrackEvent, existing?: MediaStream | null) => {
@@ -538,13 +554,11 @@ export function useLivestream({
 
     let stream: MediaStream | null = null;
 
-    if (useCompositorRecording && needsCompositorLayout()) {
+    if (useCompositorRecording) {
       try {
         const compositor = new RecordingCompositor();
         compositorRef.current = compositor;
         await compositor.resumeAudio();
-        compositor.setMainStream(getRecordingMainStream());
-        compositor.syncHostAndScreenAudio(localStreamRef.current, screenStreamRef.current);
         updateCompositorParticipants();
         compositor.startDrawing();
         stream = compositor.getStream();
@@ -573,13 +587,7 @@ export function useLivestream({
 
     recordingStreamRef.current = stream;
     return stream;
-  }, [
-    buildRecordingStream,
-    getRecordingMainStream,
-    needsCompositorLayout,
-    updateCompositorParticipants,
-    useCompositorRecording,
-  ]);
+  }, [buildRecordingStream, updateCompositorParticipants, useCompositorRecording]);
 
   const startRecording = useCallback(async () => {
     broadcastConsumersRef.current.add("recording");
@@ -1289,21 +1297,10 @@ export function useLivestream({
   useEffect(() => {
     if (!isRecording || !compositorRef.current) return;
 
-    const syncAudio = () => {
-      compositorRef.current?.syncHostAndScreenAudio(
-        localStreamRef.current,
-        screenStreamRef.current,
-      );
-    };
-
-    syncCompositorMainStream();
-    syncAudio();
-    const interval = window.setInterval(() => {
-      syncCompositorMainStream();
-      syncAudio();
-    }, 2000);
+    updateCompositorParticipants();
+    const interval = window.setInterval(updateCompositorParticipants, 2000);
     return () => window.clearInterval(interval);
-  }, [isRecording, isScreenSharing, syncCompositorMainStream]);
+  }, [isRecording, isScreenSharing, isCameraOff, updateCompositorParticipants]);
 
   useEffect(() => {
     if (!isRecording) return;

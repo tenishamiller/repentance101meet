@@ -1,8 +1,15 @@
+import type { HostGalleryLayout } from "@/lib/video-layout";
+
 export type CompositorParticipant = {
   id: string;
   name: string;
   video: HTMLVideoElement | null;
   cameraOn: boolean;
+};
+
+export type CompositorHostState = {
+  name: string;
+  showVideo: boolean;
 };
 
 function cloneAudioTrack(track: MediaStreamTrack): MediaStreamTrack {
@@ -34,6 +41,52 @@ function drawCover(
   ctx.drawImage(video, x + (w - sw) / 2, y + (h - sh) / 2, sw, sh);
 }
 
+function drawAvatarPlaceholder(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  name: string,
+  subtitle?: string,
+) {
+  ctx.fillStyle = "#2D1212";
+  ctx.fillRect(x, y, w, h);
+
+  const initial = name.trim().slice(0, 1).toUpperCase() || "?";
+  const cx = x + w / 2;
+  const cy = y + h / 2 - (subtitle ? 14 : 0);
+  const radius = Math.min(w, h) * 0.14;
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = "#6B2D2D";
+  ctx.fill();
+  ctx.strokeStyle = "#E8D5A3";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.fillStyle = "#FEF9F0";
+  ctx.font = `bold ${Math.max(18, radius)}px Georgia, serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(initial, cx, cy);
+
+  ctx.font = `600 ${Math.max(14, w * 0.04)}px Georgia, serif`;
+  ctx.fillText(name.slice(0, 40), cx, cy + radius + 28);
+
+  if (subtitle) {
+    ctx.font = `${Math.max(12, w * 0.028)}px sans-serif`;
+    ctx.fillStyle = "#E8D5A3";
+    ctx.globalAlpha = 0.75;
+    ctx.fillText(subtitle, cx, cy + radius + 52);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+}
+
 function createCaptureVideo(width: number, height: number) {
   const video = document.createElement("video");
   video.autoplay = true;
@@ -47,7 +100,7 @@ function createCaptureVideo(width: number, height: number) {
   return video;
 }
 
-/** Composites host + participant videos and mixed audio for meeting recordings. */
+/** Composites the host teaching view (main + member gallery) for recordings. */
 export class RecordingCompositor {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
@@ -59,6 +112,8 @@ export class RecordingCompositor {
   private mainStream: MediaStream | null = null;
   private captureVideoTrack: MediaStreamTrack | null = null;
   private participants: CompositorParticipant[] = [];
+  private galleryLayout: HostGalleryLayout = "sidebar";
+  private hostState: CompositorHostState = { name: "Host", showVideo: true };
   private frameTick = 0;
 
   constructor(
@@ -76,7 +131,14 @@ export class RecordingCompositor {
     this.mainCaptureVideo = createCaptureVideo(width, height);
   }
 
-  /** Feed camera or screen share into a dedicated off-screen video for stable canvas capture. */
+  setGalleryLayout(layout: HostGalleryLayout) {
+    this.galleryLayout = layout;
+  }
+
+  setHostState(state: CompositorHostState) {
+    this.hostState = state;
+  }
+
   setMainStream(stream: MediaStream | null) {
     this.mainStream = stream;
 
@@ -89,9 +151,7 @@ export class RecordingCompositor {
       this.mainCaptureVideo.srcObject = stream;
     }
 
-    void this.mainCaptureVideo.play().catch(() => {
-      /* autoplay may require prior user gesture */
-    });
+    void this.mainCaptureVideo.play().catch(() => {});
   }
 
   setParticipants(participants: CompositorParticipant[]) {
@@ -107,7 +167,6 @@ export class RecordingCompositor {
     this.audioSources.set(id, source);
   }
 
-  /** Mix host microphone and screen/tab audio into the recording. */
   syncHostAndScreenAudio(
     localStream: MediaStream | null | undefined,
     screenStream: MediaStream | null | undefined,
@@ -144,66 +203,132 @@ export class RecordingCompositor {
     }
   }
 
+  private drawParticipantTile(
+    participant: CompositorParticipant,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    compact: boolean,
+  ) {
+    const { ctx } = this;
+    ctx.fillStyle = "#1a0a0a";
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "#E8D5A3";
+    ctx.globalAlpha = 0.35;
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.globalAlpha = 1;
+
+    const pad = compact ? 4 : 6;
+    const innerX = x + pad;
+    const innerY = y + pad;
+    const innerW = w - pad * 2;
+    const innerH = h - (compact ? pad + 22 : pad + 28);
+
+    const video = participant.video;
+    if (video?.paused) {
+      void video.play().catch(() => {});
+    }
+
+    if (participant.cameraOn && video && video.readyState >= 2) {
+      drawCover(ctx, video, innerX, innerY, innerW, innerH);
+    } else {
+      drawAvatarPlaceholder(ctx, innerX, innerY, innerW, innerH, participant.name);
+    }
+
+    ctx.fillStyle = "#E8D5A3";
+    ctx.font = `600 ${compact ? 11 : 12}px sans-serif`;
+    ctx.fillText(participant.name.slice(0, compact ? 16 : 22), x + pad, y + h - (compact ? 8 : 10));
+  }
+
   private paintFrame() {
     const { ctx, canvas } = this;
-    ctx.fillStyle = "#1a0a0a";
+    ctx.fillStyle = "#0a0404";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const visibleParticipants = this.participants.slice(0, 6);
-    const stripHeight =
-      visibleParticipants.length > 0 ? Math.min(160, Math.floor(canvas.height * 0.2)) : 0;
-    const mainHeight = canvas.height - stripHeight;
+    const sidebarW =
+      this.galleryLayout === "sidebar" ? Math.min(260, Math.floor(canvas.width * 0.2)) : 0;
+    const bottomH =
+      this.galleryLayout === "bottom" ? Math.min(170, Math.floor(canvas.height * 0.24)) : 0;
+
+    const mainW = canvas.width - sidebarW;
+    const mainH = canvas.height - bottomH;
 
     const mainVideo = this.mainCaptureVideo;
     if (mainVideo.paused && this.mainStream) {
       void mainVideo.play().catch(() => {});
     }
 
-    if (mainVideo.readyState >= 2 && mainVideo.videoWidth > 0 && mainVideo.videoHeight > 0) {
-      drawCover(ctx, mainVideo, 0, 0, canvas.width, mainHeight);
+    const mainVideoReady =
+      this.hostState.showVideo &&
+      mainVideo.readyState >= 2 &&
+      mainVideo.videoWidth > 0 &&
+      mainVideo.videoHeight > 0;
+
+    if (mainVideoReady) {
+      drawCover(ctx, mainVideo, 0, 0, mainW, mainH);
     } else {
-      ctx.fillStyle = "#3D1818";
-      ctx.fillRect(0, 0, canvas.width, mainHeight);
-      ctx.fillStyle = "#E8D5A3";
-      ctx.font = "24px Georgia, serif";
-      ctx.fillText("Repentance 101 Live Teaching", 48, mainHeight / 2);
+      drawAvatarPlaceholder(ctx, 0, 0, mainW, mainH, this.hostState.name, "Camera off");
     }
 
-    if (visibleParticipants.length > 0) {
-      const cols = visibleParticipants.length;
-      const tileW = canvas.width / cols;
-      const y = mainHeight;
+    if (this.galleryLayout === "sidebar" && sidebarW > 0) {
+      ctx.fillStyle = "#2D1212";
+      ctx.fillRect(mainW, 0, sidebarW, canvas.height);
+      ctx.fillStyle = "#E8D5A3";
+      ctx.globalAlpha = 0.55;
+      ctx.font = "600 11px sans-serif";
+      ctx.fillText(`MEMBERS (${this.participants.length})`, mainW + 12, 22);
+      ctx.globalAlpha = 1;
 
-      visibleParticipants.forEach((participant, index) => {
-        const x = index * tileW;
-        ctx.fillStyle = "#4A1F1F";
-        ctx.fillRect(x + 2, y + 2, tileW - 4, stripHeight - 4);
+      const tileH = Math.min(120, Math.floor((canvas.height - 36) / Math.max(this.participants.length, 1)));
+      let y = 32;
+      for (const participant of this.participants.slice(0, 8)) {
+        this.drawParticipantTile(participant, mainW + 8, y, sidebarW - 16, tileH, true);
+        y += tileH + 8;
+        if (y + tileH > canvas.height) break;
+      }
 
-        const video = participant.video;
-        if (video?.paused) {
-          void video.play().catch(() => {});
-        }
-
-        if (participant.cameraOn && video && video.readyState >= 2) {
-          drawCover(ctx, video, x + 4, y + 4, tileW - 8, stripHeight - 28);
-        } else {
-          ctx.fillStyle = "#6B2D2D";
-          ctx.fillRect(x + 4, y + 4, tileW - 8, stripHeight - 28);
-          ctx.fillStyle = "#FEF9F0";
-          ctx.font = "bold 20px Georgia, serif";
-          ctx.textAlign = "center";
-          ctx.fillText(
-            participant.name.slice(0, 1).toUpperCase(),
-            x + tileW / 2,
-            y + stripHeight / 2,
-          );
-          ctx.textAlign = "left";
-        }
-
-        ctx.fillStyle = "#FEF9F0";
+      if (this.participants.length === 0) {
+        ctx.fillStyle = "#E8D5A3";
+        ctx.globalAlpha = 0.5;
         ctx.font = "12px sans-serif";
-        ctx.fillText(participant.name.slice(0, 20), x + 8, y + stripHeight - 8);
+        ctx.fillText("Members appear here", mainW + 16, canvas.height / 2);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    if (this.galleryLayout === "bottom" && bottomH > 0) {
+      ctx.fillStyle = "#2D1212";
+      ctx.fillRect(0, mainH, canvas.width, bottomH);
+      ctx.fillStyle = "#E8D5A3";
+      ctx.globalAlpha = 0.55;
+      ctx.font = "600 11px sans-serif";
+      ctx.fillText(`MEMBERS IN ROOM (${this.participants.length})`, 12, mainH + 18);
+      ctx.globalAlpha = 1;
+
+      const visible = this.participants.slice(0, 6);
+      const tileW = Math.min(200, Math.floor((canvas.width - 24) / Math.max(visible.length, 1)));
+      visible.forEach((participant, index) => {
+        const x = 12 + index * (tileW + 8);
+        this.drawParticipantTile(
+          participant,
+          x,
+          mainH + 26,
+          tileW,
+          bottomH - 34,
+          false,
+        );
       });
+
+      if (this.participants.length === 0) {
+        ctx.fillStyle = "#E8D5A3";
+        ctx.globalAlpha = 0.5;
+        ctx.font = "13px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Members will appear here when they join", canvas.width / 2, mainH + bottomH / 2);
+        ctx.textAlign = "left";
+        ctx.globalAlpha = 1;
+      }
     }
 
     const track = this.captureVideoTrack;
@@ -211,7 +336,6 @@ export class RecordingCompositor {
       (track as CanvasCaptureMediaStreamTrack).requestFrame();
     }
 
-    // Nudge the canvas so captureStream keeps emitting frames for long recordings.
     this.frameTick += 1;
     ctx.fillStyle = this.frameTick % 2 === 0 ? "#010101" : "#020202";
     ctx.fillRect(canvas.width - 1, canvas.height - 1, 1, 1);
@@ -222,7 +346,6 @@ export class RecordingCompositor {
       this.paintFrame();
       this.rafId = requestAnimationFrame(schedule);
     };
-
     schedule();
   }
 
@@ -233,11 +356,8 @@ export class RecordingCompositor {
     for (const track of videoStream.getVideoTracks()) {
       composite.addTrack(track);
     }
-    const mixedAudio = this.destination.stream.getAudioTracks();
-    if (mixedAudio.length > 0) {
-      for (const track of mixedAudio) {
-        composite.addTrack(track);
-      }
+    for (const track of this.destination.stream.getAudioTracks()) {
+      composite.addTrack(track);
     }
     return composite;
   }
