@@ -80,11 +80,6 @@ export function LivestreamRoom({
     }
   }, [isMobile, isHost]);
 
-  function updateHostGalleryLayout(layout: HostGalleryLayout) {
-    setHostGalleryLayoutState(layout);
-    setHostGalleryLayout(layout);
-  }
-
   function updateMemberVideoLayout(layout: MemberVideoLayout) {
     setMemberVideoLayoutState(layout);
     setMemberVideoLayout(layout);
@@ -132,6 +127,7 @@ export function LivestreamRoom({
     kickViewer,
     meetingEnded,
     recordingSaveMessage,
+    syncRecordingView,
   } = useLivestream({
     meetingToken,
     meetingTitle,
@@ -141,6 +137,12 @@ export function LivestreamRoom({
     hostId,
     onKicked: () => router.push("/livestream?removed=1"),
   });
+
+  function updateHostGalleryLayout(layout: HostGalleryLayout) {
+    setHostGalleryLayoutState(layout);
+    setHostGalleryLayout(layout);
+    syncRecordingView();
+  }
 
   const raisedHands = useMemo(
     () => participants.filter((p) => p.handRaised && p.user.id !== hostId),

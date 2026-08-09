@@ -389,7 +389,7 @@ export function useLivestream({
     const compositor = compositorRef.current;
     if (!compositor) return;
 
-    compositor.setGalleryLayout(getHostGalleryLayout());
+    void compositor.resumeAudio();
 
     const hostParticipant = participants.find((p) => p.user.id === hostId);
     const hostDisplayName = hostParticipant?.user.name ?? userName ?? meetingTitle;
@@ -402,11 +402,13 @@ export function useLivestream({
     syncCompositorMainStream();
     compositor.syncHostAndScreenAudio(localStreamRef.current, screenStreamRef.current);
 
-    const videoAllowed = memberVideoEnabledRef.current;
     const micAllowed = memberMicEnabledRef.current;
+    const videoAllowed = memberVideoEnabledRef.current;
     const items = [];
+    const memberIds: string[] = [];
 
     for (const member of galleryMembers) {
+      memberIds.push(member.userId);
       const video = viewerHiddenVideoRefs.current.get(member.userId) ?? null;
       items.push({
         id: member.userId,
@@ -417,13 +419,21 @@ export function useLivestream({
 
       const stream = viewerStreamsRef.current.get(member.userId);
       const audioTrack = stream?.getAudioTracks()[0];
-      if (audioTrack && micAllowed && member.connected) {
+      const recordMemberAudio =
+        micAllowed &&
+        member.connected &&
+        member.micOn &&
+        audioTrack &&
+        trackIsActive(audioTrack);
+
+      if (recordMemberAudio) {
         compositor.connectAudioTrack(member.userId, audioTrack);
       } else {
         compositor.disconnectAudioTrack(member.userId);
       }
     }
 
+    compositor.disconnectParticipantAudioExcept(memberIds);
     compositor.setParticipants(items);
   }, [
     galleryMembers,
@@ -437,6 +447,10 @@ export function useLivestream({
   ]);
 
   updateCompositorRef.current = updateCompositorParticipants;
+
+  const syncRecordingView = useCallback(() => {
+    updateCompositorParticipants();
+  }, [updateCompositorParticipants]);
 
   const resolveIncomingStream = useCallback(
     (event: RTCTrackEvent, existing?: MediaStream | null) => {
@@ -1298,9 +1312,18 @@ export function useLivestream({
     if (!isRecording || !compositorRef.current) return;
 
     updateCompositorParticipants();
-    const interval = window.setInterval(updateCompositorParticipants, 2000);
+    const interval = window.setInterval(updateCompositorParticipants, 1000);
     return () => window.clearInterval(interval);
-  }, [isRecording, isScreenSharing, isCameraOff, updateCompositorParticipants]);
+  }, [
+    isRecording,
+    isScreenSharing,
+    isCameraOff,
+    isMuted,
+    memberMicEnabled,
+    memberVideoEnabled,
+    galleryMembers,
+    updateCompositorParticipants,
+  ]);
 
   useEffect(() => {
     if (!isRecording) return;
@@ -1949,5 +1972,6 @@ export function useLivestream({
     kickViewer,
     meetingEnded,
     recordingSaveMessage,
+    syncRecordingView,
   };
 }

@@ -1,4 +1,4 @@
-import type { HostGalleryLayout } from "@/lib/video-layout";
+import { getHostGalleryLayout } from "@/lib/video-layout";
 
 export type CompositorParticipant = {
   id: string;
@@ -112,7 +112,6 @@ export class RecordingCompositor {
   private mainStream: MediaStream | null = null;
   private captureVideoTrack: MediaStreamTrack | null = null;
   private participants: CompositorParticipant[] = [];
-  private galleryLayout: HostGalleryLayout = "sidebar";
   private hostState: CompositorHostState = { name: "Host", showVideo: true };
   private frameTick = 0;
 
@@ -129,10 +128,6 @@ export class RecordingCompositor {
     this.audioContext = new AudioContext();
     this.destination = this.audioContext.createMediaStreamDestination();
     this.mainCaptureVideo = createCaptureVideo(width, height);
-  }
-
-  setGalleryLayout(layout: HostGalleryLayout) {
-    this.galleryLayout = layout;
   }
 
   setHostState(state: CompositorHostState) {
@@ -159,12 +154,22 @@ export class RecordingCompositor {
   }
 
   connectAudioTrack(id: string, track: MediaStreamTrack) {
-    if (track.readyState === "ended") return;
+    if (track.readyState === "ended" || !track.enabled || track.muted) return;
     this.disconnectAudioTrack(id);
     const stream = new MediaStream([cloneAudioTrack(track)]);
     const source = this.audioContext.createMediaStreamSource(stream);
     source.connect(this.destination);
     this.audioSources.set(id, source);
+  }
+
+  /** Drop member mixes that left the room so stale audio does not linger. */
+  disconnectParticipantAudioExcept(keepParticipantIds: string[]) {
+    const keep = new Set(keepParticipantIds);
+    for (const id of [...this.audioSources.keys()]) {
+      if (id !== "host" && id !== "screen-audio" && !keep.has(id)) {
+        this.disconnectAudioTrack(id);
+      }
+    }
   }
 
   syncHostAndScreenAudio(
@@ -243,13 +248,14 @@ export class RecordingCompositor {
 
   private paintFrame() {
     const { ctx, canvas } = this;
+    const galleryLayout = getHostGalleryLayout();
     ctx.fillStyle = "#0a0404";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const sidebarW =
-      this.galleryLayout === "sidebar" ? Math.min(260, Math.floor(canvas.width * 0.2)) : 0;
+      galleryLayout === "sidebar" ? Math.min(260, Math.floor(canvas.width * 0.2)) : 0;
     const bottomH =
-      this.galleryLayout === "bottom" ? Math.min(170, Math.floor(canvas.height * 0.24)) : 0;
+      galleryLayout === "bottom" ? Math.min(170, Math.floor(canvas.height * 0.24)) : 0;
 
     const mainW = canvas.width - sidebarW;
     const mainH = canvas.height - bottomH;
@@ -271,7 +277,7 @@ export class RecordingCompositor {
       drawAvatarPlaceholder(ctx, 0, 0, mainW, mainH, this.hostState.name, "Camera off");
     }
 
-    if (this.galleryLayout === "sidebar" && sidebarW > 0) {
+    if (galleryLayout === "sidebar" && sidebarW > 0) {
       ctx.fillStyle = "#2D1212";
       ctx.fillRect(mainW, 0, sidebarW, canvas.height);
       ctx.fillStyle = "#E8D5A3";
@@ -297,7 +303,7 @@ export class RecordingCompositor {
       }
     }
 
-    if (this.galleryLayout === "bottom" && bottomH > 0) {
+    if (galleryLayout === "bottom" && bottomH > 0) {
       ctx.fillStyle = "#2D1212";
       ctx.fillRect(0, mainH, canvas.width, bottomH);
       ctx.fillStyle = "#E8D5A3";
