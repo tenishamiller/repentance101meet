@@ -139,21 +139,23 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { publicUrl, action } = body;
 
   if (action === "end") {
-    await prisma.meetingSignal.create({
-      data: {
-        meetingId: ctx.meeting.id,
-        fromUserId: session.user.id,
-        toUserId: null,
-        type: "host-ended",
-        payload: {},
-      },
-    });
+    if (ctx.meeting.status !== "ENDED") {
+      await prisma.meetingSignal.create({
+        data: {
+          meetingId: ctx.meeting.id,
+          fromUserId: session.user.id,
+          toUserId: null,
+          type: "host-ended",
+          payload: {},
+        },
+      });
+    }
 
     const updated = await prisma.meeting.update({
       where: { id: ctx.meeting.id },
       data: {
         status: "ENDED",
-        endedAt: new Date(),
+        endedAt: ctx.meeting.endedAt ?? new Date(),
         ...(publicUrl ? { recordingUrl: publicUrl } : {}),
       },
     });

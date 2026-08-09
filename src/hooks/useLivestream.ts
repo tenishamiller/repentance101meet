@@ -16,6 +16,7 @@ import {
   buildRecordingFilename,
   getRecordingMimeType,
   RECORDING_CONTENT_TYPE,
+  triggerBrowserDownload,
   uploadRecordingBlob,
 } from "@/lib/recording";
 import { RecordingCompositor } from "@/lib/recording-compositor";
@@ -26,9 +27,15 @@ import {
   loadPreferredCameraDeviceId,
   savePreferredAudioDeviceId,
   savePreferredCameraDeviceId,
+  trackIsActive,
 } from "@/lib/media-devices";
 
-export type RecordingSaveStatus = "saved" | "upload-failed" | "empty" | "not-recorded";
+export type RecordingSaveStatus =
+  | "uploading"
+  | "saved"
+  | "upload-failed"
+  | "empty"
+  | "not-recorded";
 
 export type GalleryMember = {
   userId: string;
@@ -46,10 +53,6 @@ type ViewerMedia = {
   cameraOn: boolean;
   micOn: boolean;
 };
-
-function trackIsActive(track: MediaStreamTrack | undefined) {
-  return !!track && track.readyState === "live" && track.enabled;
-}
 
 type Participant = {
   user: { id: string; name: string; avatarUrl: string | null; role: string };
@@ -89,6 +92,7 @@ export function useLivestream({
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const viewerDisconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const signalCursorRef = useRef(new Date().toISOString());
   const connectedViewersRef = useRef<Set<string>>(new Set());
   const viewerStreamsRef = useRef<Map<string, MediaStream>>(new Map());
@@ -103,10 +107,12 @@ export function useLivestream({
   const recordingChunksRef = useRef<Blob[]>([]);
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingMimeRef = useRef<string>("video/webm");
+  const broadcastConsumersRef = useRef(new Set<"recording">());
 
   const [isLive, setIsLive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isRemoteCameraOff, setIsRemoteCameraOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isSavingRecording, setIsSavingRecording] = useState(false);
@@ -265,6 +271,30 @@ export function useLivestream({
     syncViewerMediaRef.current();
   }, []);
 
+  const clearViewerDisconnectTimer = useCallback((viewerId: string) => {
+    const timer = viewerDisconnectTimersRef.current.get(viewerId);
+    if (timer) {
+      clearTimeout(timer);
+      viewerDisconnectTimersRef.current.delete(viewerId);
+    }
+  }, []);
+
+  const teardownViewerConnection = useCallback(
+    (viewerId: string) => {
+      clearViewerDisconnectTimer(viewerId);
+
+      const pc = peerConnectionsRef.current.get(viewerId);
+      if (pc) {
+        clearPeerConnection(pc);
+        peerConnectionsRef.current.delete(viewerId);
+      }
+
+      connectedViewersRef.current.delete(viewerId);
+      removeViewerMedia(viewerId);
+    },
+    [clearViewerDisconnectTimer, removeViewerMedia],
+  );
+
   const attachViewerStream = useCallback((viewerId: string, stream: MediaStream) => {
     viewerStreamsRef.current.set(viewerId, stream);
 
@@ -395,7 +425,10 @@ export function useLivestream({
 
     const refreshFromReceivers = () => {
       void bindStreamToVideo(remoteVideoRef.current, remoteStreamRef.current);
+      const videoTrack = remoteStreamRef.current?.getVideoTracks()[0];
+      setIsRemoteCameraOff(!trackIsActive(videoTrack));
     };
+    refreshFromReceivers();
     for (const track of stream.getTracks()) {
       track.onmute = refreshFromReceivers;
       track.onunmute = refreshFromReceivers;
@@ -469,7 +502,18 @@ export function useLivestream({
     return stream;
   }, []);
 
-  const startRecording = useCallback(async () => {
+  const releaseBroadcastStreamIfIdle = useCallback(() => {
+    if (broadcastConsumersRef.current.size > 0) return;
+    compositorRef.current?.stop();
+    compositorRef.current = null;
+    recordingStreamRef.current = null;
+  }, []);
+
+  const acquireBroadcastStream = useCallback(async (): Promise<MediaStream | null> => {
+    if (recordingStreamRef.current?.active) {
+      return recordingStreamRef.current;
+    }
+
     let stream: MediaStream | null = null;
 
     if (useCompositorRecording) {
@@ -495,19 +539,31 @@ export function useLivestream({
           }
         }
       } catch {
-        setError("Could not start recording. Try a different browser (Chrome recommended).");
-        return;
+        setError("Could not prepare video for streaming. Try Chrome.");
+        return null;
       }
     } else {
       stream = buildRecordingStream();
     }
 
     if (!stream) {
-      setError("Could not start recording — allow camera or microphone access and try again.");
-      return;
+      setError("Could not start stream — allow camera or microphone access and try again.");
+      return null;
     }
 
     recordingStreamRef.current = stream;
+    return stream;
+  }, [buildRecordingStream, updateCompositorParticipants, useCompositorRecording]);
+
+  const startRecording = useCallback(async () => {
+    broadcastConsumersRef.current.add("recording");
+    const stream = await acquireBroadcastStream();
+    if (!stream) {
+      broadcastConsumersRef.current.delete("recording");
+      releaseBroadcastStreamIfIdle();
+      return;
+    }
+
     recordingMimeRef.current = getRecordingMimeType();
     recordingChunksRef.current = [];
 
@@ -541,11 +597,11 @@ export function useLivestream({
       setRecordingElapsedSeconds(0);
       setIsRecording(true);
     } catch {
-      compositorRef.current?.stop();
-      compositorRef.current = null;
+      broadcastConsumersRef.current.delete("recording");
+      releaseBroadcastStreamIfIdle();
       setError("Could not start recording. Try a different browser (Chrome recommended).");
     }
-  }, [buildRecordingStream, updateCompositorParticipants, useCompositorRecording]);
+  }, [acquireBroadcastStream, releaseBroadcastStreamIfIdle]);
 
   const beginRecording = useCallback(() => {
     if (recorderRef.current?.state === "recording") return;
@@ -574,41 +630,60 @@ export function useLivestream({
   const stopRecording = useCallback((): Promise<Blob | null> => {
     return new Promise((resolve) => {
       const recorder = recorderRef.current;
-      if (!recorder || recorder.state === "inactive") {
-        resolve(null);
-        return;
-      }
 
-      recorder.onstop = () => {
-        compositorRef.current?.stop();
-        compositorRef.current = null;
-        if (recordingChunksRef.current.length === 0) {
-          resolve(null);
-          return;
-        }
-        const blob = new Blob(recordingChunksRef.current, {
-          type: RECORDING_CONTENT_TYPE,
-        });
+      const buildBlob = () => {
+        if (recordingChunksRef.current.length === 0) return null;
+        return new Blob(recordingChunksRef.current, { type: RECORDING_CONTENT_TYPE });
+      };
+
+      const finish = (blob: Blob | null) => {
+        broadcastConsumersRef.current.delete("recording");
+        releaseBroadcastStreamIfIdle();
         recordingChunksRef.current = [];
+        recorderRef.current = null;
+        setIsRecording(false);
+        recordingStartedAtRef.current = null;
+        setRecordingElapsedSeconds(0);
         resolve(blob);
       };
 
-      if (recorder.state === "recording" || recorder.state === "paused") {
-        recorder.requestData();
+      if (!recorder || recorder.state === "inactive") {
+        finish(buildBlob());
+        return;
       }
 
-      window.setTimeout(() => {
-        if (recorder.state !== "inactive") {
-          recorder.stop();
-        }
-      }, 150);
+      let settled = false;
+      const settle = (blob: Blob | null) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(hardTimeout);
+        finish(blob);
+      };
 
-      recorderRef.current = null;
-      setIsRecording(false);
-      recordingStartedAtRef.current = null;
-      setRecordingElapsedSeconds(0);
+      recorder.onstop = () => settle(buildBlob());
+
+      const hardTimeout = window.setTimeout(() => {
+        try {
+          if (recorder.state !== "inactive") {
+            recorder.requestData();
+            recorder.stop();
+          }
+        } catch {
+          /* ignore */
+        }
+        settle(buildBlob());
+      }, 5000);
+
+      try {
+        if (recorder.state === "recording" || recorder.state === "paused") {
+          recorder.requestData();
+        }
+        recorder.stop();
+      } catch {
+        settle(buildBlob());
+      }
     });
-  }, []);
+  }, [releaseBroadcastStreamIfIdle]);
 
   const sendSignal = useCallback(
     async (type: string, toUserId: string | null, payload: SignalPayload = {}) => {
@@ -641,7 +716,17 @@ export function useLivestream({
 
   const createHostConnection = useCallback(
     async (viewerId: string) => {
-      if (peerConnectionsRef.current.has(viewerId)) return;
+      const existing = peerConnectionsRef.current.get(viewerId);
+      if (
+        existing &&
+        (existing.connectionState === "connected" || existing.connectionState === "connecting")
+      ) {
+        return;
+      }
+
+      if (existing) {
+        teardownViewerConnection(viewerId);
+      }
 
       const pc = createPeerConnection();
       peerConnectionsRef.current.set(viewerId, pc);
@@ -684,10 +769,29 @@ export function useLivestream({
       };
 
       pc.onconnectionstatechange = () => {
+        if (pc.connectionState === "connected") {
+          clearViewerDisconnectTimer(viewerId);
+          return;
+        }
+
+        if (pc.connectionState === "disconnected") {
+          clearViewerDisconnectTimer(viewerId);
+          const timer = setTimeout(() => {
+            viewerDisconnectTimersRef.current.delete(viewerId);
+            if (
+              pc.connectionState === "disconnected" ||
+              pc.connectionState === "failed" ||
+              pc.connectionState === "closed"
+            ) {
+              teardownViewerConnection(viewerId);
+            }
+          }, 2500);
+          viewerDisconnectTimersRef.current.set(viewerId, timer);
+          return;
+        }
+
         if (pc.connectionState === "failed" || pc.connectionState === "closed") {
-          peerConnectionsRef.current.delete(viewerId);
-          connectedViewersRef.current.delete(viewerId);
-          removeViewerMedia(viewerId);
+          teardownViewerConnection(viewerId);
         }
       };
 
@@ -696,15 +800,23 @@ export function useLivestream({
       await sendSignal("offer", viewerId, { sdp: offer });
       connectedViewersRef.current.add(viewerId);
     },
-    [addLocalTracks, attachRemoteStream, attachViewerStream, isPrivate, mode, removeViewerMedia, resolveIncomingStream, sendSignal],
+    [
+      addLocalTracks,
+      attachRemoteStream,
+      attachViewerStream,
+      clearViewerDisconnectTimer,
+      isPrivate,
+      mode,
+      resolveIncomingStream,
+      sendSignal,
+      teardownViewerConnection,
+    ],
   );
 
   const handleHostSignal = useCallback(
     async (signal: MeetingSignalMessage) => {
       if (signal.type === "viewer-ready" && signal.fromUserId !== userId) {
-        if (!connectedViewersRef.current.has(signal.fromUserId)) {
-          await createHostConnection(signal.fromUserId);
-        }
+        await createHostConnection(signal.fromUserId);
         return;
       }
 
@@ -757,6 +869,16 @@ export function useLivestream({
 
       if (signal.type === "offer" && signal.fromUserId === hostId) {
         let pc = peerConnectionsRef.current.get(hostId);
+        if (
+          pc &&
+          pc.connectionState !== "connected" &&
+          pc.connectionState !== "connecting"
+        ) {
+          clearPeerConnection(pc);
+          peerConnectionsRef.current.delete(hostId);
+          pc = undefined;
+        }
+
         if (!pc) {
           pc = createPeerConnection();
           peerConnectionsRef.current.set(hostId, pc);
@@ -773,6 +895,39 @@ export function useLivestream({
           pc.onicecandidate = (event) => {
             if (event.candidate) {
               void sendSignal("ice", hostId, { candidate: event.candidate.toJSON() });
+            }
+          };
+
+          pc.onconnectionstatechange = () => {
+            if (pc!.connectionState === "connected") return;
+
+            const requestReconnect = () => {
+              const current = peerConnectionsRef.current.get(hostId);
+              if (current !== pc) return;
+              clearPeerConnection(pc!);
+              peerConnectionsRef.current.delete(hostId);
+              remoteStreamRef.current = null;
+              setRemoteStream(null);
+              setIsRemoteCameraOff(true);
+              setIsLive(false);
+              void sendSignal("viewer-ready", hostId);
+            };
+
+            if (pc!.connectionState === "disconnected") {
+              window.setTimeout(() => {
+                if (
+                  pc!.connectionState === "disconnected" ||
+                  pc!.connectionState === "failed" ||
+                  pc!.connectionState === "closed"
+                ) {
+                  requestReconnect();
+                }
+              }, 2500);
+              return;
+            }
+
+            if (pc!.connectionState === "failed" || pc!.connectionState === "closed") {
+              requestReconnect();
             }
           };
         }
@@ -931,6 +1086,8 @@ export function useLivestream({
   }, [attachLocalStream, hostId, isHost, sendSignal, syncAudioDeviceFromStream, syncVideoDeviceFromStream]);
 
   const stopAll = useCallback(() => {
+    broadcastConsumersRef.current.clear();
+
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
       recorderRef.current.stop();
       recorderRef.current = null;
@@ -938,6 +1095,9 @@ export function useLivestream({
 
     compositorRef.current?.stop();
     compositorRef.current = null;
+
+    viewerDisconnectTimersRef.current.forEach((timer) => clearTimeout(timer));
+    viewerDisconnectTimersRef.current.clear();
 
     for (const pc of peerConnectionsRef.current.values()) {
       clearPeerConnection(pc);
@@ -964,6 +1124,7 @@ export function useLivestream({
     remoteStreamRef.current = null;
     setLocalStream(null);
     setRemoteStream(null);
+    setIsRemoteCameraOff(false);
     setIsLive(false);
   }, []);
 
@@ -1019,15 +1180,30 @@ export function useLivestream({
     if (isHost) return;
 
     const retryInterval = setInterval(() => {
-      if (remoteStream || meetingEndedRef.current) return;
+      if (meetingEndedRef.current) return;
+
       const pc = peerConnectionsRef.current.get(hostId);
-      if (!pc || pc.connectionState === "failed" || pc.connectionState === "closed") {
-        void sendSignal("viewer-ready", hostId);
+      const connected =
+        pc &&
+        (pc.connectionState === "connected" || pc.connectionState === "connecting");
+
+      if (connected) return;
+
+      if (pc) {
+        clearPeerConnection(pc);
+        peerConnectionsRef.current.delete(hostId);
       }
-    }, 4000);
+
+      remoteStreamRef.current = null;
+      setRemoteStream(null);
+      setIsRemoteCameraOff(true);
+      setIsLive(false);
+
+      void sendSignal("viewer-ready", hostId);
+    }, 5000);
 
     return () => clearInterval(retryInterval);
-  }, [hostId, isHost, remoteStream, sendSignal]);
+  }, [hostId, isHost, sendSignal]);
 
   const pollSignalsRef = useRef(pollSignals);
   const fetchParticipantsRef = useRef(fetchParticipants);
@@ -1541,64 +1717,70 @@ export function useLivestream({
       recorderRef.current?.state === "paused";
 
     let recordingUrl: string | null = null;
+    let recordingBlob: Blob | null = null;
+    const filename = buildRecordingFilename(meetingTitle, RECORDING_CONTENT_TYPE);
 
     try {
-      const blob = await stopRecording();
-
+      recordingBlob = await stopRecording();
       await sendSignal("host-ended", null);
-
-      if (blob && blob.size > 0) {
-        const filename = buildRecordingFilename(meetingTitle, RECORDING_CONTENT_TYPE);
-
-        try {
-          const result = await uploadRecordingBlob(meetingToken, blob, filename);
-          recordingUrl = result.publicUrl;
-          onRecordingSavedRef.current?.(result.publicUrl);
-          setRecordingSaveMessage("saved");
-          setError("");
-        } catch (uploadError) {
-          console.error("Recording upload failed:", uploadError);
-          const message =
-            uploadError instanceof Error ? uploadError.message : "Upload failed";
-          setRecordingSaveMessage("upload-failed");
-          setError(
-            `Recording could not be saved to the library: ${message}. Check Supabase storage and try again.`,
-          );
-        }
-      } else if (wasRecording) {
-        setRecordingSaveMessage("empty");
-        setError("");
-      } else {
-        setRecordingSaveMessage("not-recorded");
-        setError("");
-      }
 
       const patchRes = await fetch(`/api/meetings/${meetingToken}/recording`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "end", publicUrl: recordingUrl }),
+        body: JSON.stringify({ action: "end", publicUrl: null }),
       });
 
       if (!patchRes.ok) {
         const patchErr = await patchRes.json().catch(() => ({}));
         const patchMessage =
           typeof patchErr.error === "string" ? patchErr.error : "Could not finalize meeting";
-        if (recordingUrl) {
-          setRecordingSaveMessage("upload-failed");
-          setError(
-            `Recording uploaded but could not be linked in the library: ${patchMessage}. Contact support if this persists.`,
-          );
-          recordingUrl = null;
-        } else {
-          setError(patchMessage);
-        }
+        setError(patchMessage);
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not end livestream.");
     } finally {
       stopAll();
       setIsSavingRecording(false);
       meetingEndedRef.current = true;
       setMeetingEnded(true);
       endingBroadcastRef.current = false;
+    }
+
+    if (recordingBlob && recordingBlob.size > 0) {
+      setRecordingSaveMessage("uploading");
+      try {
+        const result = await uploadRecordingBlob(meetingToken, recordingBlob, filename);
+        recordingUrl = result.publicUrl;
+
+        const linkRes = await fetch(`/api/meetings/${meetingToken}/recording`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publicUrl: recordingUrl }),
+        });
+
+        if (!linkRes.ok) {
+          throw new Error("Recording uploaded but could not be linked in the library.");
+        }
+
+        onRecordingSavedRef.current?.(recordingUrl);
+        setRecordingSaveMessage("saved");
+        setError("");
+      } catch (uploadError) {
+        console.error("Recording upload failed:", uploadError);
+        triggerBrowserDownload(recordingBlob, filename);
+        const message =
+          uploadError instanceof Error ? uploadError.message : "Upload failed";
+        setRecordingSaveMessage("upload-failed");
+        setError(
+          `Recording could not be saved to the library (${message}). A copy was downloaded to your device — contact support to add it manually.`,
+        );
+      }
+    } else if (wasRecording) {
+      setRecordingSaveMessage("empty");
+      setError("");
+    } else {
+      setRecordingSaveMessage("not-recorded");
+      setError("");
     }
 
     return recordingUrl;
@@ -1633,16 +1815,10 @@ export function useLivestream({
         body: JSON.stringify({ userId: viewerId, action: "block" }),
       });
       await sendSignal("kick", viewerId);
-      const pc = peerConnectionsRef.current.get(viewerId);
-      if (pc) {
-        clearPeerConnection(pc);
-        peerConnectionsRef.current.delete(viewerId);
-      }
-      connectedViewersRef.current.delete(viewerId);
-      removeViewerMedia(viewerId);
+      teardownViewerConnection(viewerId);
       void fetchParticipants();
     },
-    [fetchParticipants, meetingToken, removeViewerMedia, sendSignal],
+    [fetchParticipants, meetingToken, sendSignal, teardownViewerConnection],
   );
 
   const setMemberMediaPolicy = useCallback(
@@ -1703,6 +1879,7 @@ export function useLivestream({
     isLive,
     isMuted,
     isCameraOff,
+    isRemoteCameraOff,
     isScreenSharing,
     isRecording,
     isSavingRecording,

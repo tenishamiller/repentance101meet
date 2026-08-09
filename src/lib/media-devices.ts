@@ -82,3 +82,12 @@ export function isLikelyMobileCameraEnvironment() {
   const ua = navigator.userAgent.toLowerCase();
   return /android|iphone|ipad|ipod|mobile/i.test(ua);
 }
+
+/** True when a track is sending live media (camera/mic on). */
+export function trackIsActive(track: MediaStreamTrack | undefined) {
+  return !!track && track.readyState === "live" && track.enabled && !track.muted;
+}
+
+export function isVideoTrackShowing(track: MediaStreamTrack | undefined) {
+  return track?.kind === "video" && trackIsActive(track);
+}

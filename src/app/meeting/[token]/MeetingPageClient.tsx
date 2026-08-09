@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { LivestreamRoom } from "@/components/livestream/LivestreamRoom";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
+import {
+  hasRecordingConsent,
+  RecordingConsentGate,
+  saveRecordingConsent,
+} from "@/components/livestream/RecordingConsentGate";
 
 type Props = {
   token: string;
@@ -13,10 +18,17 @@ export function MeetingPageClient({ token }: Props) {
   const [data, setData] = useState<{
     meeting: { title: string; createdById: string };
     isHost: boolean;
-    user: { id: string; name: string };
+    user: { id: string; name: string; avatarUrl: string | null };
   } | null>(null);
   const [endedMeeting, setEndedMeeting] = useState<{ title: string } | null>(null);
   const [error, setError] = useState("");
+  const [consented, setConsented] = useState(false);
+
+  useEffect(() => {
+    if (hasRecordingConsent(token)) {
+      setConsented(true);
+    }
+  }, [token]);
 
   useEffect(() => {
     fetch(`/api/meetings/${token}`)
@@ -34,6 +46,11 @@ export function MeetingPageClient({ token }: Props) {
       })
       .catch(() => setError("Failed to connect"));
   }, [token]);
+
+  function acceptConsent() {
+    saveRecordingConsent(token);
+    setConsented(true);
+  }
 
   if (endedMeeting) {
     return <MeetingEndedScreen meetingTitle={endedMeeting.title} variant="viewer" />;
@@ -60,12 +77,19 @@ export function MeetingPageClient({ token }: Props) {
     );
   }
 
+  if (!data.isHost && !consented) {
+    return (
+      <RecordingConsentGate meetingTitle={data.meeting.title} onAccept={acceptConsent} />
+    );
+  }
+
   return (
     <LivestreamRoom
       meetingToken={token}
       meetingTitle={data.meeting.title}
       userId={data.user.id}
       userName={data.user.name}
+      avatarUrl={data.user.avatarUrl}
       isHost={data.isHost}
       hostId={data.meeting.createdById}
     />

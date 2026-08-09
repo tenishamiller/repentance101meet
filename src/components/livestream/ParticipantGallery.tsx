@@ -100,6 +100,11 @@ function ParticipantTile({
           )}
         </div>
       )}
+      {compact && !showVideo && (
+        <div className="truncate px-2 py-1.5 text-center text-xs font-semibold text-gold-light">
+          {member.name}
+        </div>
+      )}
     </div>
   );
 }

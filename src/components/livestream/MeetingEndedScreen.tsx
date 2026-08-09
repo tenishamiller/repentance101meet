@@ -5,7 +5,12 @@ import Image from "next/image";
 import { BrandDivider } from "@/components/BrandDivider";
 import { Heart } from "lucide-react";
 
-export type RecordingSaveStatus = "saved" | "upload-failed" | "empty" | "not-recorded";
+export type RecordingSaveStatus =
+  | "uploading"
+  | "saved"
+  | "upload-failed"
+  | "empty"
+  | "not-recorded";
 
 type Props = {
   meetingTitle: string;
@@ -46,10 +51,15 @@ export function MeetingEndedScreen({
                 Your recording was saved to the Recording Library. Download it anytime from Admin →
                 Livestream.
               </>
+            ) : recordingSaveStatus === "uploading" ? (
+              <>
+                Saving your recording to the library… This may take a minute for longer teachings.
+                You can leave this page — we&apos;ll keep uploading in the background.
+              </>
             ) : recordingSaveStatus === "upload-failed" ? (
               <>
-                The recording could not be saved to the library — check Admin → Recording Library or
-                verify Supabase storage, then try recording again next session.
+                The recording could not be saved to the library. A copy should have downloaded to
+                your device automatically. Check Admin → Livestream or try again next session.
               </>
             ) : recordingSaveStatus === "empty" ? (
               <>

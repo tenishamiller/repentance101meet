@@ -71,6 +71,25 @@ async function uploadToSupabaseSignedUrl(signedUrl: string, blob: Blob): Promise
   }
 }
 
+async function uploadViaSignedToken(
+  path: string,
+  token: string,
+  blob: Blob,
+): Promise<void> {
+  const { createSupabaseBrowser, isSupabaseBrowserConfigured } = await import(
+    "@/lib/supabase-browser"
+  );
+  if (!isSupabaseBrowserConfigured()) {
+    throw new Error("Supabase browser client is not configured");
+  }
+  const supabase = createSupabaseBrowser()!;
+  const { error } = await supabase.storage.from("uploads").uploadToSignedUrl(path, token, blob, {
+    contentType: RECORDING_CONTENT_TYPE,
+    upsert: true,
+  });
+  if (error) throw new Error(error.message);
+}
+
 async function uploadViaSignedUrl(
   meetingToken: string,
   blob: Blob,
@@ -94,32 +113,21 @@ async function uploadViaSignedUrl(
 
   const errors: string[] = [];
 
+  if (path && token) {
+    try {
+      await uploadViaSignedToken(path, token, blob);
+      return { downloadUrl: publicUrl, publicUrl };
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "Token upload failed");
+    }
+  }
+
   if (signedUrl) {
     try {
       await uploadToSupabaseSignedUrl(signedUrl, blob);
       return { downloadUrl: publicUrl, publicUrl };
     } catch (error) {
       errors.push(error instanceof Error ? error.message : "Signed URL upload failed");
-    }
-  }
-
-  if (path && token) {
-    try {
-      const { createSupabaseBrowser, isSupabaseBrowserConfigured } = await import(
-        "@/lib/supabase-browser"
-      );
-      if (!isSupabaseBrowserConfigured()) {
-        throw new Error("Supabase browser client is not configured");
-      }
-      const supabase = createSupabaseBrowser()!;
-      const { error } = await supabase.storage.from("uploads").uploadToSignedUrl(path, token, blob, {
-        contentType: RECORDING_CONTENT_TYPE,
-        upsert: true,
-      });
-      if (error) throw new Error(error.message);
-      return { downloadUrl: publicUrl, publicUrl };
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : "SDK upload failed");
     }
   }
 

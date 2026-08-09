@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, RotateCcw, Smile, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatDate, type Attachment, cn } from "@/lib/utils";
+import { MEETING_CHAT_MAX_FILE_LABEL } from "@/lib/chat-attachments";
+import { uploadMeetingChatFile } from "@/lib/meeting-chat-upload";
 import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
 import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { EmojiPicker } from "@/components/livestream/EmojiPicker";
@@ -30,6 +32,7 @@ export function MeetingChat({
   const [canModerate, setCanModerate] = useState(isAdmin);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [showEmoji, setShowEmoji] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -85,11 +88,12 @@ export function MeetingChat({
   }
 
   async function uploadFile(file: File): Promise<Attachment | null> {
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: form });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const result = await uploadMeetingChatFile(meetingToken, file);
+    if ("error" in result) {
+      setUploadError(result.error);
+      return null;
+    }
+    setUploadError("");
     const type = file.type.startsWith("image/")
       ? "image"
       : file.type.startsWith("video/")
@@ -97,7 +101,7 @@ export function MeetingChat({
         : file.type.startsWith("audio/")
           ? "audio"
           : "file";
-    return { type, url: data.url, name: file.name };
+    return { type, url: result.url, name: file.name };
   }
 
   async function sendMessage(e: React.FormEvent) {
@@ -284,6 +288,9 @@ export function MeetingChat({
         )}
       </div>
       <form onSubmit={sendMessage} className="relative shrink-0 border-t border-gold/20 bg-burgundy-dark p-3">
+        {uploadError && (
+          <p className="mb-2 text-xs text-red-300">{uploadError}</p>
+        )}
         {showEmoji && (
           <EmojiPicker onSelect={insertEmoji} onClose={() => setShowEmoji(false)} />
         )}
@@ -299,7 +306,7 @@ export function MeetingChat({
           <label
             htmlFor={`meeting-file-${meetingToken}`}
             className="flex cursor-pointer items-center rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-gold-light hover:bg-burgundy-deep"
-            title="Attach file"
+            title={`Attach file (max ${MEETING_CHAT_MAX_FILE_LABEL})`}
           >
             <Paperclip className="h-4 w-4" />
           </label>

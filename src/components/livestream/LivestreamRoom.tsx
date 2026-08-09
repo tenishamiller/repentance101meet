@@ -27,11 +27,13 @@ import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
 import { ParticipantGallery } from "@/components/livestream/ParticipantGallery";
+import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
 import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
 import { RecordingTimer } from "@/components/livestream/RecordingTimer";
 import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
+import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPopover";
 import {
   getHostGalleryLayout,
   getMemberVideoLayout,
@@ -46,6 +48,7 @@ type Props = {
   meetingTitle: string;
   userId: string;
   userName: string;
+  avatarUrl?: string | null;
   isHost: boolean;
   hostId: string;
 };
@@ -55,6 +58,7 @@ export function LivestreamRoom({
   meetingTitle,
   userId,
   userName,
+  avatarUrl,
   isHost,
   hostId,
 }: Props) {
@@ -92,6 +96,7 @@ export function LivestreamRoom({
     isLive,
     isMuted,
     isCameraOff,
+    isRemoteCameraOff,
     isScreenSharing,
     isRecording,
     isSavingRecording,
@@ -145,6 +150,15 @@ export function LivestreamRoom({
     () => participants.filter((p) => p.user.id !== hostId),
     [participants, hostId],
   );
+
+  const hostProfile = useMemo(() => {
+    const host = participants.find((p) => p.user.id === hostId);
+    return {
+      userId: hostId,
+      name: host?.user.name ?? meetingTitle,
+      avatarUrl: host?.user.avatarUrl ?? null,
+    };
+  }, [participants, hostId, meetingTitle]);
 
   if (meetingEnded) {
     return (
@@ -208,8 +222,17 @@ export function LivestreamRoom({
                   autoPlay
                   playsInline
                   muted
-                  className="h-full w-full object-contain"
+                  className={`h-full w-full object-contain ${
+                    isCameraOff && !isScreenSharing ? "hidden" : ""
+                  }`}
                 />
+                {isLive && isCameraOff && !isScreenSharing && (
+                  <CameraOffOverlay
+                    userId={userId}
+                    name={userName}
+                    avatarUrl={avatarUrl}
+                  />
+                )}
                 {!isLive && !error && (
                   <div className="absolute inset-0 flex items-center justify-center bg-burgundy-deep/90">
                     <p className="font-serif text-gold-light">Starting camera...</p>
@@ -350,21 +373,49 @@ export function LivestreamRoom({
                 playsInline
                 className={`h-full w-full object-contain ${
                   memberVideoLayout === "side-by-side" ? "border-r border-gold/20" : ""
-                }`}
+                } ${isRemoteCameraOff ? "hidden" : ""}`}
               />
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
+              {isLive && isRemoteCameraOff && (
+                <CameraOffOverlay
+                  userId={hostProfile.userId}
+                  name={hostProfile.name}
+                  avatarUrl={hostProfile.avatarUrl}
+                />
+              )}
+              <div
                 className={
                   memberVideoLayout === "side-by-side"
-                    ? `h-full w-full object-cover ${isCameraOff ? "opacity-40" : ""}`
-                    : `absolute bottom-4 right-4 z-10 h-24 w-32 rounded-xl border-2 border-gold/50 object-cover shadow-2xl sm:h-28 sm:w-40 ${
-                        isCameraOff ? "opacity-40" : ""
-                      }`
+                    ? "relative h-full w-full"
+                    : "absolute bottom-4 right-4 z-10 h-24 w-32 sm:h-28 sm:w-40"
                 }
-              />
+              >
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={
+                    memberVideoLayout === "side-by-side"
+                      ? `h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`
+                      : `h-full w-full rounded-xl border-2 border-gold/50 object-cover shadow-2xl ${
+                          isCameraOff ? "hidden" : ""
+                        }`
+                  }
+                />
+                {isCameraOff && (
+                  <CameraOffOverlay
+                    userId={userId}
+                    name={userName}
+                    avatarUrl={avatarUrl}
+                    compact
+                    className={
+                      memberVideoLayout === "side-by-side"
+                        ? undefined
+                        : "rounded-xl border-2 border-gold/50 shadow-2xl"
+                    }
+                  />
+                )}
+              </div>
               {!isLive && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
                   <Radio className="h-10 w-10 animate-pulse text-gold" />
@@ -469,6 +520,7 @@ export function LivestreamRoom({
                 <Hand className="h-4 w-4" />
                 <span className="hidden sm:inline">{handRaised ? "Hand Raised" : "Raise Hand"}</span>
               </button>
+              <MemberMessagesPopover userId={userId} />
               <button
                 type="button"
                 onClick={() => router.push("/livestream")}
