@@ -13,6 +13,7 @@ export type MembershipMessageData = {
   type: "TEXT" | "ONBOARDING_INVITE" | "SYSTEM";
   createdAt: string;
   updatedAt: string;
+  editedAt: string | null;
   sender: { id: string; name: string; avatarUrl: string | null; role: string };
   meeting?: {
     id: string;
@@ -51,7 +52,7 @@ export function MembershipMessageBubble({
   const isText = message.type === "TEXT";
   const canModify = isText && isOwn && canEditMessage(message.createdAt, now);
   const isEditing = editingId === message.id;
-  const edited = isMessageEdited(message.createdAt, message.updatedAt);
+  const edited = isMessageEdited(message.editedAt);
   const editRemaining = canModify ? getEditTimeRemaining(message.createdAt, now) : null;
 
   return (

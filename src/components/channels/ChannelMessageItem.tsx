@@ -20,6 +20,7 @@ export type ChannelMessageData = {
   reactions: MessageReactions | null;
   createdAt: string;
   updatedAt: string;
+  editedAt: string | null;
   deletedAt: string | null;
   user: { id: string; name: string; avatarUrl: string | null };
 };
@@ -61,7 +62,7 @@ export function ChannelMessageItem({
   const [showReactBar, setShowReactBar] = useState(false);
   const canEdit = canEditMessage(message.createdAt);
   const isEditing = editingId === message.id;
-  const edited = isMessageEdited(message.createdAt, message.updatedAt);
+  const edited = isMessageEdited(message.editedAt);
   const editRemaining = isOwn && canEdit ? getEditTimeRemaining(message.createdAt, now) : null;
   const reactionEntries = Object.entries(message.reactions ?? {});
   const isHidden = Boolean(message.deletedAt);

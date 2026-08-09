@@ -214,6 +214,7 @@ function serializeMessage(message: {
   type: string;
   createdAt: Date;
   updatedAt: Date;
+  editedAt: Date | null;
   sender: { id: string; name: string; avatarUrl: string | null; role: string };
   meeting?: {
     id: string;
@@ -227,5 +228,6 @@ function serializeMessage(message: {
     ...message,
     createdAt: message.createdAt.toISOString(),
     updatedAt: message.updatedAt.toISOString(),
+    editedAt: message.editedAt?.toISOString() ?? null,
   };
 }

@@ -67,8 +67,8 @@ export function formatDateSeparator(date: Date | string) {
   return format(value, "EEEE, MMMM d");
 }
 
-export function isMessageEdited(createdAt: Date | string, updatedAt: Date | string) {
-  return new Date(updatedAt).getTime() - new Date(createdAt).getTime() > 2000;
+export function isMessageEdited(editedAt: Date | string | null | undefined) {
+  return editedAt != null;
 }
 
 export function getEditTimeRemaining(createdAt: Date | string, now = Date.now()) {

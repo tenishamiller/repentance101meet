@@ -91,7 +91,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const updated = await prisma.channelMessage.update({
     where: { id: messageId },
-    data: { content: body.content, updatedAt: new Date() },
+    data: { content: body.content, editedAt: new Date() },
     include: messageInclude,
   });
 

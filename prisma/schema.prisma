@@ -127,6 +127,7 @@ model MembershipMessage {
   type         MembershipMessageType @default(TEXT)
   meetingId    String?
   readAt       DateTime?
+  editedAt     DateTime?
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
 
@@ -188,6 +189,7 @@ model ChannelMessage {
   content     String    @db.Text
   attachments Json?
   reactions   Json?
+  editedAt    DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
