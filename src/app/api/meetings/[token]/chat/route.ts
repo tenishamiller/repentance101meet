@@ -61,8 +61,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     },
   });
 
-  if (participant?.blocked) {
-    return Response.json({ error: "You are blocked from this meeting" }, { status: 403 });
+  if (participant?.blocked || !participant) {
+    return Response.json({ error: "Join the meeting to chat" }, { status: 403 });
   }
 
   const { content, attachments } = await request.json();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Hand,
@@ -9,7 +9,6 @@ import {
   MicOff,
   MonitorOff,
   MonitorUp,
-  Radio,
   Square,
   ThumbsDown,
   ThumbsUp,
@@ -20,13 +19,14 @@ import {
 import { UserAvatar } from "@/components/UserAvatar";
 import { ShowMoreList } from "@/components/ShowMoreList";
 import { useLivestream, type GalleryMember } from "@/hooks/useLivestream";
+import { useAppPath } from "@/hooks/useAppBase";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
-import { ParticipantGallery } from "@/components/livestream/ParticipantGallery";
-import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
+import { LivestreamHostStage } from "@/components/livestream/room/LivestreamHostStage";
+import { LivestreamMemberStage } from "@/components/livestream/room/LivestreamMemberStage";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
 import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
 import { YouTubeStreamPanel } from "@/components/livestream/YouTubeStreamPanel";
@@ -54,6 +54,8 @@ export function LivestreamRoom({
 }: Props) {
   const router = useRouter();
   const isMobile = useIsMobile();
+  const livestreamPath = useAppPath("/livestream");
+  const adminPath = useAppPath("/admin");
   const [mobileTab, setMobileTab] = useState<"video" | "chat" | "people">("video");
   const [privateMessageMember, setPrivateMessageMember] = useState<{
     id: string;
@@ -99,7 +101,6 @@ export function LivestreamRoom({
     toggleMemberMic,
     toggleScreenShare,
     endBroadcast,
-    rebindMediaElements,
     toggleHand,
     sendReaction,
     kickViewer,
@@ -111,7 +112,7 @@ export function LivestreamRoom({
     userName,
     isHost,
     hostId,
-    onKicked: () => router.push("/livestream?removed=1"),
+    onKicked: () => router.push(`${livestreamPath}?removed=1`),
   });
 
   const raisedHands = useMemo(
@@ -154,19 +155,12 @@ export function LivestreamRoom({
     isMuted,
   ]);
 
-  const memberStage = isRemoteScreenSharing ? "present" : "split";
-
-  useLayoutEffect(() => {
-    if (isHost) return;
-    rebindMediaElements();
-  }, [isHost, memberStage, localStream, remoteStream, rebindMediaElements]);
-
   if (meetingEnded) {
     return (
       <MeetingEndedScreen
         meetingTitle={meetingTitle}
         variant={isHost ? "host" : "viewer"}
-        onContinue={() => router.push(isHost ? "/admin" : "/livestream")}
+        onContinue={() => router.push(isHost ? adminPath : livestreamPath)}
       />
     );
   }
@@ -181,66 +175,22 @@ export function LivestreamRoom({
       >
         {isHost ? (
           <>
-            {/* Host header — title & status only */}
-            <div className="shrink-0 border-b border-gold/30 bg-burgundy px-3 py-2 sm:px-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-serif text-sm font-semibold text-cream sm:text-base">
-                    {meetingTitle}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gold-light/80">
-                    {isLive && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-burgundy-dark px-2 py-0.5 font-bold text-gold">
-                        <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-                        LIVE
-                      </span>
-                    )}
-                    {isScreenSharing && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 font-semibold text-cream">
-                        <MonitorUp className="h-3 w-3" />
-                        Sharing screen
-                      </span>
-                    )}
-                    <span>{viewerCount} watching</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Host video + member gallery */}
-            <div className="relative flex min-h-0 flex-1 overflow-hidden">
-              <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className={`h-full w-full object-contain ${
-                    isCameraOff && !isScreenSharing ? "hidden" : ""
-                  }`}
-                />
-                {isLive && isCameraOff && !isScreenSharing && (
-                  <CameraOffOverlay
-                    userId={userId}
-                    name={userName}
-                    avatarUrl={avatarUrl}
-                  />
-                )}
-                {!isLive && !error && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-burgundy-deep/90">
-                    <p className="font-serif text-gold-light">Starting camera...</p>
-                  </div>
-                )}
-              </div>
-
-              <ParticipantGallery
-                hostTile={hostSelfTile}
-                members={galleryMembers}
-                memberVideoEnabled={memberVideoEnabled}
-                memberMicEnabled={memberMicEnabled}
-                layout="sidebar"
-              />
-            </div>
+            <LivestreamHostStage
+              meetingTitle={meetingTitle}
+              viewerCount={viewerCount}
+              isLive={isLive}
+              isScreenSharing={isScreenSharing}
+              isCameraOff={isCameraOff}
+              error={error}
+              userId={userId}
+              userName={userName}
+              avatarUrl={avatarUrl}
+              localVideoRef={localVideoRef}
+              hostSelfTile={hostSelfTile}
+              galleryMembers={galleryMembers}
+              memberVideoEnabled={memberVideoEnabled}
+              memberMicEnabled={memberMicEnabled}
+            />
 
             {/* Host controls */}
             <div className="z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark px-2 py-2.5 sm:px-4 sm:py-3">
@@ -325,139 +275,23 @@ export function LivestreamRoom({
           </>
         ) : (
           <>
-            {(() => {
-              const presentLayout = isRemoteScreenSharing;
-
-              const stageBadges = (
-                <>
-                  {!isLive && (
-                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
-                      <Radio className="h-10 w-10 animate-pulse text-gold" />
-                      <p className="font-serif text-lg font-semibold text-cream">
-                        Connecting to live stream...
-                      </p>
-                      <p className="text-sm text-gold-light/70">Waiting for host video</p>
-                    </div>
-                  )}
-                  <div className="pointer-events-none absolute left-4 top-4 z-10">
-                    {isLive && (
-                      <div className="badge-live">
-                        <span className="relative flex h-2 w-2">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75" />
-                          <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
-                        </span>
-                        LIVE
-                      </div>
-                    )}
-                  </div>
-                  <div className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-xl border border-gold/30 bg-burgundy-dark/80 px-4 py-2 backdrop-blur">
-                    <p className="font-serif text-sm font-semibold text-cream">{meetingTitle}</p>
-                    <p className="text-xs text-gold-light/80">
-                      Live meeting
-                      {isMuted ? " · muted" : ""}
-                      {isCameraOff ? " · camera off" : ""}
-                      {!memberMicEnabled ? " · mics off by host" : ""}
-                      {!memberVideoEnabled ? " · cameras off by host" : ""}
-                    </p>
-                  </div>
-                </>
-              );
-
-              if (presentLayout) {
-                return (
-                  <div className="relative flex min-h-0 flex-1 overflow-hidden bg-black">
-                    <div className="relative min-h-0 min-w-0 flex-1">
-                      <video
-                        ref={remoteVideoRef}
-                        autoPlay
-                        playsInline
-                        className="h-full w-full object-contain"
-                      />
-                      {stageBadges}
-                    </div>
-                    <div className="flex w-36 shrink-0 flex-col border-l border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
-                      <div className="relative aspect-video shrink-0 border-b border-gold/10">
-                        <video
-                          ref={remoteHostCameraVideoRef}
-                          autoPlay
-                          playsInline
-                          className={`h-full w-full object-cover ${isRemoteCameraOff ? "hidden" : ""}`}
-                        />
-                        {isLive && isRemoteCameraOff && (
-                          <CameraOffOverlay
-                            userId={hostProfile.userId}
-                            name={hostProfile.name}
-                            avatarUrl={hostProfile.avatarUrl}
-                            compact
-                          />
-                        )}
-                        <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
-                          Host
-                        </p>
-                      </div>
-                      <div className="relative min-h-0 flex-1">
-                        <video
-                          ref={localVideoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
-                        />
-                        {isCameraOff && (
-                          <CameraOffOverlay
-                            userId={userId}
-                            name={userName}
-                            avatarUrl={avatarUrl}
-                            compact
-                          />
-                        )}
-                        <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
-                          You
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="relative grid min-h-0 flex-1 grid-cols-1 bg-black sm:grid-cols-2">
-                  <div className="relative min-h-0 border-b border-gold/20 sm:border-b-0 sm:border-r">
-                    <video
-                      ref={remoteVideoRef}
-                      autoPlay
-                      playsInline
-                      className={`h-full w-full object-contain ${isRemoteCameraOff ? "hidden" : ""}`}
-                    />
-                    {isLive && isRemoteCameraOff && (
-                      <CameraOffOverlay
-                        userId={hostProfile.userId}
-                        name={hostProfile.name}
-                        avatarUrl={hostProfile.avatarUrl}
-                      />
-                    )}
-                  </div>
-                  <div className="relative min-h-0">
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
-                    />
-                    {isCameraOff && (
-                      <CameraOffOverlay
-                        userId={userId}
-                        name={userName}
-                        avatarUrl={avatarUrl}
-                        compact
-                      />
-                    )}
-                  </div>
-                  {stageBadges}
-                </div>
-              );
-            })()}
+            <LivestreamMemberStage
+              meetingTitle={meetingTitle}
+              isLive={isLive}
+              isMuted={isMuted}
+              isCameraOff={isCameraOff}
+              isRemoteCameraOff={isRemoteCameraOff}
+              isRemoteScreenSharing={isRemoteScreenSharing}
+              memberVideoEnabled={memberVideoEnabled}
+              memberMicEnabled={memberMicEnabled}
+              hostProfile={hostProfile}
+              userId={userId}
+              userName={userName}
+              avatarUrl={avatarUrl}
+              remoteVideoRef={remoteVideoRef}
+              remoteHostCameraVideoRef={remoteHostCameraVideoRef}
+              localVideoRef={localVideoRef}
+            />
 
             <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-gold/20 bg-burgundy-dark px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
               <CameraDeviceSelect
@@ -527,7 +361,7 @@ export function LivestreamRoom({
               <MemberMessagesPopover userId={userId} />
               <button
                 type="button"
-                onClick={() => router.push("/livestream")}
+                onClick={() => router.push(livestreamPath)}
                 className="rounded-full border border-gold/40 px-4 py-2.5 text-sm font-semibold text-gold-light hover:bg-burgundy"
               >
                 Leave

@@ -24,8 +24,8 @@ async function assertCanAttach(token: string, userId: string) {
     where: { meetingId_userId: { meetingId: meeting.id, userId } },
   });
 
-  if (participant?.blocked) {
-    return { error: "You are blocked from this meeting", status: 403 as const };
+  if (participant?.blocked || !participant) {
+    return { error: "Join the meeting to attach files", status: 403 as const };
   }
 
   return { meeting };

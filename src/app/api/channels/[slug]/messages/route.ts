@@ -73,14 +73,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return Response.json({ error: "Access denied" }, { status: 403 });
   }
 
-  const { content, attachments } = await request.json();
+  const { content, attachments } = await request.json().catch(() => ({}));
+
+  const trimmed = typeof content === "string" ? content.trim() : "";
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+  if (!trimmed && !hasAttachments) {
+    return Response.json({ error: "Message cannot be empty" }, { status: 400 });
+  }
 
   const message = await prisma.channelMessage.create({
     data: {
       channelId: channel.id,
       userId: session.user.id,
-      content: content ?? "",
-      attachments: attachments ?? undefined,
+      content: trimmed,
+      attachments: hasAttachments ? attachments : undefined,
     },
     include: {
       user: { select: { id: true, name: true, avatarUrl: true } },

@@ -13,6 +13,7 @@ import { BrandDivider } from "@/components/BrandDivider";
 import { formatDateSeparator, shouldShowDateSeparator } from "@/lib/channel-messages";
 import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
 import { getChannelRoomIntro, type Attachment } from "@/lib/utils";
+import { useAppBase } from "@/hooks/useAppBase";
 
 type Props = {
   channel: Channel;
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export function ChannelRoom({ channel, userId, isAdmin }: Props) {
+  const inMobileShell = useAppBase() === "/m";
   const [messages, setMessages] = useState<ChannelMessageData[]>([]);
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
@@ -160,17 +162,12 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
   }
 
   async function handleDelete(messageId: string) {
-    if (isAdmin) {
-      await fetch(`/api/channels/${channel.slug}/messages/${messageId}`, {
-        method: "DELETE",
-      });
-    } else {
-      setMessages((prev) => prev.filter((message) => message.id !== messageId));
-      await fetch(`/api/channels/${channel.slug}/messages/${messageId}`, {
-        method: "DELETE",
-      });
-    }
-    fetchMessages();
+    const res = await fetch(`/api/channels/${channel.slug}/messages/${messageId}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) return;
+    setMessages((prev) => prev.filter((message) => message.id !== messageId));
+    void fetchMessages();
   }
 
   async function handleRestore(messageId: string) {
@@ -203,7 +200,13 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
   }
 
   return (
-    <div className="mx-auto flex h-mobile-app min-h-0 max-w-5xl flex-col px-2 py-3 sm:px-4 sm:py-6 lg:h-[calc(100vh-80px)]">
+    <div
+      className={
+        inMobileShell
+          ? "mx-auto flex min-h-0 flex-1 flex-col px-2 py-3 sm:px-4 sm:py-6"
+          : "mx-auto flex h-mobile-app min-h-0 max-w-5xl flex-col px-2 py-3 sm:px-4 sm:py-6 lg:h-[calc(100vh-80px)]"
+      }
+    >
       <div className="mb-2 rounded-2xl border border-gold/30 bg-gradient-to-r from-burgundy/5 via-cream to-gold/10 p-3 shadow-sm sm:mb-4 sm:p-5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">

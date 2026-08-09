@@ -3,6 +3,7 @@
 import { Pencil, Trash2, Video } from "lucide-react";
 import Link from "next/link";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useAppPath } from "@/hooks/useAppBase";
 import { isMessageEdited, getEditTimeRemaining } from "@/lib/channel-messages";
 import { canEditMessage, cn } from "@/lib/utils";
 import { formatRequestDateTime } from "@/lib/utils";
@@ -49,6 +50,7 @@ export function MembershipMessageBubble({
   onDelete,
   now = Date.now(),
 }: Props) {
+  const personalMinistryBase = useAppPath("/personal-ministry");
   const isText = message.type === "TEXT";
   const canModify = isText && isOwn && canEditMessage(message.createdAt, now);
   const isEditing = editingId === message.id;
@@ -113,7 +115,7 @@ export function MembershipMessageBubble({
 
           {message.meeting && (
             <Link
-              href={`/personal-ministry/${message.meeting.linkToken}`}
+              href={`${personalMinistryBase}/${message.meeting.linkToken}`}
               className="mt-3 inline-flex items-center gap-2 rounded-lg bg-burgundy px-4 py-2 text-sm font-semibold text-cream hover:bg-burgundy-dark"
             >
               <Video className="h-4 w-4" />

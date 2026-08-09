@@ -8,6 +8,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { MINISTRY_LEADER } from "@/lib/brand";
 import { formatRequestDateTime } from "@/lib/utils";
 import { scrollContainerToBottom } from "@/lib/chat-scroll";
+import { useAppBase } from "@/hooks/useAppBase";
 import {
   MembershipMessageBubble,
   type MembershipMessageData,
@@ -41,6 +42,8 @@ type Props = {
 
 export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Props) {
   const { data: session, status: sessionStatus } = useSession();
+  const appBase = useAppBase();
+  const inMobileShell = appBase === "/m";
   const isAdmin = embedded || session?.user?.role === "ADMIN";
   const isPending = session?.user?.status === "PENDING";
 
@@ -59,6 +62,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   const [actionError, setActionError] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fetchSeqRef = useRef(0);
 
   const threadUserId = isAdmin ? selectedUserId : session?.user?.id;
 
@@ -94,13 +98,16 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
         ? `/api/messages?userId=${selectedUserId}`
         : "/api/messages";
 
+    const seq = ++fetchSeqRef.current;
     const res = await fetch(url);
-    if (res.ok) {
+    if (res.ok && seq === fetchSeqRef.current) {
       const data = await res.json();
       setMessages(data.messages ?? []);
       setMemberInfo(data.member ?? null);
     }
-    setLoading(false);
+    if (seq === fetchSeqRef.current) {
+      setLoading(false);
+    }
   }, [isAdmin, onUnreadChange, selectedUserId, sessionStatus]);
 
   useEffect(() => {
@@ -140,11 +147,18 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     e.preventDefault();
     if (!content.trim() || !threadUserId) return;
     setSending(true);
-    await fetch("/api/messages", {
+    setActionError("");
+    const res = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: content.trim(), threadUserId }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setActionError(typeof data.error === "string" ? data.error : "Could not send message.");
+      setSending(false);
+      return;
+    }
     setContent("");
     setSending(false);
     void fetchInbox();
@@ -153,11 +167,18 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   async function adminAction(action: string, extra: Record<string, unknown> = {}) {
     if (!selectedUserId) return;
     setActionLoading(true);
-    await fetch("/api/admin/onboarding", {
+    setActionError("");
+    const res = await fetch("/api/admin/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, userId: selectedUserId, ...extra }),
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setActionError(typeof data.error === "string" ? data.error : "Action failed.");
+      setActionLoading(false);
+      return;
+    }
     setActionLoading(false);
     void fetchInbox();
   }
@@ -206,7 +227,9 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
   const shellClass = embedded
     ? "flex min-h-[min(70vh,720px)] flex-col"
-    : "mx-auto flex h-mobile-app min-h-0 max-w-6xl flex-col px-3 py-4 sm:px-4 lg:h-[calc(100vh-80px)]";
+    : inMobileShell
+      ? "mx-auto flex min-h-0 flex-1 flex-col px-3 py-4 sm:px-4"
+      : "mx-auto flex h-mobile-app min-h-0 max-w-6xl flex-col px-3 py-4 sm:px-4 lg:h-[calc(100vh-80px)]";
 
   const searchLower = memberSearch.trim().toLowerCase();
   const filteredMembers = allMembers.filter((member) => {

@@ -171,7 +171,19 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = postSchema.parse(await request.json());
+  let body: z.infer<typeof postSchema>;
+  try {
+    body = postSchema.parse(await request.json());
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return Response.json(
+        { error: error.issues[0]?.message ?? "Invalid message" },
+        { status: 400 },
+      );
+    }
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
   const isAdmin = session.user.role === "ADMIN";
 
   const targetThreadUserId = isAdmin

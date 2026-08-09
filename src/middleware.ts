@@ -12,6 +12,21 @@ import {
 
 const { auth } = NextAuth(authConfig);
 
+const PUBLIC_CHANNEL_SLUGS = new Set(["guidelines", "livestream"]);
+
+function normalizeAppPath(pathname: string): string {
+  if (pathname === "/m") return "/";
+  if (pathname.startsWith("/m/")) return pathname.slice(2);
+  return pathname;
+}
+
+function isMemberChannelPath(path: string): boolean {
+  const normalized = normalizeAppPath(path);
+  if (!normalized.startsWith("/channels/")) return false;
+  const slug = normalized.slice("/channels/".length).split("/")[0];
+  return Boolean(slug) && !PUBLIC_CHANNEL_SLUGS.has(slug);
+}
+
 const protectedPaths = [
   "/dashboard",
   "/settings",
@@ -19,10 +34,6 @@ const protectedPaths = [
   "/meeting",
   "/personal-ministry",
   "/messages",
-  "/channels/resource",
-  "/channels/accountability",
-  "/channels/tough-questions",
-  "/channels/general",
   "/livestream",
   "/m/dashboard",
   "/m/settings",
@@ -30,22 +41,12 @@ const protectedPaths = [
   "/m/meeting",
   "/m/personal-ministry",
   "/m/messages",
-  "/m/channels/resource",
-  "/m/channels/accountability",
-  "/m/channels/tough-questions",
-  "/m/channels/general",
   "/m/livestream",
 ];
 
 function mobileAwarePath(path: string, mobile: boolean, desktopPath: string): string {
   if (!mobile) return desktopPath;
   return toMobilePath(desktopPath) ?? `/m${desktopPath === "/" ? "" : desktopPath}`;
-}
-
-function normalizeAppPath(pathname: string): string {
-  if (pathname === "/m") return "/";
-  if (pathname.startsWith("/m/")) return pathname.slice(2);
-  return pathname;
 }
 
 export default auth((req) => {
@@ -76,9 +77,9 @@ export default auth((req) => {
     }
   }
 
-  const isProtected = protectedPaths.some(
-    (p) => path === p || path.startsWith(`${p}/`),
-  );
+  const isProtected =
+    protectedPaths.some((p) => path === p || path.startsWith(`${p}/`)) ||
+    isMemberChannelPath(path);
 
   if (isProtected && !user) {
     const loginPath =

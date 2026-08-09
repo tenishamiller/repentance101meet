@@ -47,6 +47,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const answers = questionnaireSchema.parse(body);
 
+    const existing = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { questionnaireCompletedAt: true },
+    });
+    if (existing?.questionnaireCompletedAt) {
+      return Response.json({ error: "Questionnaire already submitted" }, { status: 409 });
+    }
+
     if (
       answers.jesusLoveSelections.includes("(Write your answer)") &&
       !answers.jesusLoveCustom?.trim()

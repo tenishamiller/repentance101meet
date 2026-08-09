@@ -23,7 +23,7 @@ export default async function ChannelPage({ params }: Props) {
   if (!session) redirect("/login");
 
   if (session.user.status === "PENDING" && session.user.role !== "ADMIN") {
-    redirect("/dashboard");
+    redirect("/messages");
   }
 
   const isAdmin = session.user.role === "ADMIN";

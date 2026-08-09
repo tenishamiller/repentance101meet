@@ -74,6 +74,7 @@ export function clearPeerConnection(pc: RTCPeerConnection) {
 /** Heuristic for display-capture vs camera video tracks from getDisplayMedia / getUserMedia. */
 export function isScreenShareTrack(track: MediaStreamTrack): boolean {
   if (track.kind !== "video") return false;
+  if (track.contentHint === "detail" || track.contentHint === "text") return true;
   const settings = track.getSettings() as MediaTrackSettings & { displaySurface?: string };
   if (settings.displaySurface) return true;
   const label = track.label.toLowerCase();

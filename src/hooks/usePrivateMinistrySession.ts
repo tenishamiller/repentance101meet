@@ -14,6 +14,13 @@ import {
   type SignalPayload,
 } from "@/lib/webrtc";
 import {
+  buildRecordingFilename,
+  getRecordingMimeType,
+  RECORDING_CONTENT_TYPE,
+  triggerBrowserDownload,
+  uploadRecordingBlob,
+} from "@/lib/recording";
+import {
   listAudioInputDevices,
   listVideoInputDevices,
   loadPreferredAudioDeviceId,
@@ -22,9 +29,23 @@ import {
   savePreferredCameraDeviceId,
   trackIsActive,
 } from "@/lib/media-devices";
-import type { GalleryMember } from "@/hooks/livestream-types";
 
-export type { GalleryMember };
+export type RecordingSaveStatus =
+  | "uploading"
+  | "saved"
+  | "upload-failed"
+  | "empty"
+  | "not-recorded";
+
+export type GalleryMember = {
+  userId: string;
+  name: string;
+  avatarUrl: string | null;
+  stream: MediaStream | null;
+  cameraOn: boolean;
+  micOn: boolean;
+  connected: boolean;
+};
 
 type ViewerMedia = {
   userId: string;
@@ -39,7 +60,7 @@ type Participant = {
   reaction?: string | null;
 };
 
-type UseLivestreamOptions = {
+type UsePrivateMinistrySessionOptions = {
   meetingToken: string;
   meetingTitle: string;
   userId: string;
@@ -48,16 +69,23 @@ type UseLivestreamOptions = {
   hostId: string;
   onKicked?: () => void;
   onMeetingEnded?: () => void;
+  onRecordingSaved?: (url: string) => void;
 };
 
-export function useLivestream({
+export function usePrivateMinistrySession({
   meetingToken,
+  meetingTitle,
   userId,
+  userName,
   isHost,
   hostId,
   onKicked,
   onMeetingEnded,
-}: UseLivestreamOptions) {
+  onRecordingSaved,
+}: UsePrivateMinistrySessionOptions) {
+  const isPrivate = true;
+  const mode = "private" as "livestream" | "private";
+  const publishMedia = true;
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteHostCameraVideoRef = useRef<HTMLVideoElement>(null);
@@ -73,12 +101,19 @@ export function useLivestream({
 
   const [viewerMedia, setViewerMedia] = useState<ViewerMedia[]>([]);
 
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingMimeRef = useRef<string>("video/webm");
+  const broadcastConsumersRef = useRef(new Set<"recording">());
+
   const [isLive, setIsLive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isRemoteCameraOff, setIsRemoteCameraOff] = useState(false);
   const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [isSavingRecording, setIsSavingRecording] = useState(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [viewerCount, setViewerCount] = useState(0);
@@ -88,6 +123,9 @@ export function useLivestream({
   const [thumbsDown, setThumbsDown] = useState(0);
   const [myReaction, setMyReaction] = useState<string | null>(null);
   const [meetingEnded, setMeetingEnded] = useState(false);
+  const [recordingSaveMessage, setRecordingSaveMessage] = useState<RecordingSaveStatus | null>(
+    null,
+  );
   const [memberVideoEnabled, setMemberVideoEnabled] = useState(true);
   const [memberMicEnabled, setMemberMicEnabled] = useState(true);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -97,18 +135,15 @@ export function useLivestream({
   const [selectedVideoDeviceId, setSelectedVideoDeviceId] = useState("");
   const [selectedAudioDeviceId, setSelectedAudioDeviceId] = useState("");
   const [isRefreshingDevices, setIsRefreshingDevices] = useState(false);
+  const [recordingElapsedSeconds, setRecordingElapsedSeconds] = useState(0);
 
   const selectedVideoDeviceIdRef = useRef("");
   const selectedAudioDeviceIdRef = useRef("");
   const facingModeRef = useRef<"user" | "environment">("user");
+  const recordingStartedAtRef = useRef<number | null>(null);
 
   const memberVideoEnabledRef = useRef(true);
   const memberMicEnabledRef = useRef(true);
-  const isScreenSharingRef = useRef(false);
-  const isCameraOffRef = useRef(false);
-  const isMutedRef = useRef(false);
-  const hostConnectStartedRef = useRef<number | null>(null);
-  const viewerConnectStartedRef = useRef<Map<string, number>>(new Map());
   const applyMemberMediaPolicyRef = useRef<() => void>(() => {});
   const applyHostMemberMediaPolicyRef = useRef<() => void>(() => {});
 
@@ -120,8 +155,10 @@ export function useLivestream({
 
   const onKickedRef = useRef(onKicked);
   const onMeetingEndedRef = useRef(onMeetingEnded);
+  const onRecordingSavedRef = useRef(onRecordingSaved);
   onKickedRef.current = onKicked;
   onMeetingEndedRef.current = onMeetingEnded;
+  onRecordingSavedRef.current = onRecordingSaved;
 
   const viewerAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
@@ -197,11 +234,11 @@ export function useLivestream({
 
   const syncViewerMedia = useCallback(() => {
     const items: ViewerMedia[] = [];
-    for (const [viewerUserId, stream] of viewerStreamsRef.current) {
+    for (const [userId, stream] of viewerStreamsRef.current) {
       const videoTrack = stream.getVideoTracks()[0];
       const audioTrack = stream.getAudioTracks()[0];
       items.push({
-        userId: viewerUserId,
+        userId,
         stream,
         cameraOn: trackIsActive(videoTrack),
         micOn: trackIsActive(audioTrack),
@@ -280,18 +317,18 @@ export function useLivestream({
     const micAllowed = memberMicEnabledRef.current;
 
     for (const track of stream.getVideoTracks()) {
-      track.enabled = videoAllowed ? !isCameraOffRef.current : false;
+      if (!videoAllowed && track.enabled) {
+        track.enabled = false;
+      }
     }
     for (const track of stream.getAudioTracks()) {
-      track.enabled = micAllowed ? !isMutedRef.current : false;
+      if (!micAllowed && track.enabled) {
+        track.enabled = false;
+      }
     }
 
-    if (!videoAllowed) {
-      setIsCameraOff(true);
-    }
-    if (!micAllowed) {
-      setIsMuted(true);
-    }
+    if (!videoAllowed) setIsCameraOff(true);
+    if (!micAllowed) setIsMuted(true);
   }, [isHost]);
 
   applyMemberMediaPolicyRef.current = applyMemberMediaPolicy;
@@ -380,23 +417,11 @@ export function useLivestream({
         const track = receiver.track;
         if (!track) continue;
 
-        if (track.kind === "video") {
-          const isScreen = isScreenShareTrack(track);
-          const existing = stream.getVideoTracks().find((t) =>
-            isScreen ? isScreenShareTrack(t) : !isScreenShareTrack(t),
-          );
-          if (existing && existing.id !== track.id) {
-            stream.removeTrack(existing);
-            changed = true;
-          }
-        } else {
-          const sameKind = stream.getTracks().find((t) => t.kind === track.kind);
-          if (sameKind && sameKind.id !== track.id) {
-            stream.removeTrack(sameKind);
-            changed = true;
-          }
+        const sameKind = stream.getTracks().find((t) => t.kind === track.kind);
+        if (sameKind && sameKind.id !== track.id) {
+          stream.removeTrack(sameKind);
+          changed = true;
         }
-
         if (!stream.getTracks().includes(track)) {
           stream.addTrack(track);
           changed = true;
@@ -414,6 +439,207 @@ export function useLivestream({
     setLocalStream(stream);
     void bindStreamToVideo(localVideoRef.current, stream);
   }, []);
+
+  const rebindMediaElements = useCallback(() => {
+    void bindStreamToVideo(localVideoRef.current, localStreamRef.current);
+    const remote = remoteStreamRef.current;
+    if (remote) {
+      attachRemoteStream(remote);
+    }
+  }, [attachRemoteStream]);
+
+  const buildRecordingStream = useCallback(() => {
+    const audioTracks: MediaStreamTrack[] = [];
+    const hostMic = localStreamRef.current?.getAudioTracks()[0];
+    const screenAudio = screenStreamRef.current?.getAudioTracks()[0];
+    if (hostMic?.readyState === "live") {
+      try {
+        audioTracks.push(hostMic.clone());
+      } catch {
+        audioTracks.push(hostMic);
+      }
+    }
+    if (screenAudio?.readyState === "live" && screenAudio !== hostMic) {
+      try {
+        audioTracks.push(screenAudio.clone());
+      } catch {
+        audioTracks.push(screenAudio);
+      }
+    }
+
+    const videoTrack =
+      screenStreamRef.current?.getVideoTracks()[0] ??
+      localStreamRef.current?.getVideoTracks()[0];
+    if (!videoTrack && audioTracks.length === 0) return null;
+
+    const stream = new MediaStream();
+    if (videoTrack?.readyState === "live") {
+      try {
+        stream.addTrack(videoTrack.clone());
+      } catch {
+        stream.addTrack(videoTrack);
+      }
+    }
+    for (const track of audioTracks) {
+      stream.addTrack(track);
+    }
+    return stream;
+  }, []);
+
+  const releaseBroadcastStreamIfIdle = useCallback(() => {
+    if (broadcastConsumersRef.current.size > 0) return;
+    recordingStreamRef.current = null;
+  }, []);
+
+  const acquireBroadcastStream = useCallback(async (): Promise<MediaStream | null> => {
+    if (recordingStreamRef.current?.active) {
+      return recordingStreamRef.current;
+    }
+
+    const stream = buildRecordingStream();
+
+    if (!stream) {
+      setError("Could not start stream — allow camera or microphone access and try again.");
+      return null;
+    }
+
+    recordingStreamRef.current = stream;
+    return stream;
+  }, [buildRecordingStream]);
+
+  const startRecording = useCallback(async () => {
+    broadcastConsumersRef.current.add("recording");
+    const stream = await acquireBroadcastStream();
+    if (!stream) {
+      broadcastConsumersRef.current.delete("recording");
+      releaseBroadcastStreamIfIdle();
+      return;
+    }
+
+    recordingMimeRef.current = getRecordingMimeType();
+    recordingChunksRef.current = [];
+
+    try {
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, {
+          mimeType: recordingMimeRef.current,
+          videoBitsPerSecond: 2_500_000,
+          audioBitsPerSecond: 128_000,
+        });
+      } catch {
+        recorder = new MediaRecorder(stream, {
+          videoBitsPerSecond: 2_500_000,
+          audioBitsPerSecond: 128_000,
+        });
+        recordingMimeRef.current = recorder.mimeType.includes("webm")
+          ? recorder.mimeType
+          : "video/webm";
+      }
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        setError("Recording was interrupted by the browser. You can start a new recording if needed.");
+      };
+
+      // Chunk periodically so long sessions stay stable in the browser.
+      recorder.start(10_000);
+      recorderRef.current = recorder;
+      recordingStartedAtRef.current = Date.now();
+      setRecordingElapsedSeconds(0);
+      setIsRecording(true);
+    } catch {
+      broadcastConsumersRef.current.delete("recording");
+      releaseBroadcastStreamIfIdle();
+      setError("Could not start recording. Try a different browser (Chrome recommended).");
+    }
+  }, [acquireBroadcastStream, releaseBroadcastStreamIfIdle]);
+
+  const beginRecording = useCallback(() => {
+    if (mode === "livestream") return;
+    if (recorderRef.current?.state === "recording") return;
+    startRecording();
+  }, [mode, startRecording]);
+
+  const updateRecordingVideoTrack = useCallback(() => {
+    const stream = recordingStreamRef.current;
+    if (!stream || !recorderRef.current) return;
+
+    const oldVideo = stream.getVideoTracks()[0];
+    if (oldVideo) {
+      stream.removeTrack(oldVideo);
+    }
+
+    const newVideo =
+      screenStreamRef.current?.getVideoTracks()[0] ??
+      localStreamRef.current?.getVideoTracks()[0];
+    if (newVideo && !stream.getVideoTracks().includes(newVideo)) {
+      stream.addTrack(newVideo);
+    }
+  }, []);
+
+  const stopRecording = useCallback((): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const recorder = recorderRef.current;
+
+      const buildBlob = () => {
+        if (recordingChunksRef.current.length === 0) return null;
+        return new Blob(recordingChunksRef.current, { type: RECORDING_CONTENT_TYPE });
+      };
+
+      const finish = (blob: Blob | null) => {
+        broadcastConsumersRef.current.delete("recording");
+        releaseBroadcastStreamIfIdle();
+        recordingChunksRef.current = [];
+        recorderRef.current = null;
+        setIsRecording(false);
+        recordingStartedAtRef.current = null;
+        setRecordingElapsedSeconds(0);
+        resolve(blob);
+      };
+
+      if (!recorder || recorder.state === "inactive") {
+        finish(buildBlob());
+        return;
+      }
+
+      let settled = false;
+      const settle = (blob: Blob | null) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(hardTimeout);
+        finish(blob);
+      };
+
+      recorder.onstop = () => settle(buildBlob());
+
+      const hardTimeout = window.setTimeout(() => {
+        try {
+          if (recorder.state !== "inactive") {
+            recorder.requestData();
+            recorder.stop();
+          }
+        } catch {
+          /* ignore */
+        }
+        settle(buildBlob());
+      }, 5000);
+
+      try {
+        if (recorder.state === "recording" || recorder.state === "paused") {
+          recorder.requestData();
+        }
+        recorder.stop();
+      } catch {
+        settle(buildBlob());
+      }
+    });
+  }, [releaseBroadcastStreamIfIdle]);
 
   const sendSignal = useCallback(
     async (type: string, toUserId: string | null, payload: SignalPayload = {}) => {
@@ -524,51 +750,57 @@ export function useLivestream({
         await sendSignal("offer", viewerId, { sdp: offer });
       }
     }
-  }, [isHost, sendSignal]);
+
+    updateRecordingVideoTrack();
+  }, [isHost, sendSignal, updateRecordingVideoTrack]);
 
   const createHostConnection = useCallback(
     async (viewerId: string) => {
       const existing = peerConnectionsRef.current.get(viewerId);
-      if (existing?.connectionState === "connected") {
+      if (
+        existing &&
+        (existing.connectionState === "connected" || existing.connectionState === "connecting")
+      ) {
         return;
       }
 
-      if (existing?.connectionState === "connecting") {
-        const started = viewerConnectStartedRef.current.get(viewerId) ?? Date.now();
-        if (Date.now() - started < 15_000) {
-          return;
-        }
-        teardownViewerConnection(viewerId);
-      } else if (existing) {
+      if (existing) {
         teardownViewerConnection(viewerId);
       }
-
-      viewerConnectStartedRef.current.set(viewerId, Date.now());
 
       const pc = createPeerConnection();
       peerConnectionsRef.current.set(viewerId, pc);
       addLocalTracks(pc);
 
-      pc.ontrack = (event) => {
-        const stream = resolveIncomingStream(
-          event,
-          viewerStreamsRef.current.get(viewerId) ?? null,
-        );
-        if (!stream) return;
+      if (isPrivate || mode === "livestream") {
+        pc.ontrack = (event) => {
+          const stream = resolveIncomingStream(
+            event,
+            viewerStreamsRef.current.get(viewerId) ?? null,
+          );
+          if (!stream) return;
 
-        attachViewerStream(viewerId, stream);
+          if (isPrivate && remoteVideoRef.current) {
+            attachRemoteStream(stream);
+            return;
+          }
 
-        let audio = viewerAudioRefs.current.get(viewerId);
-        if (!audio) {
-          audio = document.createElement("audio");
-          audio.autoplay = true;
-          viewerAudioRefs.current.set(viewerId, audio);
-        }
-        audio.muted = !memberMicEnabledRef.current;
-        audio.srcObject = stream;
-        void audio.play().catch(() => {});
-        applyHostMemberMediaPolicyRef.current();
-      };
+          if (mode === "livestream") {
+            attachViewerStream(viewerId, stream);
+
+            let audio = viewerAudioRefs.current.get(viewerId);
+            if (!audio) {
+              audio = document.createElement("audio");
+              audio.autoplay = true;
+              viewerAudioRefs.current.set(viewerId, audio);
+            }
+            audio.muted = !memberMicEnabledRef.current;
+            audio.srcObject = stream;
+            void audio.play().catch(() => {});
+            applyHostMemberMediaPolicyRef.current();
+          }
+        };
+      }
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
@@ -579,7 +811,6 @@ export function useLivestream({
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === "connected") {
           clearViewerDisconnectTimer(viewerId);
-          viewerConnectStartedRef.current.delete(viewerId);
           return;
         }
 
@@ -611,8 +842,11 @@ export function useLivestream({
     },
     [
       addLocalTracks,
+      attachRemoteStream,
       attachViewerStream,
       clearViewerDisconnectTimer,
+      isPrivate,
+      mode,
       resolveIncomingStream,
       sendSignal,
       teardownViewerConnection,
@@ -688,8 +922,10 @@ export function useLivestream({
         if (!pc) {
           pc = createPeerConnection();
           peerConnectionsRef.current.set(hostId, pc);
-          hostConnectStartedRef.current = Date.now();
-          addLocalTracks(pc);
+
+          if (isPrivate || mode === "livestream") {
+            addLocalTracks(pc);
+          }
 
           pc.ontrack = (event) => {
             const stream = resolveIncomingStream(event, remoteStreamRef.current);
@@ -703,10 +939,7 @@ export function useLivestream({
           };
 
           pc.onconnectionstatechange = () => {
-            if (pc!.connectionState === "connected") {
-              hostConnectStartedRef.current = null;
-              return;
-            }
+            if (pc!.connectionState === "connected") return;
 
             const requestReconnect = () => {
               const current = peerConnectionsRef.current.get(hostId);
@@ -756,7 +989,7 @@ export function useLivestream({
         }
       }
     },
-    [addLocalTracks, attachRemoteStream, hostId, refreshRemoteStreamFromReceivers, resolveIncomingStream, sendSignal, userId],
+    [addLocalTracks, attachRemoteStream, hostId, isPrivate, mode, refreshRemoteStreamFromReceivers, resolveIncomingStream, sendSignal, userId],
   );
 
   const pollSignals = useCallback(async () => {
@@ -769,16 +1002,11 @@ export function useLivestream({
 
     const data = await res.json();
     for (const signal of data.signals as MeetingSignalMessage[]) {
-      try {
-        if (isHost) {
-          await handleHostSignal(signal);
-        } else {
-          await handleViewerSignal(signal);
-        }
-        signalCursorRef.current = signal.createdAt;
-      } catch (err) {
-        console.error("Signal handling failed:", signal.type, err);
-        break;
+      signalCursorRef.current = signal.createdAt;
+      if (isHost) {
+        await handleHostSignal(signal);
+      } else {
+        await handleViewerSignal(signal);
       }
     }
   }, [handleHostSignal, handleViewerSignal, isHost, meetingToken]);
@@ -885,6 +1113,7 @@ export function useLivestream({
         applyMemberMediaPolicyRef.current();
       } catch {
         if (!isHost) {
+          // Viewers can still watch without publishing camera/mic.
           void sendSignal("viewer-ready", hostId);
         }
         setError(
@@ -897,6 +1126,13 @@ export function useLivestream({
   }, [attachLocalStream, hostId, isHost, sendSignal, syncAudioDeviceFromStream, syncVideoDeviceFromStream]);
 
   const stopAll = useCallback(() => {
+    broadcastConsumersRef.current.clear();
+
+    if (recorderRef.current && recorderRef.current.state !== "inactive") {
+      recorderRef.current.stop();
+      recorderRef.current = null;
+    }
+
     viewerDisconnectTimersRef.current.forEach((timer) => clearTimeout(timer));
     viewerDisconnectTimersRef.current.clear();
 
@@ -916,6 +1152,7 @@ export function useLivestream({
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
     screenStreamRef.current = null;
+    recordingStreamRef.current = null;
     remoteStreamRef.current = null;
     setLocalStream(null);
     setRemoteStream(null);
@@ -926,10 +1163,18 @@ export function useLivestream({
   const handleMeetingEnded = useCallback(() => {
     if (meetingEndedRef.current || endingBroadcastRef.current) return;
 
+    const activelyRecording =
+      recorderRef.current?.state === "recording" || recorderRef.current?.state === "paused";
+
+    if (isHost && activelyRecording) {
+      void endBroadcastRef.current();
+      return;
+    }
+
     meetingEndedRef.current = true;
     stopAll();
     setMeetingEnded(true);
-  }, [stopAll]);
+  }, [isHost, stopAll]);
 
   stopAllRef.current = stopAll;
   handleMeetingEndedRef.current = handleMeetingEnded;
@@ -938,7 +1183,9 @@ export function useLivestream({
     let cancelled = false;
 
     async function connect() {
-      await startBroadcast();
+      if (isHost || publishMedia) {
+        await startBroadcast();
+      }
 
       if (!cancelled && !isHost) {
         await sendSignal("viewer-ready", hostId);
@@ -951,34 +1198,15 @@ export function useLivestream({
       cancelled = true;
       stopAll();
     };
-  }, [hostId, isHost, meetingToken, sendSignal, startBroadcast, stopAll]);
+  }, [hostId, isHost, meetingToken, publishMedia, sendSignal, startBroadcast, stopAll]);
 
   useEffect(() => {
-    isScreenSharingRef.current = isScreenSharing;
-  }, [isScreenSharing]);
-
-  useEffect(() => {
-    isCameraOffRef.current = isCameraOff;
-    if (!isHost && memberVideoEnabledRef.current && localStreamRef.current) {
-      for (const track of localStreamRef.current.getVideoTracks()) {
-        track.enabled = !isCameraOff;
-      }
-    }
-  }, [isCameraOff, isHost]);
-
-  useEffect(() => {
-    isMutedRef.current = isMuted;
-    if (!isHost && memberMicEnabledRef.current && localStreamRef.current) {
-      for (const track of localStreamRef.current.getAudioTracks()) {
-        track.enabled = !isMuted;
-      }
-    }
-  }, [isMuted, isHost]);
-
-  useEffect(() => {
-    if (isScreenSharingRef.current) return;
     void bindStreamToVideo(localVideoRef.current, localStream);
   }, [localStream]);
+
+  useEffect(() => {
+    void bindStreamToVideo(remoteVideoRef.current, remoteStream);
+  }, [remoteStream]);
 
   useEffect(() => {
     if (isHost) return;
@@ -987,16 +1215,11 @@ export function useLivestream({
       if (meetingEndedRef.current) return;
 
       const pc = peerConnectionsRef.current.get(hostId);
-      if (pc?.connectionState === "connected") return;
+      const connected =
+        pc &&
+        (pc.connectionState === "connected" || pc.connectionState === "connecting");
 
-      const connectingTooLong =
-        pc?.connectionState === "connecting" &&
-        hostConnectStartedRef.current !== null &&
-        Date.now() - hostConnectStartedRef.current > 20_000;
-
-      if (pc?.connectionState === "connecting" && !connectingTooLong) return;
-
-      if (remoteStreamRef.current?.active) return;
+      if (connected) return;
 
       if (pc) {
         clearPeerConnection(pc);
@@ -1034,10 +1257,10 @@ export function useLivestream({
   }, [meetingToken]);
 
   useEffect(() => {
-    if (!isHost) return;
+    if (!isHost || mode !== "livestream") return;
     const mediaInterval = setInterval(() => syncViewerMediaRef.current(), 1500);
     return () => clearInterval(mediaInterval);
-  }, [isHost]);
+  }, [isHost, mode]);
 
   useEffect(() => {
     const savedDeviceId = loadPreferredCameraDeviceId();
@@ -1053,7 +1276,7 @@ export function useLivestream({
   }, []);
 
   useEffect(() => {
-    if (typeof navigator === "undefined" || !navigator.mediaDevices) return;
+    if (!publishMedia || typeof navigator === "undefined" || !navigator.mediaDevices) return;
 
     const handleDeviceChange = () => {
       void refreshMediaInputDevices();
@@ -1062,7 +1285,22 @@ export function useLivestream({
     void refreshMediaInputDevices();
     navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
     return () => navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
-  }, [refreshMediaInputDevices]);
+  }, [publishMedia, refreshMediaInputDevices]);
+
+  useEffect(() => {
+    if (!isRecording) return;
+
+    const tick = () => {
+      if (!recordingStartedAtRef.current) return;
+      setRecordingElapsedSeconds(
+        Math.floor((Date.now() - recordingStartedAtRef.current) / 1000),
+      );
+    };
+
+    tick();
+    const interval = window.setInterval(tick, 1000);
+    return () => window.clearInterval(interval);
+  }, [isRecording]);
 
   const toggleMute = useCallback(() => {
     if (!isHost && !memberMicEnabledRef.current) {
@@ -1093,18 +1331,20 @@ export function useLivestream({
     if (isScreenSharing) {
       void syncHostVideoToAllViewers();
     }
+    if (!isScreenSharing) {
+      updateRecordingVideoTrack();
+    }
     setError("");
-  }, [isHost, isScreenSharing, syncHostVideoToAllViewers]);
+  }, [isHost, isScreenSharing, syncHostVideoToAllViewers, updateRecordingVideoTrack]);
+
+  const renegotiateAllViewers = useCallback(async () => {
+    await syncHostVideoToAllViewers();
+  }, [syncHostVideoToAllViewers]);
 
   const replaceVideoOnAllConnections = useCallback(
     async (newStream: MediaStream) => {
-      const cameraTrack = newStream.getVideoTracks()[0];
-      if (!cameraTrack) return;
-
-      if (isScreenSharingRef.current) {
-        await syncHostVideoToAllViewers();
-        return;
-      }
+      const videoTrack = newStream.getVideoTracks()[0];
+      if (!videoTrack) return;
 
       const outboundStream = localStreamRef.current ?? newStream;
 
@@ -1112,9 +1352,9 @@ export function useLivestream({
         try {
           const sender = pc.getSenders().find((s) => s.track?.kind === "video");
           if (sender) {
-            await sender.replaceTrack(cameraTrack);
+            await sender.replaceTrack(videoTrack);
           } else if (outboundStream) {
-            pc.addTrack(cameraTrack, outboundStream);
+            pc.addTrack(videoTrack, outboundStream);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             await sendSignal("offer", viewerId, { sdp: offer });
@@ -1123,8 +1363,9 @@ export function useLivestream({
           console.error("Failed to update video track for viewer", viewerId, error);
         }
       }
+      updateRecordingVideoTrack();
     },
-    [sendSignal, syncHostVideoToAllViewers],
+    [sendSignal, updateRecordingVideoTrack],
   );
 
   const replaceAudioOnAllConnections = useCallback(
@@ -1186,7 +1427,7 @@ export function useLivestream({
         attachLocalStream(stream);
         await replaceVideoOnAllConnections(stream);
       } else {
-        await syncHostVideoToAllViewers();
+        updateRecordingVideoTrack();
       }
 
       syncViewerMediaRef.current();
@@ -1199,7 +1440,7 @@ export function useLivestream({
       isScreenSharing,
       refreshMediaInputDevices,
       replaceVideoOnAllConnections,
-      syncHostVideoToAllViewers,
+      updateRecordingVideoTrack,
     ],
   );
 
@@ -1392,12 +1633,6 @@ export function useLivestream({
         throw new Error("No screen video track");
       }
 
-      try {
-        videoTrack.contentHint = "detail";
-      } catch {
-        /* contentHint unsupported in some browsers */
-      }
-
       screenStreamRef.current = screenStream;
       void bindStreamToVideo(localVideoRef.current, screenStream);
       await syncHostVideoToAllViewers();
@@ -1436,7 +1671,21 @@ export function useLivestream({
     endingBroadcastRef.current = true;
     setIsSavingRecording(true);
 
+    const isLivestream = mode === "livestream";
+    const wasRecording =
+      !isLivestream &&
+      (isRecording ||
+        recorderRef.current?.state === "recording" ||
+        recorderRef.current?.state === "paused");
+
+    let recordingUrl: string | null = null;
+    let recordingBlob: Blob | null = null;
+    const filename = buildRecordingFilename(meetingTitle, RECORDING_CONTENT_TYPE);
+
     try {
+      if (!isLivestream) {
+        recordingBlob = await stopRecording();
+      }
       await sendSignal("host-ended", null);
 
       const patchRes = await fetch(`/api/meetings/${meetingToken}/recording`, {
@@ -1461,9 +1710,60 @@ export function useLivestream({
       endingBroadcastRef.current = false;
     }
 
-    setError("");
-    return null;
-  }, [isHost, meetingToken, sendSignal, stopAll]);
+    if (isLivestream) {
+      setRecordingSaveMessage(null);
+      setError("");
+      return null;
+    }
+
+    if (recordingBlob && recordingBlob.size > 0) {
+      setRecordingSaveMessage("uploading");
+      try {
+        const result = await uploadRecordingBlob(meetingToken, recordingBlob, filename);
+        recordingUrl = result.publicUrl;
+
+        const linkRes = await fetch(`/api/meetings/${meetingToken}/recording`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publicUrl: recordingUrl }),
+        });
+
+        if (!linkRes.ok) {
+          throw new Error("Recording uploaded but could not be linked in the library.");
+        }
+
+        onRecordingSavedRef.current?.(recordingUrl);
+        setRecordingSaveMessage("saved");
+        setError("");
+      } catch (uploadError) {
+        console.error("Recording upload failed:", uploadError);
+        triggerBrowserDownload(recordingBlob, filename);
+        const message =
+          uploadError instanceof Error ? uploadError.message : "Upload failed";
+        setRecordingSaveMessage("upload-failed");
+        setError(
+          `Recording could not be saved to the library (${message}). A copy was downloaded to your device — contact support to add it manually.`,
+        );
+      }
+    } else if (wasRecording) {
+      setRecordingSaveMessage("empty");
+      setError("");
+    } else {
+      setRecordingSaveMessage("not-recorded");
+      setError("");
+    }
+
+    return recordingUrl;
+  }, [
+    isHost,
+    mode,
+    meetingTitle,
+    meetingToken,
+    sendSignal,
+    stopAll,
+    stopRecording,
+    isRecording,
+  ]);
 
   endBroadcastRef.current = endBroadcast;
 
@@ -1556,7 +1856,9 @@ export function useLivestream({
     isScreenSharing,
     localStream,
     remoteStream,
+    isRecording,
     isSavingRecording,
+    recordingElapsedSeconds,
     videoInputDevices,
     audioInputDevices,
     selectedVideoDeviceId,
@@ -1582,10 +1884,13 @@ export function useLivestream({
     toggleMemberVideo,
     toggleMemberMic,
     toggleScreenShare,
+    beginRecording,
     endBroadcast,
+    rebindMediaElements,
     toggleHand,
     sendReaction,
     kickViewer,
     meetingEnded,
+    recordingSaveMessage,
   };
 }

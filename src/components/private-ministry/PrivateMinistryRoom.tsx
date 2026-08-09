@@ -15,7 +15,8 @@ import {
   VideoOff,
 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
-import { useLivestream } from "@/hooks/useLivestream";
+import { usePrivateMinistrySession } from "@/hooks/usePrivateMinistrySession";
+import { useAppPath } from "@/hooks/useAppBase";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
@@ -62,6 +63,9 @@ export function PrivateMinistryRoom({
 }: Props) {
   const router = useRouter();
   const isMobile = useIsMobile();
+  const messagesPath = useAppPath("/messages");
+  const personalMinistryPath = useAppPath("/personal-ministry");
+  const adminPath = useAppPath("/admin");
   const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
   const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
   const [showDecision, setShowDecision] = useState(false);
@@ -98,16 +102,15 @@ export function PrivateMinistryRoom({
     toggleCamera,
     beginRecording,
     endBroadcast,
-  } = useLivestream({
+  } = usePrivateMinistrySession({
     meetingToken,
     meetingTitle,
     userId,
     userName: isHost ? "Host" : peer.name,
     isHost,
     hostId,
-    mode: "private",
     onMeetingEnded: () =>
-      router.push(isOnboardingApproval ? "/messages" : "/personal-ministry?ended=1"),
+      router.push(isOnboardingApproval ? messagesPath : `${personalMinistryPath}?ended=1`),
   });
 
   const peerLabel = isHost ? peer.name : "Session host";
@@ -126,13 +129,13 @@ export function PrivateMinistryRoom({
       return;
     }
 
-    router.push(isOnboardingApproval ? "/messages" : "/personal-ministry?ended=1");
+    router.push(isOnboardingApproval ? messagesPath : `${personalMinistryPath}?ended=1`);
   }
 
   async function handleDecision(decision: "approve" | "deny") {
     if (!invitedUserId) return;
     setDecisionLoading(true);
-    await fetch("/api/admin/onboarding", {
+    const res = await fetch("/api/admin/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -143,9 +146,13 @@ export function PrivateMinistryRoom({
         confirm: decision === "deny" ? true : undefined,
       }),
     });
+    if (!res.ok) {
+      setDecisionLoading(false);
+      return;
+    }
     setDecisionLoading(false);
     setShowDecision(false);
-    router.push("/admin?tab=members");
+    router.push(`${adminPath}?tab=members`);
   }
 
   return (
@@ -160,7 +167,7 @@ export function PrivateMinistryRoom({
         onDeny={() => void handleDecision("deny")}
         onCancel={() => {
           setShowDecision(false);
-          router.push("/admin?tab=members");
+          router.push(`${adminPath}?tab=members`);
         }}
       />
     )}
@@ -312,7 +319,7 @@ export function PrivateMinistryRoom({
           />
           <button
             type="button"
-            onClick={() => router.push(isOnboardingApproval ? "/messages" : "/personal-ministry")}
+            onClick={() => router.push(isOnboardingApproval ? messagesPath : personalMinistryPath)}
             className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-burgundy px-5 py-2.5 text-sm font-semibold text-gold-light hover:bg-burgundy-dark"
           >
             <PhoneOff className="h-4 w-4" />
