@@ -59,6 +59,7 @@ export class RecordingCompositor {
   private mainStream: MediaStream | null = null;
   private captureVideoTrack: MediaStreamTrack | null = null;
   private participants: CompositorParticipant[] = [];
+  private frameTick = 0;
 
   constructor(
     private width = 1280,
@@ -209,6 +210,11 @@ export class RecordingCompositor {
     if (track && "requestFrame" in track) {
       (track as CanvasCaptureMediaStreamTrack).requestFrame();
     }
+
+    // Nudge the canvas so captureStream keeps emitting frames for long recordings.
+    this.frameTick += 1;
+    ctx.fillStyle = this.frameTick % 2 === 0 ? "#010101" : "#020202";
+    ctx.fillRect(canvas.width - 1, canvas.height - 1, 1, 1);
   }
 
   startDrawing() {
@@ -220,8 +226,8 @@ export class RecordingCompositor {
     schedule();
   }
 
-  getStream(fps = 30): MediaStream {
-    const videoStream = this.canvas.captureStream(fps);
+  getStream(): MediaStream {
+    const videoStream = this.canvas.captureStream(0);
     this.captureVideoTrack = videoStream.getVideoTracks()[0] ?? null;
     const composite = new MediaStream();
     for (const track of videoStream.getVideoTracks()) {

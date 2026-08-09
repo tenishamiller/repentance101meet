@@ -392,6 +392,14 @@ export function useLivestream({
     return screenStreamRef.current ?? localStreamRef.current ?? null;
   }, []);
 
+  const needsCompositorLayout = useCallback(() => {
+    if (!memberVideoEnabledRef.current) return false;
+    for (const stream of viewerStreamsRef.current.values()) {
+      if (trackIsActive(stream.getVideoTracks()[0])) return true;
+    }
+    return false;
+  }, []);
+
   const syncCompositorMainStream = useCallback(() => {
     compositorRef.current?.setMainStream(getRecordingMainStream());
   }, [getRecordingMainStream]);
@@ -503,7 +511,13 @@ export function useLivestream({
     if (!videoTrack && audioTracks.length === 0) return null;
 
     const stream = new MediaStream();
-    if (videoTrack) stream.addTrack(videoTrack);
+    if (videoTrack?.readyState === "live") {
+      try {
+        stream.addTrack(videoTrack.clone());
+      } catch {
+        stream.addTrack(videoTrack);
+      }
+    }
     for (const track of audioTracks) {
       stream.addTrack(track);
     }
@@ -524,7 +538,7 @@ export function useLivestream({
 
     let stream: MediaStream | null = null;
 
-    if (useCompositorRecording) {
+    if (useCompositorRecording && needsCompositorLayout()) {
       try {
         const compositor = new RecordingCompositor();
         compositorRef.current = compositor;
@@ -532,8 +546,8 @@ export function useLivestream({
         compositor.setMainStream(getRecordingMainStream());
         compositor.syncHostAndScreenAudio(localStreamRef.current, screenStreamRef.current);
         updateCompositorParticipants();
-        stream = compositor.getStream();
         compositor.startDrawing();
+        stream = compositor.getStream();
         if (stream.getAudioTracks().length === 0) {
           const fallback = buildRecordingStream();
           if (fallback) {
@@ -559,7 +573,13 @@ export function useLivestream({
 
     recordingStreamRef.current = stream;
     return stream;
-  }, [buildRecordingStream, getRecordingMainStream, updateCompositorParticipants, useCompositorRecording]);
+  }, [
+    buildRecordingStream,
+    getRecordingMainStream,
+    needsCompositorLayout,
+    updateCompositorParticipants,
+    useCompositorRecording,
+  ]);
 
   const startRecording = useCallback(async () => {
     broadcastConsumersRef.current.add("recording");
@@ -597,7 +617,12 @@ export function useLivestream({
         }
       };
 
-      recorder.start(2_000);
+      recorder.onerror = () => {
+        setError("Recording was interrupted. Try ending and saving sooner, or use Chrome.");
+      };
+
+      // Chunk every 5s so multi-hour sessions don't exhaust browser memory.
+      recorder.start(5_000);
       recorderRef.current = recorder;
       recordingStartedAtRef.current = Date.now();
       setRecordingElapsedSeconds(0);
