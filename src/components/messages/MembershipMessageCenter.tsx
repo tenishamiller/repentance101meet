@@ -206,7 +206,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
   const shellClass = embedded
     ? "flex min-h-[min(70vh,720px)] flex-col"
-    : "mx-auto flex h-mobile-app max-w-6xl flex-col px-3 py-4 sm:px-4 lg:h-[calc(100vh-80px)]";
+    : "mx-auto flex h-mobile-app min-h-0 max-w-6xl flex-col px-3 py-4 sm:px-4 lg:h-[calc(100vh-80px)]";
 
   const searchLower = memberSearch.trim().toLowerCase();
   const filteredMembers = allMembers.filter((member) => {
@@ -281,7 +281,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
             </div>
 
             <h2 className="mb-2 shrink-0 text-sm font-semibold text-burgundy">Conversations</h2>
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="chat-scroll min-h-0 flex-1">
               {threads.length === 0 ? (
                 <p className="text-sm text-burgundy/60">No conversations yet.</p>
               ) : (
@@ -381,7 +381,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                 </div>
               )}
 
-              <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+              <div ref={scrollRef} className="chat-scroll min-h-0 flex-1 space-y-4 p-4">
                 {messages.length === 0 && (
                   <div className="flex h-full flex-col items-center justify-center py-12 text-center">
                     <MessageCircle className="mb-3 h-10 w-10 text-gold-muted" />

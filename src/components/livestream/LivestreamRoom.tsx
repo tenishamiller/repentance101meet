@@ -33,6 +33,7 @@ import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
 import { RecordingTimer } from "@/components/livestream/RecordingTimer";
 import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
+import { HostPrivateMessagePanel } from "@/components/livestream/HostPrivateMessagePanel";
 import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPopover";
 import {
   getHostGalleryLayout,
@@ -67,6 +68,11 @@ export function LivestreamRoom({
   const [mobileTab, setMobileTab] = useState<"video" | "chat" | "people">("video");
   const [hostGalleryLayout, setHostGalleryLayoutState] = useState<HostGalleryLayout>("sidebar");
   const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
+  const [privateMessageMember, setPrivateMessageMember] = useState<{
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+  } | null>(null);
 
   useEffect(() => {
     setHostGalleryLayoutState(getHostGalleryLayout());
@@ -606,13 +612,28 @@ export function LivestreamRoom({
                       />
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void kickViewer(p.user.id)}
-                    className="ml-2 shrink-0 text-xs text-gold-light/70 hover:text-gold"
-                  >
-                    Remove
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPrivateMessageMember({
+                          id: p.user.id,
+                          name: p.user.name,
+                          avatarUrl: p.user.avatarUrl,
+                        })
+                      }
+                      className="text-xs font-semibold text-gold hover:text-gold-light"
+                    >
+                      Message
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void kickViewer(p.user.id)}
+                      className="text-xs text-gold-light/70 hover:text-gold"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               )}
             />
@@ -632,6 +653,14 @@ export function LivestreamRoom({
 
             <BlockedUsersPanel meetingToken={meetingToken} />
           </div>
+        )}
+
+        {isHost && privateMessageMember && (!isMobile || mobileTab === "people") && (
+          <HostPrivateMessagePanel
+            member={privateMessageMember}
+            hostId={userId}
+            onClose={() => setPrivateMessageMember(null)}
+          />
         )}
 
         {(!isMobile || mobileTab === "chat") && (

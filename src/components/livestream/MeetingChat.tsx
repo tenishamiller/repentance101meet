@@ -236,7 +236,7 @@ export function MeetingChat({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="h-full overflow-y-auto p-4"
+          className="chat-scroll chat-scroll-dark h-full p-4"
         >
         {messages.length === 0 && (
           <p className="text-center text-sm text-gold-light/60">

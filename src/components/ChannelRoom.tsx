@@ -201,7 +201,7 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
   }
 
   return (
-    <div className="mx-auto flex h-mobile-app max-w-5xl flex-col px-2 py-3 sm:px-4 sm:py-6 lg:h-[calc(100vh-80px)]">
+    <div className="mx-auto flex h-mobile-app min-h-0 max-w-5xl flex-col px-2 py-3 sm:px-4 sm:py-6 lg:h-[calc(100vh-80px)]">
       <div className="mb-2 rounded-2xl border border-gold/30 bg-gradient-to-r from-burgundy/5 via-cream to-gold/10 p-3 shadow-sm sm:mb-4 sm:p-5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -239,11 +239,11 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
         </div>
       </div>
 
-      <div className="relative flex-1">
+      <div className="relative min-h-0 flex-1">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="channel-feed card-brand h-full overflow-y-auto p-3 shadow-inner sm:p-6"
+          className="channel-feed card-brand chat-scroll h-full p-3 shadow-inner sm:p-6"
         >
           {loading ? (
             <div className="flex h-full items-center justify-center">

@@ -120,7 +120,7 @@ export function MemberMessagesPopover({ userId }: Props) {
             </button>
           </div>
 
-          <div ref={scrollRef} className="max-h-64 min-h-[8rem] overflow-y-auto px-3 py-3">
+          <div ref={scrollRef} className="chat-scroll max-h-64 min-h-[8rem] px-3 py-3">
             {messages.length === 0 ? (
               <p className="py-6 text-center text-sm text-burgundy/50">
                 No messages yet. Norman may reach out here about membership or ministry.

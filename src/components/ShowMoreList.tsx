@@ -50,7 +50,7 @@ export function ShowMoreList<T>({
       <div
         className={cn(
           listClassName,
-          scrollWhenLong && `${maxHeightClass} overflow-y-auto pr-1`,
+          scrollWhenLong && `${maxHeightClass} chat-scroll pr-1`,
         )}
       >
         {visible.map((item, index) => (
