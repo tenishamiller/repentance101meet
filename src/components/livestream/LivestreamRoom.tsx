@@ -35,11 +35,8 @@ import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { HostPrivateMessagePanel } from "@/components/livestream/HostPrivateMessagePanel";
 import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPopover";
 import {
-  getHostGalleryLayout,
   getMemberVideoLayout,
-  setHostGalleryLayout,
   setMemberVideoLayout,
-  type HostGalleryLayout,
   type MemberVideoLayout,
 } from "@/lib/video-layout";
 import type { GalleryMember } from "@/hooks/useLivestream";
@@ -66,7 +63,6 @@ export function LivestreamRoom({
   const router = useRouter();
   const isMobile = useIsMobile();
   const [mobileTab, setMobileTab] = useState<"video" | "chat" | "people">("video");
-  const [hostGalleryLayout, setHostGalleryLayoutState] = useState<HostGalleryLayout>("sidebar");
   const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
   const [privateMessageMember, setPrivateMessageMember] = useState<{
     id: string;
@@ -76,16 +72,8 @@ export function LivestreamRoom({
   const memberChoseLayoutRef = useRef(false);
 
   useEffect(() => {
-    setHostGalleryLayoutState(getHostGalleryLayout());
     setMemberVideoLayoutState(getMemberVideoLayout());
   }, []);
-
-  useEffect(() => {
-    if (isMobile && isHost) {
-      setHostGalleryLayoutState("bottom");
-      setHostGalleryLayout("bottom");
-    }
-  }, [isMobile, isHost]);
 
   function updateMemberVideoLayout(layout: MemberVideoLayout) {
     memberChoseLayoutRef.current = true;
@@ -143,11 +131,6 @@ export function LivestreamRoom({
     hostId,
     onKicked: () => router.push("/livestream?removed=1"),
   });
-
-  function updateHostGalleryLayout(layout: HostGalleryLayout) {
-    setHostGalleryLayoutState(layout);
-    setHostGalleryLayout(layout);
-  }
 
   const raisedHands = useMemo(
     () => participants.filter((p) => p.handRaised && p.user.id !== hostId),
@@ -269,26 +252,14 @@ export function LivestreamRoom({
                 )}
               </div>
 
-              {hostGalleryLayout === "sidebar" && (
-                <ParticipantGallery
-                  hostTile={hostSelfTile}
-                  members={galleryMembers}
-                  memberVideoEnabled={memberVideoEnabled}
-                  memberMicEnabled={memberMicEnabled}
-                  layout="sidebar"
-                />
-              )}
-            </div>
-
-            {hostGalleryLayout === "bottom" && (
               <ParticipantGallery
                 hostTile={hostSelfTile}
                 members={galleryMembers}
                 memberVideoEnabled={memberVideoEnabled}
                 memberMicEnabled={memberMicEnabled}
-                layout="bottom"
+                layout="sidebar"
               />
-            )}
+            </div>
 
             {/* Host controls */}
             <div className="z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark px-2 py-2.5 sm:px-4 sm:py-3">
@@ -318,11 +289,6 @@ export function LivestreamRoom({
                   onChange={(deviceId) => void switchAudioDevice(deviceId)}
                   onRefresh={() => void refreshMediaInputDevices()}
                   refreshing={isRefreshingDevices}
-                />
-                <VideoLayoutSelect
-                  mode="host"
-                  value={hostGalleryLayout}
-                  onChange={updateHostGalleryLayout}
                 />
                 <button
                   type="button"

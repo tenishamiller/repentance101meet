@@ -20,7 +20,6 @@ import {
   triggerBrowserDownload,
   uploadRecordingBlob,
 } from "@/lib/recording";
-import { getHostGalleryLayout } from "@/lib/video-layout";
 import {
   listAudioInputDevices,
   listVideoInputDevices,

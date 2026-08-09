@@ -5,9 +5,7 @@ const HOST_KEY = "repentance101-host-gallery-layout";
 const MEMBER_KEY = "repentance101-member-video-layout";
 
 export function getHostGalleryLayout(): HostGalleryLayout {
-  if (typeof window === "undefined") return "sidebar";
-  const stored = localStorage.getItem(HOST_KEY);
-  return stored === "bottom" ? "bottom" : "sidebar";
+  return "sidebar";
 }
 
 export function setHostGalleryLayout(layout: HostGalleryLayout) {
