@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { BrandDivider } from "@/components/BrandDivider";
 import { LiveMeetingBanner } from "@/components/livestream/LiveMeetingBanner";
-import { formatRequestDateTime } from "@/lib/utils";
+import { formatRequestDateTime, getChannelPublicDescription } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -134,7 +134,9 @@ export default async function DashboardPage() {
                   {channel.type === "GENERAL" ? "Chat" : "Private"}
                 </span>
               </div>
-              <p className="text-sm text-burgundy/70">{channel.description}</p>
+              <p className="text-sm text-burgundy/70">
+                {getChannelPublicDescription(channel.slug, channel.description)}
+              </p>
 
               {isAdmin || isApproved ? (
                 <Link

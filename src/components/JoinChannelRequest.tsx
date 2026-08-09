@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Channel } from "@/generated/prisma/client";
 import { MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
-import { formatRequestDateTime } from "@/lib/utils";
+import { formatRequestDateTime, getChannelPublicDescription } from "@/lib/utils";
 
 type Props = {
   channel: Channel;
@@ -39,7 +39,9 @@ export function JoinChannelRequest({ channel, membershipStatus, requestedAt }: P
     <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center px-4 py-16 text-center">
       <h1 className="font-serif text-3xl font-bold text-burgundy">{channel.name}</h1>
       <BrandDivider className="my-4 max-w-xs" />
-      <p className="text-burgundy/70">{channel.description}</p>
+      <p className="text-burgundy/70">
+        {getChannelPublicDescription(channel.slug, channel.description)}
+      </p>
 
       {status === "PENDING" ? (
         <div className="mt-8 rounded-xl border border-gold/40 bg-gold/10 px-6 py-4 text-burgundy">

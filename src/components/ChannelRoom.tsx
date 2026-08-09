@@ -12,7 +12,7 @@ import { JoinChannelRequest } from "@/components/JoinChannelRequest";
 import { BrandDivider } from "@/components/BrandDivider";
 import { formatDateSeparator, shouldShowDateSeparator } from "@/lib/channel-messages";
 import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
-import { type Attachment } from "@/lib/utils";
+import { getChannelRoomIntro, type Attachment } from "@/lib/utils";
 
 type Props = {
   channel: Channel;
@@ -191,6 +191,8 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
     fetchMessages();
   }
 
+  const headerBlurb = getChannelRoomIntro(channel.slug) ?? channel.description;
+
   if (accessBlocked) {
     return (
       <JoinChannelRequest
@@ -213,12 +215,12 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
             </h1>
             <BrandDivider className="my-2 hidden max-w-xs lg:block" />
             <p className="hidden max-w-2xl whitespace-pre-line text-xs text-burgundy/70 sm:text-sm lg:block">
-              {channel.description}
+              {headerBlurb}
             </p>
             {headerOpen && (
               <>
                 <BrandDivider className="my-2 max-w-xs lg:hidden" />
-                <p className="whitespace-pre-line text-xs text-burgundy/70 sm:text-sm lg:hidden">{channel.description}</p>
+                <p className="whitespace-pre-line text-xs text-burgundy/70 sm:text-sm lg:hidden">{headerBlurb}</p>
               </>
             )}
           </div>
