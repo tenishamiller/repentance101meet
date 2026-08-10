@@ -23,7 +23,6 @@ import { useAppPath } from "@/hooks/useAppBase";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
-import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
 import { LivestreamHostStage } from "@/components/livestream/room/LivestreamHostStage";
 import { LivestreamMemberStage } from "@/components/livestream/room/LivestreamMemberStage";
@@ -389,7 +388,6 @@ export function LivestreamRoom({
       >
         {isHost && (!isMobile || mobileTab === "people") && (
           <div className="shrink-0 border-b border-gold/20 bg-burgundy p-3 sm:p-4">
-            <MemberJoinLink meetingToken={meetingToken} variant="room" />
             {(thumbsUp > 0 || thumbsDown > 0) && (
               <div className="mb-2 flex gap-2 text-sm">
                 {thumbsUp > 0 && (
