@@ -143,6 +143,8 @@ function LivestreamRoomContent({
     toggleCamera,
     toggleScreenShare,
     mediaError,
+    waitingForHostVideo,
+    waitingForSelfVideo,
   } = useLiveKitStage({
     hostId,
     userId,
@@ -332,6 +334,7 @@ function LivestreamRoomContent({
             <LivestreamMemberStage
               meetingTitle={meetingTitle}
               isLive={isLive}
+              isConnecting={isConnecting}
               isMuted={isMuted}
               isCameraOff={isCameraOff}
               isRemoteCameraOff={isRemoteCameraOff}
@@ -347,6 +350,8 @@ function LivestreamRoomContent({
               hostMainTrack={hostMainTrack}
               hostCameraPipTrack={hostCameraPipTrack}
               localCameraTrack={localCameraTrack}
+              waitingForHostVideo={waitingForHostVideo}
+              waitingForSelfVideo={waitingForSelfVideo}
               raisedHands={raisedHands}
               thumbsUp={thumbsUp}
               thumbsDown={thumbsDown}

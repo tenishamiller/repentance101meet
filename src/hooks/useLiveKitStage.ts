@@ -147,12 +147,32 @@ export function useLiveKitStage({
 
   const remoteParticipant = mode === "private" ? privatePeer : hostParticipant;
   const isRemoteMuted = remoteParticipant ? !remoteParticipant.isMicrophoneEnabled : false;
+
+  const hasHostVideoTrack =
+    !!hostMainTrack?.publication?.track ||
+    !!hostScreenFromRoom?.publication?.track ||
+    !!hostCameraFromRoom?.publication?.track;
+
   const isRemoteCameraOff =
     mode === "private"
-      ? !privatePeerCameraTrack?.publication?.track || !privatePeer?.isCameraEnabled
+      ? !!privatePeer && !privatePeer.isCameraEnabled && !privatePeerCameraTrack?.publication?.track
       : !isHost &&
-        !hostCameraFromRoom?.publication?.track &&
-        !isRemoteScreenSharing;
+        !!hostParticipant &&
+        !hostParticipant.isCameraEnabled &&
+        !isRemoteScreenSharing &&
+        !hasHostVideoTrack;
+
+  const waitingForHostVideo =
+    isLive && !isHost && !hasHostVideoTrack && !isRemoteCameraOff && !isRemoteScreenSharing;
+
+  const hasLocalVideoTrack = !!localCameraTrack?.publication?.track;
+  const waitingForSelfVideo =
+    isLive &&
+    !isHost &&
+    mode === "livestream" &&
+    memberVideoEnabled &&
+    !isCameraOff &&
+    !hasLocalVideoTrack;
 
   const remoteMemberParticipants = useMemo(
     () => remoteParticipants.filter((p) => p.identity !== hostId && p.identity !== userId),
@@ -194,19 +214,36 @@ export function useLiveKitStage({
   }, [refreshMediaInputDevices]);
 
   useEffect(() => {
-    if (!isHost && mode !== "private") return;
     if (connectionState !== ConnectionState.Connected) return;
 
     void (async () => {
       try {
-        await localParticipant.setCameraEnabled(true);
-        await localParticipant.setMicrophoneEnabled(true);
-        setCameraOffByUser(false);
+        if (isHost || mode === "private") {
+          await localParticipant.setCameraEnabled(true);
+          await localParticipant.setMicrophoneEnabled(true);
+          setCameraOffByUser(false);
+          return;
+        }
+
+        if (memberVideoEnabled) {
+          await localParticipant.setCameraEnabled(true);
+          setCameraOffByUser(false);
+        }
+        if (memberMicEnabled) {
+          await localParticipant.setMicrophoneEnabled(true);
+        }
       } catch {
         /* surfaced via lastCameraError */
       }
     })();
-  }, [connectionState, isHost, localParticipant, mode]);
+  }, [
+    connectionState,
+    isHost,
+    localParticipant,
+    memberMicEnabled,
+    memberVideoEnabled,
+    mode,
+  ]);
 
   const toggleMute = useCallback(async () => {
     if (!canUseMic) return;
@@ -282,5 +319,7 @@ export function useLiveKitStage({
     toggleCamera,
     toggleScreenShare,
     mediaError,
+    waitingForHostVideo,
+    waitingForSelfVideo,
   };
 }

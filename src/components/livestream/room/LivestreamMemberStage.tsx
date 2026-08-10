@@ -19,6 +19,7 @@ type HostProfile = {
 type Props = {
   meetingTitle: string;
   isLive: boolean;
+  isConnecting?: boolean;
   isMuted: boolean;
   isCameraOff: boolean;
   isRemoteCameraOff: boolean;
@@ -34,6 +35,8 @@ type Props = {
   hostMainTrack?: TrackReference;
   hostCameraPipTrack?: TrackReference;
   localCameraTrack?: TrackReference;
+  waitingForHostVideo?: boolean;
+  waitingForSelfVideo?: boolean;
   raisedHands: { userId: string; name: string }[];
   thumbsUp: number;
   thumbsDown: number;
@@ -45,6 +48,7 @@ type Props = {
 export function LivestreamMemberStage({
   meetingTitle,
   isLive,
+  isConnecting = false,
   isMuted,
   isCameraOff,
   isRemoteCameraOff,
@@ -60,6 +64,8 @@ export function LivestreamMemberStage({
   hostMainTrack,
   hostCameraPipTrack,
   localCameraTrack,
+  waitingForHostVideo = false,
+  waitingForSelfVideo = false,
   raisedHands,
   thumbsUp,
   thumbsDown,
@@ -121,6 +127,7 @@ export function LivestreamMemberStage({
             name={hostProfile.name}
             avatarUrl={hostProfile.avatarUrl}
             cameraOff={!present && isRemoteCameraOff}
+            waitingForVideo={waitingForHostVideo}
             videoClassName="h-full w-full object-contain"
           />
           <MuteIndicator visible={isRemoteMuted} />
@@ -140,6 +147,7 @@ export function LivestreamMemberStage({
                 name={hostProfile.name}
                 avatarUrl={hostProfile.avatarUrl}
                 cameraOff={isRemoteCameraOff}
+                waitingForVideo={waitingForHostVideo}
                 compact
               />
               <MuteIndicator visible={isRemoteMuted} compact />
@@ -155,6 +163,7 @@ export function LivestreamMemberStage({
                 userName={userName}
                 avatarUrl={avatarUrl}
                 cameraOff={selfCameraOff}
+                waitingForVideo={waitingForSelfVideo}
                 selfMuted={selfMuted}
                 handRaised={handRaised}
                 myReaction={myReaction}
@@ -171,6 +180,7 @@ export function LivestreamMemberStage({
               userName={userName}
               avatarUrl={avatarUrl}
               cameraOff={selfCameraOff}
+              waitingForVideo={waitingForSelfVideo}
               selfMuted={selfMuted}
               handRaised={handRaised}
               myReaction={myReaction}
@@ -185,6 +195,7 @@ export function LivestreamMemberStage({
               userName={userName}
               avatarUrl={avatarUrl}
               cameraOff={selfCameraOff}
+              waitingForVideo={waitingForSelfVideo}
               selfMuted={selfMuted}
               handRaised={handRaised}
               myReaction={myReaction}
@@ -196,8 +207,12 @@ export function LivestreamMemberStage({
         {!isLive && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
             <Radio className="h-10 w-10 animate-pulse text-gold" />
-            <p className="font-serif text-lg font-semibold text-cream">Connecting to live stream...</p>
-            <p className="text-sm text-gold-light/70">Waiting for host video</p>
+            <p className="font-serif text-lg font-semibold text-cream">
+              {isConnecting ? "Connecting to live stream..." : "Waiting for host video"}
+            </p>
+            <p className="text-sm text-gold-light/70">
+              {isConnecting ? "Joining the video room" : "The host has not started video yet"}
+            </p>
           </div>
         )}
 
@@ -217,6 +232,7 @@ function MemberSelfTile({
   userName,
   avatarUrl,
   cameraOff,
+  waitingForVideo = false,
   selfMuted,
   handRaised,
   myReaction,
@@ -229,6 +245,7 @@ function MemberSelfTile({
   userName: string;
   avatarUrl?: string | null;
   cameraOff: boolean;
+  waitingForVideo?: boolean;
   selfMuted: boolean;
   handRaised: boolean;
   myReaction: string | null;
@@ -250,6 +267,7 @@ function MemberSelfTile({
         name={userName}
         avatarUrl={avatarUrl}
         cameraOff={cameraOff}
+        waitingForVideo={waitingForVideo}
         compact={pip || compact}
       />
       <ParticipantSignalBadges handRaised={handRaised} reaction={myReaction} />
