@@ -124,6 +124,7 @@ model MembershipMessage {
   threadUserId String
   senderId     String
   content      String                @db.Text
+  attachments  Json?
   type         MembershipMessageType @default(TEXT)
   meetingId    String?
   readAt       DateTime?

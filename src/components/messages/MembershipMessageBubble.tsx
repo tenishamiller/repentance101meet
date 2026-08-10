@@ -3,14 +3,16 @@
 import { Pencil, Trash2, Video } from "lucide-react";
 import Link from "next/link";
 import { UserAvatar } from "@/components/UserAvatar";
+import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { useAppPath } from "@/hooks/useAppBase";
 import { isMessageEdited, getEditTimeRemaining } from "@/lib/channel-messages";
-import { canEditMessage, cn } from "@/lib/utils";
+import { canEditMessage, cn, type Attachment } from "@/lib/utils";
 import { formatRequestDateTime } from "@/lib/utils";
 
 export type MembershipMessageData = {
   id: string;
   content: string;
+  attachments: Attachment[] | null;
   type: "TEXT" | "ONBOARDING_INVITE" | "SYSTEM";
   createdAt: string;
   updatedAt: string;
@@ -110,7 +112,14 @@ export function MembershipMessageBubble({
               </div>
             </div>
           ) : (
-            <p className="whitespace-pre-wrap text-sm text-burgundy/90">{message.content}</p>
+            <>
+              {message.content.trim() && (
+                <p className="whitespace-pre-wrap text-sm text-burgundy/90">{message.content}</p>
+              )}
+              {message.attachments && message.attachments.length > 0 && (
+                <MessageAttachments attachments={message.attachments} />
+              )}
+            </>
           )}
 
           {message.meeting && (

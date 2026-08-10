@@ -160,9 +160,16 @@ export async function GET(request: NextRequest) {
   });
 }
 
+const attachmentSchema = z.object({
+  type: z.enum(["image", "video", "audio", "file", "link"]),
+  url: z.string().url(),
+  name: z.string().optional(),
+});
+
 const postSchema = z.object({
-  content: z.string().trim().min(1).max(2000),
+  content: z.string().trim().max(2000).optional(),
   threadUserId: z.string().optional(),
+  attachments: z.array(attachmentSchema).max(5).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -207,12 +214,19 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Member not found" }, { status: 404 });
   }
 
+  const trimmedContent = body.content?.trim() ?? "";
+  const attachments = body.attachments ?? [];
+  if (!trimmedContent && attachments.length === 0) {
+    return Response.json({ error: "Message cannot be empty" }, { status: 400 });
+  }
+
   const message = await prisma.membershipMessage.create({
     data: {
       threadUserId: targetThreadUserId,
       senderId: session.user.id,
       type: "TEXT",
-      content: body.content,
+      content: trimmedContent,
+      attachments: attachments.length > 0 ? attachments : undefined,
     },
     include: messageInclude,
   });
@@ -223,6 +237,7 @@ export async function POST(request: NextRequest) {
 function serializeMessage(message: {
   id: string;
   content: string;
+  attachments: unknown;
   type: string;
   createdAt: Date;
   updatedAt: Date;
@@ -238,6 +253,7 @@ function serializeMessage(message: {
 }) {
   return {
     ...message,
+    attachments: Array.isArray(message.attachments) ? message.attachments : null,
     createdAt: message.createdAt.toISOString(),
     updatedAt: message.updatedAt.toISOString(),
     editedAt: message.editedAt?.toISOString() ?? null,

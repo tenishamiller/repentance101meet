@@ -73,6 +73,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 function serializeMessage(message: {
   id: string;
   content: string;
+  attachments: unknown;
   type: string;
   createdAt: Date;
   updatedAt: Date;
@@ -88,6 +89,7 @@ function serializeMessage(message: {
 }) {
   return {
     ...message,
+    attachments: Array.isArray(message.attachments) ? message.attachments : null,
     createdAt: message.createdAt.toISOString(),
     updatedAt: message.updatedAt.toISOString(),
     editedAt: message.editedAt?.toISOString() ?? null,

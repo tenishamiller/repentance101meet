@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { MessageCircle, SendHorizontal } from "lucide-react";
+import { MessageCircle, Paperclip, SendHorizontal } from "lucide-react";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
 import { MINISTRY_LEADER } from "@/lib/brand";
-import { formatRequestDateTime } from "@/lib/utils";
+import { formatRequestDateTime, type Attachment } from "@/lib/utils";
 import { scrollContainerToBottom } from "@/lib/chat-scroll";
 import { useAppBase } from "@/hooks/useAppBase";
 import {
@@ -60,8 +60,11 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [actionError, setActionError] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const fetchSeqRef = useRef(0);
 
   const threadUserId = isAdmin ? selectedUserId : session?.user?.id;
@@ -143,15 +146,65 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     if (node) scrollContainerToBottom(node);
   }, [messages]);
 
+  async function uploadFile(file: File): Promise<Attachment | null> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: form });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setUploadError(typeof data.error === "string" ? data.error : "Could not upload file.");
+      return null;
+    }
+    const data = await res.json();
+    const type = file.type.startsWith("image/")
+      ? "image"
+      : file.type.startsWith("video/")
+        ? "video"
+        : file.type.startsWith("audio/")
+          ? "audio"
+          : "file";
+    return { type, url: data.url, name: file.name };
+  }
+
+  function handleFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files ? Array.from(event.target.files) : [];
+    if (files.length === 0) return;
+    setUploadError("");
+    setPendingFiles((current) => [...current, ...files].slice(0, 5));
+    event.target.value = "";
+  }
+
+  function clearPendingFiles() {
+    setPendingFiles([]);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
-    if (!content.trim() || !threadUserId) return;
+    if ((!content.trim() && pendingFiles.length === 0) || !threadUserId) return;
     setSending(true);
     setActionError("");
+    setUploadError("");
+
+    const attachments: Attachment[] = [];
+    for (const file of pendingFiles) {
+      const attachment = await uploadFile(file);
+      if (attachment) attachments.push(attachment);
+    }
+
+    if (!content.trim() && attachments.length === 0) {
+      setSending(false);
+      return;
+    }
+
     const res = await fetch("/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: content.trim(), threadUserId }),
+      body: JSON.stringify({
+        content: content.trim(),
+        threadUserId,
+        attachments: attachments.length > 0 ? attachments : undefined,
+      }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -160,6 +213,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       return;
     }
     setContent("");
+    clearPendingFiles();
     setSending(false);
     void fetchInbox();
   }
@@ -338,7 +392,9 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                           <span className="block truncate text-xs opacity-70">{thread.email}</span>
                           {thread.lastMessage && (
                             <span className="mt-0.5 block truncate text-[11px] opacity-60">
-                              {thread.lastMessage.content.slice(0, 60)}
+                              {thread.lastMessage.content.trim()
+                                ? thread.lastMessage.content.slice(0, 60)
+                                : "📎 Attachment"}
                             </span>
                           )}
                         </span>
@@ -458,7 +514,45 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                 )}
 
               <form onSubmit={sendMessage} className="shrink-0 border-t border-gold/20 p-3">
+                {uploadError && (
+                  <p className="mb-2 text-xs text-burgundy">{uploadError}</p>
+                )}
+                {pendingFiles.length > 0 && (
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    {pendingFiles.map((file) => (
+                      <span
+                        key={`${file.name}-${file.size}-${file.lastModified}`}
+                        className="rounded-full border border-gold/30 bg-cream-dark px-2.5 py-1 text-xs text-burgundy/80"
+                      >
+                        📎 {file.name}
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={clearPendingFiles}
+                      className="text-xs text-burgundy/60 hover:text-burgundy"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip"
+                  className="hidden"
+                  id="membership-message-file"
+                  onChange={handleFilesSelected}
+                />
                 <div className="flex gap-2">
+                  <label
+                    htmlFor="membership-message-file"
+                    className="flex shrink-0 cursor-pointer items-center rounded-lg border border-gold/30 bg-cream-dark px-3 py-2 text-burgundy hover:bg-gold/10"
+                    title="Attach file (max 10 MB)"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </label>
                   <input
                     type="text"
                     value={content}
@@ -469,7 +563,11 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                   />
                   <button
                     type="submit"
-                    disabled={sending || !content.trim() || (isAdmin && !selectedUserId)}
+                    disabled={
+                      sending ||
+                      (!content.trim() && pendingFiles.length === 0) ||
+                      (isAdmin && !selectedUserId)
+                    }
                     className="btn-primary flex shrink-0 items-center gap-2 !px-4 disabled:opacity-50"
                   >
                     <SendHorizontal className="h-4 w-4" />
