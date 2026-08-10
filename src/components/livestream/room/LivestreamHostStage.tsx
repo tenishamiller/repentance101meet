@@ -22,6 +22,7 @@ type Props = {
   meetingTitle: string;
   viewerCount: number;
   isLive: boolean;
+  isConnecting?: boolean;
   isScreenSharing: boolean;
   isCameraOff: boolean;
   isMuted: boolean;
@@ -46,6 +47,7 @@ export function LivestreamHostStage({
   meetingTitle,
   viewerCount,
   isLive,
+  isConnecting = false,
   isScreenSharing,
   isCameraOff,
   isMuted,
@@ -123,7 +125,9 @@ export function LivestreamHostStage({
           <MuteIndicator visible={isMuted} />
           {!isLive && !error && (
             <div className="absolute inset-0 flex items-center justify-center bg-burgundy-deep/90">
-              <p className="font-serif text-gold-light">Connecting video…</p>
+              <p className="font-serif text-gold-light">
+                {isConnecting ? "Connecting video…" : "Waiting for video connection…"}
+              </p>
             </div>
           )}
           <LivestreamAudienceSignals

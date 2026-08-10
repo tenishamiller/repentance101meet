@@ -1,4 +1,6 @@
-import { AccessToken } from "livekit-server-sdk";
+import "server-only";
+
+import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 
 export type LiveKitConfig = {
   url: string;
@@ -15,7 +17,18 @@ export function getLiveKitConfig(): LiveKitConfig | null {
 }
 
 export function getPublicLiveKitUrl() {
-  return process.env.NEXT_PUBLIC_LIVEKIT_URL?.trim() || process.env.LIVEKIT_URL?.trim() || "";
+  return (
+    process.env.NEXT_PUBLIC_LIVEKIT_URL?.trim() ||
+    process.env.LIVEKIT_URL?.trim() ||
+    ""
+  );
+}
+
+/** Throws when LiveKit project credentials are rejected by the cloud API. */
+export async function assertLiveKitCredentials(config: LiveKitConfig) {
+  const host = config.url.replace(/^wss:\/\//, "https://");
+  const client = new RoomServiceClient(host, config.apiKey, config.apiSecret);
+  await client.listRooms();
 }
 
 export function liveKitRoomName(

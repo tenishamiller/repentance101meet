@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { clearKickSignalsForUser } from "@/lib/meeting-blocks";
 import {
+  assertLiveKitCredentials,
   createLiveKitAccessToken,
   getLiveKitConfig,
   getPublicLiveKitUrl,
@@ -20,6 +21,21 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const serverUrl = getPublicLiveKitUrl();
   if (!config || !serverUrl) {
     return Response.json({ error: "LiveKit is not configured" }, { status: 503 });
+  }
+
+  try {
+    await assertLiveKitCredentials(config);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "LiveKit credentials rejected";
+    console.error("LiveKit credential check failed:", message);
+    return Response.json(
+      {
+        error:
+          "Video server credentials are invalid. Update LIVEKIT_API_KEY and LIVEKIT_API_SECRET in Vercel from your LiveKit Cloud project settings.",
+        detail: message,
+      },
+      { status: 503 },
+    );
   }
 
   const { token } = await params;

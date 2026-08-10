@@ -49,6 +49,7 @@ export function useLiveKitStage({
   const [isRefreshingDevices, setIsRefreshingDevices] = useState(false);
 
   const isLive = connectionState === ConnectionState.Connected;
+  const isConnecting = connectionState === ConnectionState.Connecting;
 
   const localCameraTracks = useParticipantTracks([Track.Source.Camera], {
     participantIdentity: localParticipant.identity,
@@ -152,6 +153,14 @@ export function useLiveKitStage({
     void refreshMediaInputDevices();
   }, [refreshMediaInputDevices]);
 
+  useEffect(() => {
+    if (!isHost && mode !== "private") return;
+    if (connectionState !== ConnectionState.Connected) return;
+    void localParticipant.setCameraEnabled(true);
+    void localParticipant.setMicrophoneEnabled(true);
+    setCameraOffByUser(false);
+  }, [connectionState, isHost, localParticipant, mode]);
+
   const toggleMute = useCallback(async () => {
     if (!canUseMic) return;
     await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
@@ -201,6 +210,7 @@ export function useLiveKitStage({
 
   return {
     isLive,
+    isConnecting,
     isMuted,
     isCameraOff,
     isRemoteMuted,

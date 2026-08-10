@@ -118,6 +118,7 @@ function LivestreamRoomContent({
 
   const {
     isLive,
+    isConnecting,
     isMuted,
     isCameraOff,
     isRemoteCameraOff,
@@ -224,6 +225,7 @@ function LivestreamRoomContent({
               meetingTitle={meetingTitle}
               viewerCount={viewerCount}
               isLive={isLive}
+              isConnecting={isConnecting}
               isScreenSharing={isScreenSharing}
               isCameraOff={isCameraOff}
               isMuted={isMuted}
