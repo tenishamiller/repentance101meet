@@ -132,8 +132,8 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
                 ) : s.status === "SCHEDULED" ? (
                   <span className="text-burgundy/70">
                     {isAdmin
-                      ? "Scheduled — click Start when ready"
-                      : "Waiting for the host to start"}
+                      ? "Scheduled — enter to start the session"
+                      : "Waiting for the host to enter"}
                   </span>
                 ) : (
                   <span className="text-burgundy/50">Ended</span>
@@ -143,38 +143,31 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {isAdmin && s.status === "SCHEDULED" && (
-              <button
-                type="button"
-                onClick={() => void sessionAction(s.id, "start")}
-                className="btn-primary !px-4 !py-2 text-sm"
-              >
-                Start Session
-              </button>
-            )}
-            {isAdmin && s.status === "LIVE" && (
+            {isAdmin && (s.status === "SCHEDULED" || s.status === "LIVE") && (
               <>
                 <Link
                   href={`/personal-ministry/${s.linkToken}`}
-                  className="btn-burgundy !px-4 !py-2 text-sm"
+                  className="btn-primary !px-4 !py-2 text-sm"
                 >
-                  Enter as Host
+                  {s.status === "SCHEDULED" ? "Start & Enter" : "Enter as Host"}
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => void sessionAction(s.id, "end")}
-                  className="rounded-lg border border-burgundy/30 bg-burgundy/10 px-4 py-2 text-sm font-medium text-burgundy hover:bg-burgundy/20"
-                >
-                  End Session
-                </button>
+                {s.status === "LIVE" && (
+                  <button
+                    type="button"
+                    onClick={() => void sessionAction(s.id, "end")}
+                    className="rounded-lg border border-burgundy/30 bg-burgundy/10 px-4 py-2 text-sm font-medium text-burgundy hover:bg-burgundy/20"
+                  >
+                    End Session
+                  </button>
+                )}
               </>
             )}
-            {!isAdmin && s.status === "LIVE" && (
+            {!isAdmin && (s.status === "SCHEDULED" || s.status === "LIVE") && (
               <Link
                 href={`/personal-ministry/${s.linkToken}`}
                 className="btn-primary !px-4 !py-2 text-sm"
               >
-                Join Private Session
+                {s.status === "LIVE" ? "Join Private Session" : "Open Session"}
               </Link>
             )}
             {s.status !== "LIVE" && (
@@ -278,7 +271,8 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
               <p className="text-sm font-semibold text-burgundy">Session created</p>
               <p className="mt-1 break-all text-sm text-burgundy/70">{lastJoinUrl}</p>
               <p className="mt-2 text-xs text-burgundy/60">
-                Start the session below, then the member can join from this page.
+                Enter as host below to start — the member can open their link and will join when
+                you&apos;re in.
               </p>
             </div>
           )}

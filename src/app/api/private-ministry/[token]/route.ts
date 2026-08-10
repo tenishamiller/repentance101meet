@@ -52,9 +52,22 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return Response.json({ error: "This session has ended" }, { status: 403 });
   }
 
+  // Host entering the room starts the session (same as livestream),
+  // so members are not stuck waiting while the host is already inside.
+  if (isHost && privateSession.status === "SCHEDULED") {
+    await prisma.meeting.update({
+      where: { id: privateSession.id },
+      data: { status: "LIVE", startedAt: new Date() },
+    });
+    privateSession.status = "LIVE";
+  }
+
   if (privateSession.status !== "LIVE" && !isHost) {
     return Response.json(
-      { error: "The host has not started this session yet — check back soon" },
+      {
+        error: "The host has not started this session yet — check back soon",
+        code: "HOST_NOT_STARTED",
+      },
       { status: 403 },
     );
   }
