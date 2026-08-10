@@ -38,7 +38,7 @@ type Props = {
   myReaction: string | null;
 };
 
-/** Member stage — video elements stay mounted so WebRTC bindings are not lost. */
+/** Member stage — host is primary; member self-view is a small PiP unless host is presenting. */
 export function LivestreamMemberStage({
   meetingTitle,
   isLive,
@@ -65,133 +65,191 @@ export function LivestreamMemberStage({
   const present = isRemoteScreenSharing;
   const selfMuted = isMuted || !memberMicEnabled;
 
+  const statusParts = [
+    isLive ? "Live meeting" : "Connecting",
+    selfMuted ? "muted" : null,
+    isCameraOff ? "camera off" : null,
+    !memberMicEnabled ? "mics off by host" : null,
+    !memberVideoEnabled ? "cameras off by host" : null,
+  ].filter(Boolean);
+
   return (
-    <div
-      className={`relative flex min-h-0 flex-1 overflow-hidden bg-black ${
-        present ? "flex-row" : "flex-col sm:grid sm:grid-cols-2"
-      }`}
-    >
-      {/* Host main — screen when presenting, otherwise host camera */}
-      <div
-        className={`relative min-h-0 min-w-0 bg-black ${
-          present ? "flex-1" : "border-b border-gold/20 sm:border-b-0 sm:border-r"
-        }`}
-      >
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className={`h-full w-full object-contain ${!present && isRemoteCameraOff ? "hidden" : ""}`}
-        />
-        {!present && isRemoteCameraOff && (
-          <CameraOffOverlay
-            userId={hostProfile.userId}
-            name={hostProfile.name}
-            avatarUrl={hostProfile.avatarUrl}
-          />
-        )}
-        <MuteIndicator visible={isRemoteMuted} />
+    <>
+      <div className="shrink-0 border-b border-gold/30 bg-burgundy px-3 py-2 sm:px-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate font-serif text-sm font-semibold text-cream sm:text-base">
+              {meetingTitle}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-gold-light/80">{statusParts.join(" · ")}</p>
+          </div>
+          {isLive && (
+            <div className="badge-live shrink-0">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
+              </span>
+              LIVE
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Right rail when presenting, or member tile in split mode */}
       <div
-        className={
-          present
-            ? "flex w-36 shrink-0 flex-col border-l border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52"
-            : "relative min-h-0"
-        }
+        className={`relative flex min-h-0 flex-1 overflow-hidden bg-black ${
+          present ? "flex-row" : ""
+        }`}
       >
-        {/* Host camera PiP — only visible during screen share */}
-        <div
-          className={
-            present
-              ? "relative aspect-video shrink-0 border-b border-gold/10"
-              : "hidden"
-          }
-        >
+        {/* Host main — screen when presenting, otherwise full-stage host camera */}
+        <div className={`relative min-h-0 min-w-0 bg-black ${present ? "flex-1" : "absolute inset-0"}`}>
           <video
-            ref={remoteHostCameraVideoRef}
+            ref={remoteVideoRef}
             autoPlay
             playsInline
-            className={`h-full w-full object-cover ${isRemoteCameraOff ? "hidden" : ""}`}
+            className={`h-full w-full object-contain ${!present && isRemoteCameraOff ? "hidden" : ""}`}
           />
-          {isRemoteCameraOff && (
+          {!present && isRemoteCameraOff && (
             <CameraOffOverlay
               userId={hostProfile.userId}
               name={hostProfile.name}
               avatarUrl={hostProfile.avatarUrl}
-              compact
             />
           )}
-          <MuteIndicator visible={isRemoteMuted} compact />
-          <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
-            Host
-          </p>
-        </div>
-
-        {/* Member self */}
-        <div className={present ? "relative min-h-0 flex-1" : "relative h-full min-h-[12rem]"}>
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
-          />
-          {isCameraOff && (
-            <CameraOffOverlay
-              userId={userId}
-              name={userName}
-              avatarUrl={avatarUrl}
-              compact={present}
-            />
-          )}
-          <ParticipantSignalBadges handRaised={handRaised} reaction={myReaction} />
-          <MuteIndicator visible={selfMuted} compact={present} />
-          {present && (
-            <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
-              You
+          <MuteIndicator visible={isRemoteMuted} />
+          {!present && (
+            <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
+              {hostProfile.name}
             </p>
           )}
         </div>
-      </div>
 
-      {!isLive && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
-          <Radio className="h-10 w-10 animate-pulse text-gold" />
-          <p className="font-serif text-lg font-semibold text-cream">Connecting to live stream...</p>
-          <p className="text-sm text-gold-light/70">Waiting for host video</p>
-        </div>
-      )}
+        {present ? (
+          /* Screen share: host camera + member self in right rail */
+          <div className="flex w-36 shrink-0 flex-col border-l border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
+            <div className="relative aspect-video shrink-0 border-b border-gold/10">
+              <video
+                ref={remoteHostCameraVideoRef}
+                autoPlay
+                playsInline
+                className={`h-full w-full object-cover ${isRemoteCameraOff ? "hidden" : ""}`}
+              />
+              {isRemoteCameraOff && (
+                <CameraOffOverlay
+                  userId={hostProfile.userId}
+                  name={hostProfile.name}
+                  avatarUrl={hostProfile.avatarUrl}
+                  compact
+                />
+              )}
+              <MuteIndicator visible={isRemoteMuted} compact />
+              <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
+                Host
+              </p>
+            </div>
 
-      {isLive && (
-        <div className="pointer-events-none absolute left-4 top-4 z-10">
-          <div className="badge-live">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
-            </span>
-            LIVE
+            <div className="relative min-h-0 flex-1">
+              <MemberSelfTile
+                localVideoRef={localVideoRef}
+                userId={userId}
+                userName={userName}
+                avatarUrl={avatarUrl}
+                isCameraOff={isCameraOff}
+                selfMuted={selfMuted}
+                handRaised={handRaised}
+                myReaction={myReaction}
+                compact
+                showYouLabel
+              />
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          /* Default: small PiP for member self */
+          <div className="pointer-events-none absolute bottom-3 right-3 z-10 sm:bottom-4 sm:right-4">
+            <MemberSelfTile
+              localVideoRef={localVideoRef}
+              userId={userId}
+              userName={userName}
+              avatarUrl={avatarUrl}
+              isCameraOff={isCameraOff}
+              selfMuted={selfMuted}
+              handRaised={handRaised}
+              myReaction={myReaction}
+              pip
+            />
+          </div>
+        )}
 
-      <LivestreamAudienceSignals
-        raisedHands={raisedHands}
-        thumbsUp={thumbsUp}
-        thumbsDown={thumbsDown}
-      />
+        {!isLive && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
+            <Radio className="h-10 w-10 animate-pulse text-gold" />
+            <p className="font-serif text-lg font-semibold text-cream">Connecting to live stream...</p>
+            <p className="text-sm text-gold-light/70">Waiting for host video</p>
+          </div>
+        )}
 
-      <div className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-xl border border-gold/30 bg-burgundy-dark/80 px-4 py-2 backdrop-blur">
-        <p className="font-serif text-sm font-semibold text-cream">{meetingTitle}</p>
-        <p className="text-xs text-gold-light/80">
-          Live meeting
-          {selfMuted ? " · muted" : ""}
-          {isCameraOff ? " · camera off" : ""}
-          {!memberMicEnabled ? " · mics off by host" : ""}
-          {!memberVideoEnabled ? " · cameras off by host" : ""}
-        </p>
+        <LivestreamAudienceSignals
+          raisedHands={raisedHands}
+          thumbsUp={thumbsUp}
+          thumbsDown={thumbsDown}
+        />
       </div>
+    </>
+  );
+}
+
+function MemberSelfTile({
+  localVideoRef,
+  userId,
+  userName,
+  avatarUrl,
+  isCameraOff,
+  selfMuted,
+  handRaised,
+  myReaction,
+  pip = false,
+  compact = false,
+  showYouLabel = false,
+}: {
+  localVideoRef: React.RefObject<HTMLVideoElement | null>;
+  userId: string;
+  userName: string;
+  avatarUrl?: string | null;
+  isCameraOff: boolean;
+  selfMuted: boolean;
+  handRaised: boolean;
+  myReaction: string | null;
+  pip?: boolean;
+  compact?: boolean;
+  showYouLabel?: boolean;
+}) {
+  return (
+    <div
+      className={
+        pip
+          ? "h-24 w-36 overflow-hidden rounded-xl border-2 border-gold/50 bg-black shadow-2xl sm:h-32 sm:w-48 md:h-36 md:w-52"
+          : "relative h-full min-h-0 w-full"
+      }
+    >
+      <video
+        ref={localVideoRef}
+        autoPlay
+        playsInline
+        muted
+        className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
+      />
+      {isCameraOff && (
+        <CameraOffOverlay
+          userId={userId}
+          name={userName}
+          avatarUrl={avatarUrl}
+          compact={pip || compact}
+        />
+      )}
+      <ParticipantSignalBadges handRaised={handRaised} reaction={myReaction} />
+      <MuteIndicator visible={selfMuted} compact={pip || compact} />
+      {(pip || showYouLabel) && (
+        <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">You</p>
+      )}
     </div>
   );
 }

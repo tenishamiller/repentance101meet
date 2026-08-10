@@ -80,3 +80,41 @@ export function isScreenShareTrack(track: MediaStreamTrack): boolean {
   const label = track.label.toLowerCase();
   return /screen|window|display|monitor|tab|capture|share/.test(label);
 }
+
+export function liveMediaStreamTracks(tracks: MediaStreamTrack[]) {
+  return tracks.filter((track) => track.readyState === "live");
+}
+
+function isCameraVideoTrack(track: MediaStreamTrack) {
+  if (track.kind !== "video") return false;
+  const facingMode = track.getSettings().facingMode;
+  if (facingMode === "user" || facingMode === "environment") return true;
+  return /camera|webcam|facetime|integrated|usb.*cam|uvc/i.test(track.label);
+}
+
+/** Split incoming host video tracks into screen + camera for member layout. */
+export function partitionRemoteVideoTracks(
+  tracks: MediaStreamTrack[],
+  hostIsScreenSharing: boolean,
+) {
+  const videoTracks = liveMediaStreamTracks(tracks.filter((track) => track.kind === "video"));
+  let screen = videoTracks.find((track) => isScreenShareTrack(track)) ?? null;
+  let camera =
+    videoTracks.find((track) => track !== screen && isCameraVideoTrack(track)) ??
+    videoTracks.find((track) => track !== screen && !isScreenShareTrack(track)) ??
+    null;
+
+  if (hostIsScreenSharing && videoTracks.length >= 2) {
+    if (!screen) {
+      screen = videoTracks.find((track) => track !== camera) ?? videoTracks[0] ?? null;
+    }
+    if (!camera) {
+      camera = videoTracks.find((track) => track !== screen) ?? null;
+    }
+  } else if (!hostIsScreenSharing) {
+    screen = null;
+    camera = videoTracks.find((track) => isCameraVideoTrack(track)) ?? videoTracks[0] ?? null;
+  }
+
+  return { screen, camera, videoTracks };
+}

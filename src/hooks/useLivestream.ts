@@ -6,6 +6,7 @@ import {
   bindStreamToVideo,
   clearPeerConnection,
   isScreenShareTrack,
+  partitionRemoteVideoTracks,
   setRemoteDescriptionSafe,
 } from "@/lib/media-video";
 import {
@@ -126,6 +127,9 @@ export function useLivestream({
   onMeetingEndedRef.current = onMeetingEnded;
 
   const viewerAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const hostPcRef = useRef<RTCPeerConnection | null>(null);
+  const hostScreenSharingRef = useRef(false);
+  const bindRemoteMediaRef = useRef<() => void>(() => {});
 
   const refreshMediaInputDevices = useCallback(async () => {
     setIsRefreshingDevices(true);
@@ -330,92 +334,96 @@ export function useLivestream({
     [],
   );
 
-  const attachRemoteStream = useCallback((stream: MediaStream) => {
-    remoteStreamRef.current = stream;
-    setRemoteStream(stream);
+  const bindRemoteMedia = useCallback(() => {
+    const pc = hostPcRef.current;
+    let stream = remoteStreamRef.current ?? new MediaStream();
 
-    const videoTracks = stream.getVideoTracks();
-    const screenTrack = videoTracks.find((track) => isScreenShareTrack(track));
-    const cameraTrack = videoTracks.find((track) => !isScreenShareTrack(track));
-
-    const refreshRemoteMedia = () => {
-      const stream = remoteStreamRef.current;
-      const audioTrack = stream?.getAudioTracks()[0];
-      setIsRemoteMuted(!trackIsActive(audioTrack));
-
-      const tracks = stream?.getVideoTracks() ?? [];
-      const screen = tracks.find((track) => isScreenShareTrack(track));
-      const camera = tracks.find((track) => !isScreenShareTrack(track));
-
-      if (screen) {
-        setIsRemoteScreenSharing(true);
-        void bindStreamToVideo(remoteVideoRef.current, new MediaStream([screen]));
-        if (camera) {
-          void bindStreamToVideo(
-            remoteHostCameraVideoRef.current,
-            new MediaStream([camera]),
-          );
-          setIsRemoteCameraOff(!trackIsActive(camera));
-        } else {
-          void bindStreamToVideo(remoteHostCameraVideoRef.current, null);
-          setIsRemoteCameraOff(true);
+    if (pc) {
+      for (const receiver of pc.getReceivers()) {
+        const track = receiver.track;
+        if (!track || track.readyState === "ended") continue;
+        if (!stream.getTracks().some((existing) => existing.id === track.id)) {
+          stream.addTrack(track);
         }
-      } else {
-        setIsRemoteScreenSharing(false);
-        void bindStreamToVideo(remoteHostCameraVideoRef.current, null);
-        void bindStreamToVideo(remoteVideoRef.current, remoteStreamRef.current);
-        const primary = tracks[0];
-        setIsRemoteCameraOff(!trackIsActive(primary));
       }
-    };
 
-    refreshRemoteMedia();
-    for (const track of stream.getTracks()) {
-      track.onmute = refreshRemoteMedia;
-      track.onunmute = refreshRemoteMedia;
-      track.onended = refreshRemoteMedia;
+      for (const track of [...stream.getTracks()]) {
+        const stillPresent = pc.getReceivers().some((receiver) => receiver.track?.id === track.id);
+        if (!stillPresent || track.readyState === "ended") {
+          stream.removeTrack(track);
+        }
+      }
+    }
+
+    remoteStreamRef.current = stream;
+    setRemoteStream(new MediaStream(stream.getTracks()));
+
+    const audioTrack = stream.getAudioTracks().find((track) => track.readyState === "live");
+    setIsRemoteMuted(!trackIsActive(audioTrack));
+
+    const receiverTracks = pc
+      ? pc
+          .getReceivers()
+          .map((receiver) => receiver.track)
+          .filter((track): track is MediaStreamTrack => !!track && track.readyState === "live")
+      : stream.getTracks().filter((track) => track.readyState === "live");
+
+    const { screen, camera } = partitionRemoteVideoTracks(
+      receiverTracks,
+      hostScreenSharingRef.current,
+    );
+
+    if (screen && hostScreenSharingRef.current) {
+      setIsRemoteScreenSharing(true);
+      void bindStreamToVideo(remoteVideoRef.current, new MediaStream([screen]));
+      if (camera) {
+        void bindStreamToVideo(remoteHostCameraVideoRef.current, new MediaStream([camera]));
+        setIsRemoteCameraOff(!trackIsActive(camera));
+      } else {
+        void bindStreamToVideo(remoteHostCameraVideoRef.current, null);
+        setIsRemoteCameraOff(true);
+      }
+    } else {
+      setIsRemoteScreenSharing(false);
+      void bindStreamToVideo(remoteHostCameraVideoRef.current, null);
+      const primary = camera ?? receiverTracks.find((track) => track.kind === "video") ?? null;
+      if (primary) {
+        void bindStreamToVideo(remoteVideoRef.current, new MediaStream([primary]));
+        setIsRemoteCameraOff(!trackIsActive(primary));
+      } else {
+        void bindStreamToVideo(
+          remoteVideoRef.current,
+          stream.getVideoTracks().some((track) => track.readyState === "live") ? stream : null,
+        );
+        setIsRemoteCameraOff(true);
+      }
+    }
+
+    for (const track of receiverTracks) {
+      track.onended = () => bindRemoteMediaRef.current();
+      track.onmute = () => bindRemoteMediaRef.current();
+      track.onunmute = () => bindRemoteMediaRef.current();
     }
 
     setIsLive(true);
   }, []);
 
+  bindRemoteMediaRef.current = bindRemoteMedia;
+
   const refreshRemoteStreamFromReceivers = useCallback(
     (hostPc: RTCPeerConnection) => {
-      const stream = remoteStreamRef.current ?? new MediaStream();
-      let changed = false;
-
-      for (const receiver of hostPc.getReceivers()) {
-        const track = receiver.track;
-        if (!track) continue;
-
-        if (track.kind === "video") {
-          const isScreen = isScreenShareTrack(track);
-          const existing = stream.getVideoTracks().find((t) =>
-            isScreen ? isScreenShareTrack(t) : !isScreenShareTrack(t),
-          );
-          if (existing && existing.id !== track.id) {
-            stream.removeTrack(existing);
-            changed = true;
-          }
-        } else {
-          const sameKind = stream.getTracks().find((t) => t.kind === track.kind);
-          if (sameKind && sameKind.id !== track.id) {
-            stream.removeTrack(sameKind);
-            changed = true;
-          }
-        }
-
-        if (!stream.getTracks().includes(track)) {
-          stream.addTrack(track);
-          changed = true;
-        }
-      }
-
-      if (changed || stream.getTracks().length > 0) {
-        attachRemoteStream(stream);
-      }
+      hostPcRef.current = hostPc;
+      bindRemoteMedia();
     },
-    [attachRemoteStream],
+    [bindRemoteMedia],
+  );
+
+  const attachRemoteStream = useCallback(
+    (stream: MediaStream) => {
+      remoteStreamRef.current = stream;
+      bindRemoteMedia();
+    },
+    [bindRemoteMedia],
   );
 
   const attachLocalStream = useCallback((stream: MediaStream) => {
@@ -670,6 +678,10 @@ export function useLivestream({
       await pc.setLocalDescription(offer);
       await sendSignal("offer", viewerId, { sdp: offer });
       connectedViewersRef.current.add(viewerId);
+
+      if (isScreenSharingRef.current) {
+        await sendSignal("screen-share", viewerId, { active: true });
+      }
     },
     [
       addLocalTracks,
@@ -742,6 +754,17 @@ export function useLivestream({
         return;
       }
 
+      if (signal.type === "screen-share" && signal.fromUserId === hostId) {
+        hostScreenSharingRef.current = signal.payload.active === true;
+        const pc = peerConnectionsRef.current.get(hostId);
+        if (pc) {
+          refreshRemoteStreamFromReceivers(pc);
+        } else {
+          setIsRemoteScreenSharing(hostScreenSharingRef.current);
+        }
+        return;
+      }
+
       if (signal.type === "offer" && signal.fromUserId === hostId) {
         let pc = peerConnectionsRef.current.get(hostId);
         if (
@@ -755,32 +778,31 @@ export function useLivestream({
         }
 
         if (!pc) {
-          pc = createPeerConnection();
-          peerConnectionsRef.current.set(hostId, pc);
+          const hostPc = createPeerConnection();
+          peerConnectionsRef.current.set(hostId, hostPc);
           hostConnectStartedRef.current = Date.now();
-          addLocalTracks(pc);
+          addLocalTracks(hostPc);
 
-          pc.ontrack = (event) => {
-            const stream = resolveIncomingStream(event, remoteStreamRef.current);
-            attachRemoteStream(stream);
+          hostPc.ontrack = () => {
+            refreshRemoteStreamFromReceivers(hostPc);
           };
 
-          pc.onicecandidate = (event) => {
+          hostPc.onicecandidate = (event) => {
             if (event.candidate) {
               void sendSignal("ice", hostId, { candidate: event.candidate.toJSON() });
             }
           };
 
-          pc.onconnectionstatechange = () => {
-            if (pc!.connectionState === "connected") {
+          hostPc.onconnectionstatechange = () => {
+            if (hostPc.connectionState === "connected") {
               hostConnectStartedRef.current = null;
               return;
             }
 
             const requestReconnect = () => {
               const current = peerConnectionsRef.current.get(hostId);
-              if (current !== pc) return;
-              clearPeerConnection(pc!);
+              if (current !== hostPc) return;
+              clearPeerConnection(hostPc);
               peerConnectionsRef.current.delete(hostId);
               remoteStreamRef.current = null;
               setRemoteStream(null);
@@ -789,12 +811,12 @@ export function useLivestream({
               void sendSignal("viewer-ready", hostId);
             };
 
-            if (pc!.connectionState === "disconnected") {
+            if (hostPc.connectionState === "disconnected") {
               window.setTimeout(() => {
                 if (
-                  pc!.connectionState === "disconnected" ||
-                  pc!.connectionState === "failed" ||
-                  pc!.connectionState === "closed"
+                  hostPc.connectionState === "disconnected" ||
+                  hostPc.connectionState === "failed" ||
+                  hostPc.connectionState === "closed"
                 ) {
                   requestReconnect();
                 }
@@ -802,9 +824,15 @@ export function useLivestream({
               return;
             }
 
-            if (pc!.connectionState === "failed" || pc!.connectionState === "closed") {
+            if (hostPc.connectionState === "failed" || hostPc.connectionState === "closed") {
               requestReconnect();
             }
+          };
+
+          pc = hostPc;
+        } else {
+          pc.ontrack = () => {
+            refreshRemoteStreamFromReceivers(pc!);
           };
         }
 
@@ -1001,6 +1029,9 @@ export function useLivestream({
     setRemoteStream(null);
     setIsRemoteCameraOff(false);
     setIsRemoteMuted(false);
+    hostPcRef.current = null;
+    hostScreenSharingRef.current = false;
+    setIsRemoteScreenSharing(false);
     setIsLive(false);
   }, []);
 
@@ -1093,7 +1124,13 @@ export function useLivestream({
 
       if (pc?.connectionState === "connecting" && !connectingTooLong) return;
 
-      if (remoteStreamRef.current?.active) return;
+      const hasLiveHostVideo = pc
+        ?.getReceivers()
+        .some(
+          (receiver) =>
+            receiver.track?.kind === "video" && receiver.track.readyState === "live",
+        );
+      if (hasLiveHostVideo) return;
 
       if (pc) {
         clearPeerConnection(pc);
@@ -1458,8 +1495,9 @@ export function useLivestream({
     } else {
       await syncHostVideoToAllViewers();
     }
+    await sendSignal("screen-share", null, { active: false });
     setIsScreenSharing(false);
-  }, [attachLocalStream, syncHostVideoToAllViewers]);
+  }, [attachLocalStream, sendSignal, syncHostVideoToAllViewers]);
 
   const toggleScreenShare = useCallback(async () => {
     if (isScreenSharing) {
@@ -1497,6 +1535,7 @@ export function useLivestream({
 
       screenStreamRef.current = screenStream;
       void bindStreamToVideo(localVideoRef.current, screenStream);
+      await sendSignal("screen-share", null, { active: true });
       await syncHostVideoToAllViewers();
 
       setIsScreenSharing(true);
@@ -1523,8 +1562,9 @@ export function useLivestream({
     attachLocalStream,
     isHost,
     isScreenSharing,
-    syncHostVideoToAllViewers,
+    sendSignal,
     stopScreenShare,
+    syncHostVideoToAllViewers,
   ]);
 
   const endBroadcast = useCallback(async () => {
