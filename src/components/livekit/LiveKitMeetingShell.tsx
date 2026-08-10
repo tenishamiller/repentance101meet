@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import "@livekit/components-styles";
-import { LiveKitRoom, RoomAudioRenderer } from "@livekit/components-react";
-import type { MediaDeviceFailure } from "livekit-client";
+import { LiveKitRoom, RoomAudioRenderer, useConnectionState } from "@livekit/components-react";
+import { ConnectionState, type MediaDeviceFailure } from "livekit-client";
 
 type TokenResponse = {
   token: string;
@@ -16,6 +16,33 @@ type Props = {
   children: React.ReactNode;
   onDisconnected?: () => void;
 };
+
+function RoomErrorBanner({ message }: { message: string }) {
+  if (!message) return null;
+  return (
+    <div className="shrink-0 border-b border-gold/30 bg-burgundy px-4 py-2 text-center text-sm text-gold-light">
+      {message}
+    </div>
+  );
+}
+
+function RoomConnectionMonitor({
+  roomError,
+  onRoomError,
+}: {
+  roomError: string;
+  onRoomError: (message: string) => void;
+}) {
+  const connectionState = useConnectionState();
+
+  useEffect(() => {
+    if (connectionState === ConnectionState.Connected) {
+      onRoomError("");
+    }
+  }, [connectionState, onRoomError]);
+
+  return <RoomErrorBanner message={roomError} />;
+}
 
 export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: Props) {
   const [credentials, setCredentials] = useState<TokenResponse | null>(null);
@@ -57,8 +84,6 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
     void loadToken();
   }, [loadToken]);
 
-  const displayError = error || roomError;
-
   if (loading) {
     return (
       <div className="flex min-h-[12rem] flex-1 items-center justify-center bg-burgundy-deep">
@@ -67,10 +92,10 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
     );
   }
 
-  if (displayError || !credentials) {
+  if (error || !credentials) {
     return (
       <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-3 bg-burgundy-deep px-4 text-center">
-        <p className="max-w-md text-sm text-gold-light">{displayError || "Video unavailable"}</p>
+        <p className="max-w-md text-sm text-gold-light">{error || "Video unavailable"}</p>
         <button type="button" onClick={() => void loadToken()} className="btn-primary text-sm">
           Retry
         </button>
@@ -87,6 +112,7 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
       video
       connectOptions={{ autoSubscribe: true }}
       onDisconnected={onDisconnected}
+      onConnected={() => setRoomError("")}
       onError={(err) => setRoomError(err.message || "Could not connect to video room")}
       onMediaDeviceFailure={(failure?: MediaDeviceFailure) => {
         setRoomError(
@@ -98,6 +124,7 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
       data-lk-theme="default"
       className="flex min-h-0 flex-1 flex-col"
     >
+      <RoomConnectionMonitor roomError={roomError} onRoomError={setRoomError} />
       {children}
       <RoomAudioRenderer />
     </LiveKitRoom>

@@ -48,3 +48,11 @@ export function CameraOffOverlay({
     </div>
   );
 }
+
+export function VideoLoadingOverlay({ label = "Starting camera…" }: { label?: string }) {
+  return (
+    <div className="absolute inset-0 z-[1] flex items-center justify-center bg-burgundy-deep/95">
+      <p className="font-serif text-gold-light">{label}</p>
+    </div>
+  );
+}

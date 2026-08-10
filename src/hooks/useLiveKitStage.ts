@@ -4,16 +4,29 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useConnectionState,
   useLocalParticipant,
-  useParticipantTracks,
   useRemoteParticipants,
   useRoomContext,
+  useTracks,
 } from "@livekit/components-react";
 import { ConnectionState, Track } from "livekit-client";
+import type { Participant, TrackPublication } from "livekit-client";
 import type { TrackReference } from "@livekit/components-core";
 import { listAudioInputDevices, listVideoInputDevices } from "@/lib/media-devices";
 
-function pickTrack(refs: TrackReference[], source: Track.Source) {
-  return refs.find((ref) => ref.source === source);
+function toTrackRef(
+  participant: Participant | undefined,
+  publication: TrackPublication | undefined,
+  source: Track.Source,
+): TrackReference | undefined {
+  if (!participant || !publication) return undefined;
+  return { participant, publication, source };
+}
+
+function pickTrack(refs: TrackReference[], source: Track.Source, identity?: string) {
+  return refs.find(
+    (ref) =>
+      ref.source === source && (identity === undefined || ref.participant.identity === identity),
+  );
 }
 
 type StageMode = "livestream" | "private";
@@ -37,8 +50,16 @@ export function useLiveKitStage({
 }: Options) {
   const room = useRoomContext();
   const connectionState = useConnectionState();
-  const { localParticipant, isMicrophoneEnabled, isCameraEnabled, isScreenShareEnabled } =
-    useLocalParticipant();
+  const {
+    localParticipant,
+    isMicrophoneEnabled,
+    isCameraEnabled,
+    isScreenShareEnabled,
+    cameraTrack: localCameraPublication,
+    microphoneTrack: localMicPublication,
+    lastCameraError,
+    lastMicrophoneError,
+  } = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
 
   const [cameraOffByUser, setCameraOffByUser] = useState(false);
@@ -51,61 +72,78 @@ export function useLiveKitStage({
   const isLive = connectionState === ConnectionState.Connected;
   const isConnecting = connectionState === ConnectionState.Connecting;
 
-  const localCameraTracks = useParticipantTracks([Track.Source.Camera], {
-    participantIdentity: localParticipant.identity,
+  const publishedTracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], {
+    onlySubscribed: false,
   });
-  const localScreenTracks = useParticipantTracks([Track.Source.ScreenShare], {
-    participantIdentity: localParticipant.identity,
-  });
-  const hostCameraTracks = useParticipantTracks([Track.Source.Camera], {
-    participantIdentity: hostId,
-  });
-  const hostScreenTracks = useParticipantTracks([Track.Source.ScreenShare], {
-    participantIdentity: hostId,
-  });
+
+  const localCameraFromRoom = useMemo(
+    () => pickTrack(publishedTracks, Track.Source.Camera, localParticipant.identity),
+    [localParticipant.identity, publishedTracks],
+  );
+  const localScreenFromRoom = useMemo(
+    () => pickTrack(publishedTracks, Track.Source.ScreenShare, localParticipant.identity),
+    [localParticipant.identity, publishedTracks],
+  );
+  const hostCameraFromRoom = useMemo(
+    () => pickTrack(publishedTracks, Track.Source.Camera, hostId),
+    [hostId, publishedTracks],
+  );
+  const hostScreenFromRoom = useMemo(
+    () => pickTrack(publishedTracks, Track.Source.ScreenShare, hostId),
+    [hostId, publishedTracks],
+  );
+
+  const localCameraTrack =
+    localCameraFromRoom ??
+    toTrackRef(localParticipant, localCameraPublication, Track.Source.Camera);
+  const localScreenTrack =
+    localScreenFromRoom ??
+    toTrackRef(localParticipant, localParticipant.getTrackPublication(Track.Source.ScreenShare), Track.Source.ScreenShare);
 
   const hostParticipant = remoteParticipants.find((p) => p.identity === hostId);
   const privatePeer = remoteParticipants.find((p) => p.identity !== userId);
-  const privatePeerCameraTracks = useParticipantTracks([Track.Source.Camera], {
-    participantIdentity: privatePeer?.identity ?? "",
-  });
-  const privatePeerCameraTrack = pickTrack(privatePeerCameraTracks, Track.Source.Camera);
+  const privatePeerCameraTrack = useMemo(
+    () =>
+      privatePeer
+        ? pickTrack(publishedTracks, Track.Source.Camera, privatePeer.identity)
+        : undefined,
+    [privatePeer, publishedTracks],
+  );
 
   const isScreenSharing = isHost && mode === "livestream" && isScreenShareEnabled;
   const isRemoteScreenSharing =
     mode === "livestream" &&
     !isHost &&
-    !!pickTrack(hostScreenTracks, Track.Source.ScreenShare)?.publication?.track;
+    !!hostScreenFromRoom?.publication?.track;
 
   const hostMainTrack =
     mode === "private"
       ? privatePeerCameraTrack
       : isHost
         ? isScreenShareEnabled
-          ? pickTrack(localScreenTracks, Track.Source.ScreenShare)
-          : pickTrack(localCameraTracks, Track.Source.Camera)
+          ? localScreenTrack
+          : localCameraTrack
         : isRemoteScreenSharing
-          ? pickTrack(hostScreenTracks, Track.Source.ScreenShare)
-          : pickTrack(hostCameraTracks, Track.Source.Camera);
+          ? hostScreenFromRoom
+          : hostCameraFromRoom;
 
   const hostCameraPipTrack =
     mode === "private"
       ? undefined
       : isHost
         ? isScreenShareEnabled
-          ? pickTrack(localCameraTracks, Track.Source.Camera)
+          ? localCameraTrack
           : undefined
         : isRemoteScreenSharing
-          ? pickTrack(hostCameraTracks, Track.Source.Camera)
+          ? hostCameraFromRoom
           : undefined;
-
-  const localCameraTrack = pickTrack(localCameraTracks, Track.Source.Camera);
 
   const canUseMic = isHost || memberMicEnabled || mode === "private";
   const canUseCamera = isHost || memberVideoEnabled || mode === "private";
 
   const isMuted = !isMicrophoneEnabled || !canUseMic;
-  const isCameraOff = !isCameraEnabled || cameraOffByUser || !canUseCamera;
+  const isCameraOff =
+    cameraOffByUser || !canUseCamera || (!isCameraEnabled && !localCameraPublication?.track);
 
   const remoteParticipant = mode === "private" ? privatePeer : hostParticipant;
   const isRemoteMuted = remoteParticipant ? !remoteParticipant.isMicrophoneEnabled : false;
@@ -113,13 +151,15 @@ export function useLiveKitStage({
     mode === "private"
       ? !privatePeerCameraTrack?.publication?.track || !privatePeer?.isCameraEnabled
       : !isHost &&
-        !pickTrack(hostCameraTracks, Track.Source.Camera)?.publication?.track &&
+        !hostCameraFromRoom?.publication?.track &&
         !isRemoteScreenSharing;
 
   const remoteMemberParticipants = useMemo(
     () => remoteParticipants.filter((p) => p.identity !== hostId && p.identity !== userId),
     [hostId, remoteParticipants, userId],
   );
+
+  const mediaError = lastCameraError?.message || lastMicrophoneError?.message || "";
 
   useEffect(() => {
     if (isHost) return;
@@ -156,9 +196,16 @@ export function useLiveKitStage({
   useEffect(() => {
     if (!isHost && mode !== "private") return;
     if (connectionState !== ConnectionState.Connected) return;
-    void localParticipant.setCameraEnabled(true);
-    void localParticipant.setMicrophoneEnabled(true);
-    setCameraOffByUser(false);
+
+    void (async () => {
+      try {
+        await localParticipant.setCameraEnabled(true);
+        await localParticipant.setMicrophoneEnabled(true);
+        setCameraOffByUser(false);
+      } catch {
+        /* surfaced via lastCameraError */
+      }
+    })();
   }, [connectionState, isHost, localParticipant, mode]);
 
   const toggleMute = useCallback(async () => {
@@ -234,5 +281,6 @@ export function useLiveKitStage({
     toggleMute,
     toggleCamera,
     toggleScreenShare,
+    mediaError,
   };
 }

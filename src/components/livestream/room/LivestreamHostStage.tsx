@@ -67,7 +67,9 @@ export function LivestreamHostStage({
   thumbsUp,
   thumbsDown,
 }: Props) {
+  const hasHostVideo = !!hostMainTrack?.publication?.track;
   const showCameraOff = isLive && isCameraOff && !isScreenSharing;
+  const waitingForVideo = isLive && !showCameraOff && !hasHostVideo && !isScreenSharing;
 
   return (
     <>
@@ -108,6 +110,7 @@ export function LivestreamHostStage({
             name={userName}
             avatarUrl={avatarUrl}
             cameraOff={showCameraOff}
+            waitingForVideo={waitingForVideo}
             videoClassName="h-full w-full object-contain"
           />
           {isScreenSharing && hostCameraPipTrack && (
@@ -124,7 +127,7 @@ export function LivestreamHostStage({
           )}
           <MuteIndicator visible={isMuted} />
           {!isLive && !error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-burgundy-deep/90">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-burgundy-deep/90">
               <p className="font-serif text-gold-light">
                 {isConnecting ? "Connecting video…" : "Waiting for video connection…"}
               </p>

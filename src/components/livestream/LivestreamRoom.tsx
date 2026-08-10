@@ -142,6 +142,7 @@ function LivestreamRoomContent({
     toggleMute,
     toggleCamera,
     toggleScreenShare,
+    mediaError,
   } = useLiveKitStage({
     hostId,
     userId,
@@ -151,7 +152,7 @@ function LivestreamRoomContent({
     mode: "livestream",
   });
 
-  const error = presenceError;
+  const error = [presenceError, mediaError].filter(Boolean).join(" ");
 
   const raisedHands = useMemo(
     () =>
