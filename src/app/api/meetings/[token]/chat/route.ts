@@ -99,9 +99,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   if (action === "raise-hand" || action === "lower-hand") {
+    const now = new Date();
     await prisma.meetingParticipant.update({
       where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
-      data: { handRaised: action === "raise-hand" },
+      data:
+        action === "raise-hand"
+          ? { handRaised: true, handRaisedAt: now }
+          : { handRaised: false, handRaisedAt: null },
     });
     return Response.json({ success: true });
   }
@@ -116,15 +120,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     let reaction: string | null = null;
+    let reactionAt: Date | null = null;
     if (action === "react-up") {
       reaction = participant.reaction === "UP" ? null : "UP";
+      reactionAt = reaction ? new Date() : null;
     } else if (action === "react-down") {
       reaction = participant.reaction === "DOWN" ? null : "DOWN";
+      reactionAt = reaction ? new Date() : null;
     }
 
     await prisma.meetingParticipant.update({
       where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
-      data: { reaction },
+      data: { reaction, reactionAt },
     });
 
     return Response.json({ success: true, reaction });

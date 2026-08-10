@@ -6,4 +6,6 @@ export type GalleryMember = {
   cameraOn: boolean;
   micOn: boolean;
   connected: boolean;
+  handRaised?: boolean;
+  reaction?: string | null;
 };

@@ -2,6 +2,11 @@
 
 import { Radio } from "lucide-react";
 import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
+import {
+  LivestreamAudienceSignals,
+  ParticipantSignalBadges,
+} from "@/components/livestream/LivestreamAudienceSignals";
+import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 
 type HostProfile = {
   userId: string;
@@ -15,6 +20,7 @@ type Props = {
   isMuted: boolean;
   isCameraOff: boolean;
   isRemoteCameraOff: boolean;
+  isRemoteMuted: boolean;
   isRemoteScreenSharing: boolean;
   memberVideoEnabled: boolean;
   memberMicEnabled: boolean;
@@ -25,6 +31,11 @@ type Props = {
   remoteVideoRef: React.RefObject<HTMLVideoElement | null>;
   remoteHostCameraVideoRef: React.RefObject<HTMLVideoElement | null>;
   localVideoRef: React.RefObject<HTMLVideoElement | null>;
+  raisedHands: { userId: string; name: string }[];
+  thumbsUp: number;
+  thumbsDown: number;
+  handRaised: boolean;
+  myReaction: string | null;
 };
 
 /** Member stage — video elements stay mounted so WebRTC bindings are not lost. */
@@ -34,6 +45,7 @@ export function LivestreamMemberStage({
   isMuted,
   isCameraOff,
   isRemoteCameraOff,
+  isRemoteMuted,
   isRemoteScreenSharing,
   memberVideoEnabled,
   memberMicEnabled,
@@ -44,8 +56,14 @@ export function LivestreamMemberStage({
   remoteVideoRef,
   remoteHostCameraVideoRef,
   localVideoRef,
+  raisedHands,
+  thumbsUp,
+  thumbsDown,
+  handRaised,
+  myReaction,
 }: Props) {
   const present = isRemoteScreenSharing;
+  const selfMuted = isMuted || !memberMicEnabled;
 
   return (
     <div
@@ -65,13 +83,14 @@ export function LivestreamMemberStage({
           playsInline
           className={`h-full w-full object-contain ${!present && isRemoteCameraOff ? "hidden" : ""}`}
         />
-        {!present && isLive && isRemoteCameraOff && (
+        {!present && isRemoteCameraOff && (
           <CameraOffOverlay
             userId={hostProfile.userId}
             name={hostProfile.name}
             avatarUrl={hostProfile.avatarUrl}
           />
         )}
+        <MuteIndicator visible={isRemoteMuted} />
       </div>
 
       {/* Right rail when presenting, or member tile in split mode */}
@@ -96,7 +115,7 @@ export function LivestreamMemberStage({
             playsInline
             className={`h-full w-full object-cover ${isRemoteCameraOff ? "hidden" : ""}`}
           />
-          {isLive && isRemoteCameraOff && (
+          {isRemoteCameraOff && (
             <CameraOffOverlay
               userId={hostProfile.userId}
               name={hostProfile.name}
@@ -104,6 +123,7 @@ export function LivestreamMemberStage({
               compact
             />
           )}
+          <MuteIndicator visible={isRemoteMuted} compact />
           <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
             Host
           </p>
@@ -126,6 +146,8 @@ export function LivestreamMemberStage({
               compact={present}
             />
           )}
+          <ParticipantSignalBadges handRaised={handRaised} reaction={myReaction} />
+          <MuteIndicator visible={selfMuted} compact={present} />
           {present && (
             <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
               You
@@ -154,11 +176,17 @@ export function LivestreamMemberStage({
         </div>
       )}
 
+      <LivestreamAudienceSignals
+        raisedHands={raisedHands}
+        thumbsUp={thumbsUp}
+        thumbsDown={thumbsDown}
+      />
+
       <div className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-xl border border-gold/30 bg-burgundy-dark/80 px-4 py-2 backdrop-blur">
         <p className="font-serif text-sm font-semibold text-cream">{meetingTitle}</p>
         <p className="text-xs text-gold-light/80">
           Live meeting
-          {isMuted ? " · muted" : ""}
+          {selfMuted ? " · muted" : ""}
           {isCameraOff ? " · camera off" : ""}
           {!memberMicEnabled ? " · mics off by host" : ""}
           {!memberVideoEnabled ? " · cameras off by host" : ""}

@@ -24,7 +24,7 @@ export function CameraOffOverlay({
   return (
     <div
       className={cn(
-        "absolute inset-0 z-[1] flex flex-col items-center justify-center bg-burgundy-deep px-4",
+        "absolute inset-0 z-[1] flex flex-col items-center justify-center bg-burgundy px-4",
         className,
       )}
     >

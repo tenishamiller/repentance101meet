@@ -2,7 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { bindStreamToVideo } from "@/lib/media-video";
-import { UserAvatar } from "@/components/UserAvatar";
+import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
+import { MuteIndicator } from "@/components/livestream/MuteIndicator";
+import { ParticipantSignalBadges } from "@/components/livestream/LivestreamAudienceSignals";
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
 import type { GalleryMember } from "@/hooks/useLivestream";
 import type { HostGalleryLayout } from "@/lib/video-layout";
@@ -42,6 +44,7 @@ function ParticipantTile({
   }, [member.cameraOn, member.stream, memberVideoEnabled]);
 
   const showVideo = memberVideoEnabled && member.cameraOn && member.stream;
+  const showMuted = member.connected && (!memberMicEnabled || !member.micOn);
 
   return (
     <div
@@ -59,30 +62,22 @@ function ParticipantTile({
           className={`h-full w-full object-cover ${showVideo ? "" : "hidden"}`}
         />
         {!showVideo && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 bg-burgundy px-2 py-3">
-            <UserAvatar
-              userId={member.userId}
-              name={member.name}
-              avatarUrl={member.avatarUrl}
-              size={compact ? "lg" : "xl"}
-              interactive={false}
-              className="ring-gold/50"
-            />
-            <p className="line-clamp-2 text-center text-xs font-medium text-cream sm:text-sm">
-              {member.name}
-            </p>
-          </div>
+          <CameraOffOverlay
+            userId={member.userId}
+            name={member.name}
+            avatarUrl={member.avatarUrl}
+            size={compact ? "lg" : "xl"}
+            compact={compact}
+          />
         )}
+        <ParticipantSignalBadges handRaised={member.handRaised} reaction={member.reaction} />
+        <MuteIndicator visible={showMuted} compact={compact} />
         <div className="absolute bottom-1 right-1 flex gap-1">
-          {memberMicEnabled && member.micOn ? (
+          {!showMuted && memberMicEnabled && member.micOn ? (
             <span className="rounded-full bg-black/60 p-1 text-gold" title="Mic on">
               <Mic className="h-3 w-3" />
             </span>
-          ) : (
-            <span className="rounded-full bg-black/60 p-1 text-cream/60" title="Mic off">
-              <MicOff className="h-3 w-3" />
-            </span>
-          )}
+          ) : null}
           {!memberVideoEnabled || !member.cameraOn ? (
             <span className="rounded-full bg-black/60 p-1 text-cream/60" title="Camera off">
               <VideoOff className="h-3 w-3" />
@@ -96,15 +91,13 @@ function ParticipantTile({
       </div>
       {!compact && (
         <div className="truncate px-2 py-1.5 text-xs font-semibold text-gold-light">
+          {member.handRaised && <span className="mr-1">✋</span>}
+          {member.reaction === "UP" && <span className="mr-1">👍</span>}
+          {member.reaction === "DOWN" && <span className="mr-1">👎</span>}
           {member.name}
           {!member.connected && (
             <span className="ml-1 font-normal text-gold-light/50">· joining</span>
           )}
-        </div>
-      )}
-      {compact && !showVideo && (
-        <div className="truncate px-2 py-1.5 text-center text-xs font-semibold text-gold-light">
-          {member.name}
         </div>
       )}
     </div>

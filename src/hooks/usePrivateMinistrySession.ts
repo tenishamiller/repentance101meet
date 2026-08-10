@@ -111,6 +111,7 @@ export function usePrivateMinistrySession({
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isRemoteCameraOff, setIsRemoteCameraOff] = useState(false);
+  const [isRemoteMuted, setIsRemoteMuted] = useState(false);
   const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -371,8 +372,12 @@ export function usePrivateMinistrySession({
     const screenTrack = videoTracks.find((track) => isScreenShareTrack(track));
     const cameraTrack = videoTracks.find((track) => !isScreenShareTrack(track));
 
-    const refreshRemoteVideo = () => {
-      const tracks = remoteStreamRef.current?.getVideoTracks() ?? [];
+    const refreshRemoteMedia = () => {
+      const stream = remoteStreamRef.current;
+      const audioTrack = stream?.getAudioTracks()[0];
+      setIsRemoteMuted(!trackIsActive(audioTrack));
+
+      const tracks = stream?.getVideoTracks() ?? [];
       const screen = tracks.find((track) => isScreenShareTrack(track));
       const camera = tracks.find((track) => !isScreenShareTrack(track));
 
@@ -398,11 +403,11 @@ export function usePrivateMinistrySession({
       }
     };
 
-    refreshRemoteVideo();
+    refreshRemoteMedia();
     for (const track of stream.getTracks()) {
-      track.onmute = refreshRemoteVideo;
-      track.onunmute = refreshRemoteVideo;
-      track.onended = refreshRemoteVideo;
+      track.onmute = refreshRemoteMedia;
+      track.onunmute = refreshRemoteMedia;
+      track.onended = refreshRemoteMedia;
     }
 
     setIsLive(true);
@@ -1157,6 +1162,7 @@ export function usePrivateMinistrySession({
     setLocalStream(null);
     setRemoteStream(null);
     setIsRemoteCameraOff(false);
+    setIsRemoteMuted(false);
     setIsLive(false);
   }, []);
 
@@ -1852,6 +1858,7 @@ export function usePrivateMinistrySession({
     isMuted,
     isCameraOff,
     isRemoteCameraOff,
+    isRemoteMuted,
     isRemoteScreenSharing,
     isScreenSharing,
     localStream,

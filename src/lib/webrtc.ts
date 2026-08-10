@@ -5,6 +5,7 @@ export const ICE_SERVERS: RTCIceServer[] = [
 
 export type SignalType =
   | "viewer-ready"
+  | "viewer-left"
   | "offer"
   | "answer"
   | "ice"

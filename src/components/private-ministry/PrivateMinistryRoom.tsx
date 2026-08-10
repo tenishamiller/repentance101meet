@@ -14,6 +14,8 @@ import {
   Video,
   VideoOff,
 } from "lucide-react";
+import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
+import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { UserAvatar } from "@/components/UserAvatar";
 import { usePrivateMinistrySession } from "@/hooks/usePrivateMinistrySession";
 import { useAppPath } from "@/hooks/useAppBase";
@@ -55,6 +57,7 @@ export function PrivateMinistryRoom({
   meetingTitle,
   sessionId,
   userId,
+  userName,
   isHost,
   hostId,
   peer,
@@ -86,6 +89,8 @@ export function PrivateMinistryRoom({
     isLive,
     isMuted,
     isCameraOff,
+    isRemoteCameraOff,
+    isRemoteMuted,
     isRecording,
     isSavingRecording,
     videoInputDevices,
@@ -106,14 +111,14 @@ export function PrivateMinistryRoom({
     meetingToken,
     meetingTitle,
     userId,
-    userName: isHost ? "Host" : peer.name,
+    userName: isHost ? userName : peer.name,
     isHost,
     hostId,
     onMeetingEnded: () =>
       router.push(isOnboardingApproval ? messagesPath : `${personalMinistryPath}?ended=1`),
   });
 
-  const peerLabel = isHost ? peer.name : "Session host";
+  const peerLabel = isHost ? peer.name : `Your Session Host ${peer.name}`;
 
   async function handleEndSession() {
     await endBroadcast();
@@ -222,28 +227,55 @@ export function PrivateMinistryRoom({
             memberVideoLayout === "side-by-side" ? "grid grid-cols-1 sm:grid-cols-2" : ""
           }`}
         >
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className={`h-full w-full object-contain ${
-              memberVideoLayout === "side-by-side" ? "border-r border-gold/20" : ""
+          <div
+            className={`relative min-h-0 min-w-0 bg-black ${
+              memberVideoLayout === "side-by-side"
+                ? "border-r border-gold/20"
+                : "absolute inset-0"
             }`}
-          />
+          >
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className={`h-full w-full object-contain ${isRemoteCameraOff ? "hidden" : ""}`}
+            />
+            {isLive && isRemoteCameraOff && (
+              <CameraOffOverlay
+                userId={peer.id}
+                name={peer.name}
+                avatarUrl={peer.avatarUrl}
+              />
+            )}
+            <MuteIndicator visible={isRemoteMuted} />
+          </div>
 
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
+          <div
             className={
               memberVideoLayout === "side-by-side"
-                ? `h-full w-full object-cover ${isCameraOff ? "opacity-40" : ""}`
-                : `absolute bottom-4 right-4 z-10 h-28 w-40 rounded-xl border-2 border-gold/50 object-cover shadow-2xl sm:h-36 sm:w-52 ${
-                    isCameraOff ? "opacity-40" : ""
-                  }`
+                ? "relative min-h-[12rem] min-w-0 sm:min-h-0"
+                : "absolute bottom-4 right-4 z-10 h-28 w-40 overflow-hidden rounded-xl border-2 border-gold/50 bg-black shadow-2xl sm:h-36 sm:w-52"
             }
-          />
+          >
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
+            />
+            {isCameraOff && (
+              <CameraOffOverlay
+                userId={userId}
+                name={userName}
+                compact={memberVideoLayout !== "side-by-side"}
+              />
+            )}
+            <MuteIndicator
+              visible={isMuted}
+              compact={memberVideoLayout !== "side-by-side"}
+            />
+          </div>
 
           {!isLive && !error && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-burgundy-deep/95">
@@ -349,9 +381,9 @@ export function PrivateMinistryRoom({
             />
             <div>
               <p className="font-serif font-semibold text-cream">{peerLabel}</p>
-              <p className="text-xs text-gold-light/70">
-                {isHost ? "Member you're ministering to" : "Your session host"}
-              </p>
+              {isHost && (
+                <p className="text-xs text-gold-light/70">Member you&apos;re ministering to</p>
+              )}
             </div>
           </div>
           {isHost && <BlockedUsersPanel meetingToken={meetingToken} />}

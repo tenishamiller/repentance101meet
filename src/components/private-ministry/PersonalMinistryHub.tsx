@@ -122,7 +122,9 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
             <div>
               <p className="font-serif text-lg font-semibold text-burgundy">{s.title}</p>
               <p className="mt-1 text-sm text-burgundy/60">
-                {isAdmin && s.invitedUser ? `With ${s.invitedUser.name}` : "With session host"}
+                {isAdmin && s.invitedUser
+                  ? `With ${s.invitedUser.name}`
+                  : `With Your Session Host ${s.createdBy.name}`}
                 {" · "}
                 {formatDate(s.createdAt)}
               </p>

@@ -77,6 +77,7 @@ export function useLivestream({
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isRemoteCameraOff, setIsRemoteCameraOff] = useState(false);
+  const [isRemoteMuted, setIsRemoteMuted] = useState(false);
   const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isSavingRecording, setIsSavingRecording] = useState(false);
@@ -113,6 +114,7 @@ export function useLivestream({
   const applyHostMemberMediaPolicyRef = useRef<() => void>(() => {});
 
   const meetingEndedRef = useRef(false);
+  const hasLeftRef = useRef(false);
   const endingBroadcastRef = useRef(false);
   const endBroadcastRef = useRef<() => Promise<string | null>>(async () => null);
   const stopAllRef = useRef<() => void>(() => {});
@@ -310,6 +312,8 @@ export function useLivestream({
           cameraOn: memberVideoEnabled && (media?.cameraOn ?? false),
           micOn: memberMicEnabled && (media?.micOn ?? false),
           connected: !!media,
+          handRaised: p.handRaised,
+          reaction: p.reaction,
         };
       });
   }, [participants, viewerMedia, hostId, memberVideoEnabled, memberMicEnabled]);
@@ -334,8 +338,12 @@ export function useLivestream({
     const screenTrack = videoTracks.find((track) => isScreenShareTrack(track));
     const cameraTrack = videoTracks.find((track) => !isScreenShareTrack(track));
 
-    const refreshRemoteVideo = () => {
-      const tracks = remoteStreamRef.current?.getVideoTracks() ?? [];
+    const refreshRemoteMedia = () => {
+      const stream = remoteStreamRef.current;
+      const audioTrack = stream?.getAudioTracks()[0];
+      setIsRemoteMuted(!trackIsActive(audioTrack));
+
+      const tracks = stream?.getVideoTracks() ?? [];
       const screen = tracks.find((track) => isScreenShareTrack(track));
       const camera = tracks.find((track) => !isScreenShareTrack(track));
 
@@ -361,11 +369,11 @@ export function useLivestream({
       }
     };
 
-    refreshRemoteVideo();
+    refreshRemoteMedia();
     for (const track of stream.getTracks()) {
-      track.onmute = refreshRemoteVideo;
-      track.onunmute = refreshRemoteVideo;
-      track.onended = refreshRemoteVideo;
+      track.onmute = refreshRemoteMedia;
+      track.onunmute = refreshRemoteMedia;
+      track.onended = refreshRemoteMedia;
     }
 
     setIsLive(true);
@@ -425,6 +433,60 @@ export function useLivestream({
     },
     [meetingToken],
   );
+
+  const removeParticipantFromList = useCallback(
+    (viewerId: string) => {
+      setParticipants((prev) => {
+        const next = prev.filter((p) => p.user.id !== viewerId);
+        setViewerCount(next.filter((p) => p.user.id !== hostId).length);
+        return next;
+      });
+    },
+    [hostId],
+  );
+
+  const removeViewerFromMeeting = useCallback(
+    async (viewerId: string) => {
+      teardownViewerConnection(viewerId);
+      removeParticipantFromList(viewerId);
+
+      if (!isHost || viewerId === hostId) return;
+
+      try {
+        await fetch(`/api/meetings/${meetingToken}/participants`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: viewerId }),
+        });
+      } catch {
+        /* ignore */
+      }
+    },
+    [hostId, isHost, meetingToken, removeParticipantFromList, teardownViewerConnection],
+  );
+
+  const leaveMeeting = useCallback(async () => {
+    if (hasLeftRef.current || meetingEndedRef.current || isHost) return;
+    hasLeftRef.current = true;
+
+    try {
+      await sendSignal("viewer-left", hostId);
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      await fetch(`/api/meetings/${meetingToken}/participants`, {
+        method: "DELETE",
+        keepalive: true,
+      });
+    } catch {
+      /* ignore */
+    }
+  }, [hostId, isHost, meetingToken, sendSignal]);
+
+  const leaveMeetingRef = useRef(leaveMeeting);
+  leaveMeetingRef.current = leaveMeeting;
 
   const addLocalTracks = useCallback((pc: RTCPeerConnection) => {
     const baseStream = localStreamRef.current;
@@ -592,7 +654,7 @@ export function useLivestream({
               pc.connectionState === "failed" ||
               pc.connectionState === "closed"
             ) {
-              teardownViewerConnection(viewerId);
+              void removeViewerFromMeeting(viewerId);
             }
           }, 2500);
           viewerDisconnectTimersRef.current.set(viewerId, timer);
@@ -600,7 +662,7 @@ export function useLivestream({
         }
 
         if (pc.connectionState === "failed" || pc.connectionState === "closed") {
-          teardownViewerConnection(viewerId);
+          void removeViewerFromMeeting(viewerId);
         }
       };
 
@@ -613,6 +675,7 @@ export function useLivestream({
       addLocalTracks,
       attachViewerStream,
       clearViewerDisconnectTimer,
+      removeViewerFromMeeting,
       resolveIncomingStream,
       sendSignal,
       teardownViewerConnection,
@@ -621,6 +684,12 @@ export function useLivestream({
 
   const handleHostSignal = useCallback(
     async (signal: MeetingSignalMessage) => {
+      if (signal.type === "viewer-left" && signal.fromUserId !== userId) {
+        teardownViewerConnection(signal.fromUserId);
+        removeParticipantFromList(signal.fromUserId);
+        return;
+      }
+
       if (signal.type === "viewer-ready" && signal.fromUserId !== userId) {
         await createHostConnection(signal.fromUserId);
         return;
@@ -641,7 +710,7 @@ export function useLivestream({
         }
       }
     },
-    [createHostConnection, userId],
+    [createHostConnection, removeParticipantFromList, teardownViewerConnection, userId],
   );
 
   const handleViewerSignal = useCallback(
@@ -808,6 +877,17 @@ export function useLivestream({
     );
     setViewerCount(viewers.length);
 
+    if (isHost) {
+      const participantIds = new Set(
+        (data.participants as Participant[]).map((p) => p.user.id),
+      );
+      for (const viewerId of peerConnectionsRef.current.keys()) {
+        if (!participantIds.has(viewerId)) {
+          teardownViewerConnection(viewerId);
+        }
+      }
+    }
+
     const videoAllowed = data.memberVideoEnabled !== false;
     const micAllowed = data.memberMicEnabled !== false;
     memberVideoEnabledRef.current = videoAllowed;
@@ -822,7 +902,7 @@ export function useLivestream({
     }
 
     syncViewerMediaRef.current();
-  }, [isHost, meetingToken, userId]);
+  }, [isHost, meetingToken, teardownViewerConnection, userId]);
 
   const startBroadcast = useCallback(async () => {
     const markLive = () => {
@@ -920,6 +1000,7 @@ export function useLivestream({
     setLocalStream(null);
     setRemoteStream(null);
     setIsRemoteCameraOff(false);
+    setIsRemoteMuted(false);
     setIsLive(false);
   }, []);
 
@@ -949,9 +1030,25 @@ export function useLivestream({
 
     return () => {
       cancelled = true;
+      if (!isHost) {
+        void leaveMeetingRef.current();
+      }
       stopAll();
     };
   }, [hostId, isHost, meetingToken, sendSignal, startBroadcast, stopAll]);
+
+  useEffect(() => {
+    if (isHost) return;
+
+    function onPageHide() {
+      if (!hasLeftRef.current && !meetingEndedRef.current) {
+        void leaveMeetingRef.current();
+      }
+    }
+
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, [isHost]);
 
   useEffect(() => {
     isScreenSharingRef.current = isScreenSharing;
@@ -1552,6 +1649,7 @@ export function useLivestream({
     isMuted,
     isCameraOff,
     isRemoteCameraOff,
+    isRemoteMuted,
     isRemoteScreenSharing,
     isScreenSharing,
     localStream,
@@ -1586,6 +1684,7 @@ export function useLivestream({
     toggleHand,
     sendReaction,
     kickViewer,
+    leaveMeeting,
     meetingEnded,
   };
 }

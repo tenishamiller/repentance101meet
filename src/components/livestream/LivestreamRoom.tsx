@@ -70,6 +70,7 @@ export function LivestreamRoom({
     isMuted,
     isCameraOff,
     isRemoteCameraOff,
+    isRemoteMuted,
     isRemoteScreenSharing,
     isScreenSharing,
     localStream,
@@ -103,6 +104,7 @@ export function LivestreamRoom({
     toggleHand,
     sendReaction,
     kickViewer,
+    leaveMeeting,
     meetingEnded,
   } = useLivestream({
     meetingToken,
@@ -115,13 +117,23 @@ export function LivestreamRoom({
   });
 
   const raisedHands = useMemo(
-    () => participants.filter((p) => p.handRaised && p.user.id !== hostId),
+    () =>
+      participants
+        .filter((p) => p.handRaised && p.user.id !== hostId)
+        .map((p) => ({ userId: p.user.id, name: p.user.name })),
     [participants, hostId],
   );
   const viewers = useMemo(
     () => participants.filter((p) => p.user.id !== hostId),
     [participants, hostId],
   );
+  const viewerMicOnById = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const member of galleryMembers) {
+      map.set(member.userId, member.micOn);
+    }
+    return map;
+  }, [galleryMembers]);
 
   const hostProfile = useMemo(() => {
     const host = participants.find((p) => p.user.id === hostId);
@@ -180,6 +192,7 @@ export function LivestreamRoom({
               isLive={isLive}
               isScreenSharing={isScreenSharing}
               isCameraOff={isCameraOff}
+              isMuted={isMuted}
               error={error}
               userId={userId}
               userName={userName}
@@ -189,6 +202,9 @@ export function LivestreamRoom({
               galleryMembers={galleryMembers}
               memberVideoEnabled={memberVideoEnabled}
               memberMicEnabled={memberMicEnabled}
+              raisedHands={raisedHands}
+              thumbsUp={thumbsUp}
+              thumbsDown={thumbsDown}
             />
 
             {/* Host controls */}
@@ -280,6 +296,7 @@ export function LivestreamRoom({
               isMuted={isMuted}
               isCameraOff={isCameraOff}
               isRemoteCameraOff={isRemoteCameraOff}
+              isRemoteMuted={isRemoteMuted}
               isRemoteScreenSharing={isRemoteScreenSharing}
               memberVideoEnabled={memberVideoEnabled}
               memberMicEnabled={memberMicEnabled}
@@ -290,6 +307,11 @@ export function LivestreamRoom({
               remoteVideoRef={remoteVideoRef}
               remoteHostCameraVideoRef={remoteHostCameraVideoRef}
               localVideoRef={localVideoRef}
+              raisedHands={raisedHands}
+              thumbsUp={thumbsUp}
+              thumbsDown={thumbsDown}
+              handRaised={handRaised}
+              myReaction={myReaction}
             />
 
             <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-gold/20 bg-burgundy-dark px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
@@ -360,7 +382,9 @@ export function LivestreamRoom({
               <MemberMessagesPopover userId={userId} />
               <button
                 type="button"
-                onClick={() => router.push(livestreamPath)}
+                onClick={() => {
+                  void leaveMeeting().finally(() => router.push(livestreamPath));
+                }}
                 className="rounded-full border border-gold/40 px-4 py-2.5 text-sm font-semibold text-gold-light hover:bg-burgundy"
               >
                 Leave
@@ -430,6 +454,9 @@ export function LivestreamRoom({
                     />
                     <span className="truncate text-sm text-cream">{p.user.name}</span>
                     {p.handRaised && <span title="Hand raised">✋</span>}
+                    {(!memberMicEnabled || viewerMicOnById.get(p.user.id) === false) && (
+                      <MicOff className="h-3.5 w-3.5 shrink-0 text-gold-light/70" aria-label="Muted" />
+                    )}
                     {p.reaction === "UP" && (
                       <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-gold" aria-label="Thumbs up" />
                     )}
@@ -471,8 +498,8 @@ export function LivestreamRoom({
                 <p className="text-xs font-semibold uppercase tracking-wide text-gold">Raised Hands</p>
                 <ul className="mt-1 space-y-0.5">
                   {raisedHands.map((p) => (
-                    <li key={p.user.id} className="text-sm text-cream">
-                      ✋ {p.user.name}
+                    <li key={p.userId} className="text-sm text-cream">
+                      ✋ {p.name}
                     </li>
                   ))}
                 </ul>

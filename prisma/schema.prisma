@@ -249,7 +249,9 @@ model MeetingParticipant {
   userId     String
   blocked    Boolean  @default(false)
   handRaised Boolean  @default(false)
+  handRaisedAt DateTime?
   reaction   String?
+  reactionAt DateTime?
   joinedAt   DateTime @default(now())
 
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)

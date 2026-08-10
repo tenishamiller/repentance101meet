@@ -2,6 +2,8 @@
 
 import { MonitorUp } from "lucide-react";
 import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
+import { LivestreamAudienceSignals } from "@/components/livestream/LivestreamAudienceSignals";
+import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { ParticipantGallery } from "@/components/livestream/ParticipantGallery";
 import type { GalleryMember } from "@/hooks/useLivestream";
 
@@ -11,6 +13,7 @@ type Props = {
   isLive: boolean;
   isScreenSharing: boolean;
   isCameraOff: boolean;
+  isMuted: boolean;
   error: string;
   userId: string;
   userName: string;
@@ -20,6 +23,9 @@ type Props = {
   galleryMembers: GalleryMember[];
   memberVideoEnabled: boolean;
   memberMicEnabled: boolean;
+  raisedHands: { userId: string; name: string }[];
+  thumbsUp: number;
+  thumbsDown: number;
 };
 
 export function LivestreamHostStage({
@@ -28,6 +34,7 @@ export function LivestreamHostStage({
   isLive,
   isScreenSharing,
   isCameraOff,
+  isMuted,
   error,
   userId,
   userName,
@@ -37,6 +44,9 @@ export function LivestreamHostStage({
   galleryMembers,
   memberVideoEnabled,
   memberMicEnabled,
+  raisedHands,
+  thumbsUp,
+  thumbsDown,
 }: Props) {
   return (
     <>
@@ -79,11 +89,17 @@ export function LivestreamHostStage({
           {isLive && isCameraOff && !isScreenSharing && (
             <CameraOffOverlay userId={userId} name={userName} avatarUrl={avatarUrl} />
           )}
+          <MuteIndicator visible={isMuted} />
           {!isLive && !error && (
             <div className="absolute inset-0 flex items-center justify-center bg-burgundy-deep/90">
               <p className="font-serif text-gold-light">Starting camera...</p>
             </div>
           )}
+          <LivestreamAudienceSignals
+            raisedHands={raisedHands}
+            thumbsUp={thumbsUp}
+            thumbsDown={thumbsDown}
+          />
         </div>
 
         <ParticipantGallery
