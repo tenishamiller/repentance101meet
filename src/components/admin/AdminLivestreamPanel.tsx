@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Mic, Trash2, Undo2, Video } from "lucide-react";
+import { Mic, Share2, Trash2, Undo2, Video } from "lucide-react";
+import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
 import { DeleteCountdown } from "@/components/admin/DeleteCountdown";
 import { ListPagination } from "@/components/admin/ListPagination";
 import { formatDate } from "@/lib/utils";
@@ -29,6 +30,10 @@ export function AdminLivestreamPanel({
   const SESSIONS_PAGE_SIZE = 5;
 
   const liveMeeting = meetings.find((m) => m.status === "LIVE" && !isMeetingPendingDeletion(m));
+  const scheduledMeeting = meetings.find(
+    (m) => m.status === "SCHEDULED" && !isMeetingPendingDeletion(m),
+  );
+  const activeSession = liveMeeting ?? scheduledMeeting;
 
   const sessionsTotalPages = Math.max(1, Math.ceil(meetings.length / SESSIONS_PAGE_SIZE));
 
@@ -86,10 +91,12 @@ export function AdminLivestreamPanel({
         </h2>
         <p className="mb-4 text-sm text-burgundy/70">
           Press Go Live to start your session and broadcast with full controls — camera, mic, screen
-          share, YouTube streaming, chat with attachments, raise hand, and member reactions.
+          share, YouTube streaming, chat with attachments, raise hand, and member reactions. Share the
+          member link from inside the livestream room.
         </p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
+            { icon: Share2, label: "Share member link" },
             { icon: Video, label: "Camera & screen share" },
             { icon: Mic, label: "Mute & raise hand" },
             { icon: Video, label: "Stream to YouTube" },
@@ -148,6 +155,16 @@ export function AdminLivestreamPanel({
             </button>
           </div>
         </div>
+
+        {activeSession && (
+          <div className="border-t border-gold/20 bg-cream-dark px-6 py-4">
+            <MemberJoinLink
+              meetingToken={activeSession.linkToken}
+              title="Member join link — share from the livestream room"
+              variant="row"
+            />
+          </div>
+        )}
       </section>
 
       <section className="card-brand p-6">
@@ -206,6 +223,10 @@ export function AdminLivestreamPanel({
                     {renderDeleteControls(m)}
                   </div>
                 </div>
+
+                {!pendingDelete && m.status !== "ENDED" && (
+                  <MemberJoinLink meetingToken={m.linkToken} variant="row" />
+                )}
               </div>
             );
             })}
