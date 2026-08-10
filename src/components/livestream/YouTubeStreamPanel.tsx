@@ -140,6 +140,7 @@ export function YouTubeStreamPanel({ meetingTitle, disabled = false }: Props) {
               aria-modal="true"
               aria-labelledby="youtube-panel-title"
               className="fixed left-1/2 top-1/2 z-[201] flex max-h-[min(90dvh,calc(100dvh-1.5rem))] w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-gold/30 bg-burgundy-dark shadow-2xl"
+              onPointerDown={(event) => event.stopPropagation()}
             >
               <div className="shrink-0 border-b border-gold/20 p-4 pb-3">
                 <div className="flex items-start justify-between gap-3">
@@ -219,7 +220,8 @@ export function YouTubeStreamPanel({ meetingTitle, disabled = false }: Props) {
                   </label>
                   <div className="flex gap-1">
                     <input
-                      type="password"
+                      type="text"
+                      autoComplete="off"
                       value={streamKey}
                       onChange={(e) => setManualKey(e.target.value)}
                       onBlur={saveManualKey}
@@ -286,15 +288,13 @@ export function YouTubeStreamPanel({ meetingTitle, disabled = false }: Props) {
 
                 <button
                   type="button"
-                  disabled={loading || disabled || !status?.connected}
+                  disabled={loading || !status?.connected}
                   onClick={() => void createBroadcast()}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2.5 text-xs font-bold text-white hover:bg-red-500 disabled:opacity-60"
                   title={
                     !status?.connected
                       ? "Connect your YouTube account first"
-                      : disabled
-                        ? "Start the site livestream first"
-                        : undefined
+                      : undefined
                   }
                 >
                   <Video className="h-4 w-4" />
@@ -317,9 +317,8 @@ export function YouTubeStreamPanel({ meetingTitle, disabled = false }: Props) {
     <>
       <button
         type="button"
-        disabled={disabled}
         onClick={() => setExpanded((v) => !v)}
-        className="inline-flex items-center gap-2 rounded-lg border border-red-400/50 bg-red-950/40 px-3 py-2 text-xs font-bold text-red-100 transition hover:bg-red-950/70 disabled:opacity-50 sm:text-sm"
+        className="inline-flex items-center gap-2 rounded-lg border border-red-400/50 bg-red-950/40 px-3 py-2 text-xs font-bold text-red-100 transition hover:bg-red-950/70 sm:text-sm"
       >
         <Video className="h-4 w-4" />
         YouTube

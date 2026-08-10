@@ -1,11 +1,22 @@
 "use client";
 
 import { MonitorUp } from "lucide-react";
-import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
+import type { TrackReference } from "@livekit/components-core";
 import { LivestreamAudienceSignals } from "@/components/livestream/LivestreamAudienceSignals";
 import { MuteIndicator } from "@/components/livestream/MuteIndicator";
-import { ParticipantGallery } from "@/components/livestream/ParticipantGallery";
-import type { GalleryMember } from "@/hooks/useLivestream";
+import { LiveKitParticipantGallery } from "@/components/livekit/LiveKitParticipantGallery";
+import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
+import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
+import type { RemoteParticipant } from "livekit-client";
+
+type HostSelfTile = {
+  participantIdentity: string;
+  name: string;
+  avatarUrl: string | null;
+  trackRef?: TrackReference;
+  cameraOff: boolean;
+  micOn: boolean;
+};
 
 type Props = {
   meetingTitle: string;
@@ -18,9 +29,12 @@ type Props = {
   userId: string;
   userName: string;
   avatarUrl?: string | null;
-  localVideoRef: React.RefObject<HTMLVideoElement | null>;
-  hostSelfTile: GalleryMember | null;
-  galleryMembers: GalleryMember[];
+  hostMainTrack?: TrackReference;
+  hostCameraPipTrack?: TrackReference;
+  hostSelfTile: HostSelfTile | null;
+  remoteParticipants: RemoteParticipant[];
+  participants: MeetingParticipant[];
+  hostId: string;
   memberVideoEnabled: boolean;
   memberMicEnabled: boolean;
   raisedHands: { userId: string; name: string }[];
@@ -39,15 +53,20 @@ export function LivestreamHostStage({
   userId,
   userName,
   avatarUrl,
-  localVideoRef,
+  hostMainTrack,
+  hostCameraPipTrack,
   hostSelfTile,
-  galleryMembers,
+  remoteParticipants,
+  participants,
+  hostId,
   memberVideoEnabled,
   memberMicEnabled,
   raisedHands,
   thumbsUp,
   thumbsDown,
 }: Props) {
+  const showCameraOff = isLive && isCameraOff && !isScreenSharing;
+
   return (
     <>
       <div className="shrink-0 border-b border-gold/30 bg-burgundy px-3 py-2 sm:px-4">
@@ -76,23 +95,35 @@ export function LivestreamHostStage({
       </div>
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
-        <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className={`h-full w-full object-contain ${
-              isCameraOff && !isScreenSharing ? "hidden" : ""
-            }`}
+        <div
+          className={`relative min-h-0 min-w-0 flex-1 overflow-hidden ${
+            showCameraOff ? "bg-burgundy-deep" : "bg-black"
+          }`}
+        >
+          <LiveKitVideoTile
+            trackRef={hostMainTrack}
+            userId={userId}
+            name={userName}
+            avatarUrl={avatarUrl}
+            cameraOff={showCameraOff}
+            videoClassName="h-full w-full object-contain"
           />
-          {isLive && isCameraOff && !isScreenSharing && (
-            <CameraOffOverlay userId={userId} name={userName} avatarUrl={avatarUrl} />
+          {isScreenSharing && hostCameraPipTrack && (
+            <div className="absolute bottom-3 right-3 z-10 h-24 w-32 overflow-hidden rounded-lg border border-gold/40 shadow-xl sm:h-28 sm:w-40">
+              <LiveKitVideoTile
+                trackRef={hostCameraPipTrack}
+                userId={userId}
+                name={userName}
+                avatarUrl={avatarUrl}
+                cameraOff={isCameraOff}
+                compact
+              />
+            </div>
           )}
           <MuteIndicator visible={isMuted} />
           {!isLive && !error && (
             <div className="absolute inset-0 flex items-center justify-center bg-burgundy-deep/90">
-              <p className="font-serif text-gold-light">Starting camera...</p>
+              <p className="font-serif text-gold-light">Connecting video…</p>
             </div>
           )}
           <LivestreamAudienceSignals
@@ -102,9 +133,11 @@ export function LivestreamHostStage({
           />
         </div>
 
-        <ParticipantGallery
-          hostTile={hostSelfTile}
-          members={galleryMembers}
+        <LiveKitParticipantGallery
+          remoteParticipants={remoteParticipants}
+          participants={participants}
+          hostId={hostId}
+          hostSelfTile={hostSelfTile}
           memberVideoEnabled={memberVideoEnabled}
           memberMicEnabled={memberMicEnabled}
           layout="sidebar"

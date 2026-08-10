@@ -13,7 +13,9 @@ export function setHostGalleryLayout(layout: HostGalleryLayout) {
 }
 
 export function getMemberVideoLayout(): MemberVideoLayout {
-  return "side-by-side";
+  if (typeof window === "undefined") return "pip";
+  const stored = localStorage.getItem(MEMBER_KEY);
+  return stored === "side-by-side" ? "side-by-side" : "pip";
 }
 
 export function setMemberVideoLayout(layout: MemberVideoLayout) {

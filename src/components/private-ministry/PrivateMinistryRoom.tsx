@@ -14,10 +14,11 @@ import {
   Video,
   VideoOff,
 } from "lucide-react";
-import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
 import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { UserAvatar } from "@/components/UserAvatar";
-import { usePrivateMinistrySession } from "@/hooks/usePrivateMinistrySession";
+import { useMeetingPresence } from "@/hooks/useMeetingPresence";
+import { useLiveKitStage } from "@/hooks/useLiveKitStage";
+import { usePrivateMinistryRecording } from "@/hooks/usePrivateMinistryRecording";
 import { useAppPath } from "@/hooks/useAppBase";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
@@ -27,6 +28,8 @@ import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
 import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { OnboardingDecisionModal } from "@/components/onboarding/OnboardingDecisionModal";
+import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
+import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
 import {
   getMemberVideoLayout,
   setMemberVideoLayout,
@@ -52,7 +55,15 @@ type Props = {
   invitedUserId?: string | null;
 };
 
-export function PrivateMinistryRoom({
+export function PrivateMinistryRoom(props: Props) {
+  return (
+    <LiveKitMeetingShell meetingToken={props.meetingToken}>
+      <PrivateMinistryRoomContent {...props} />
+    </LiveKitMeetingShell>
+  );
+}
+
+function PrivateMinistryRoomContent({
   meetingToken,
   meetingTitle,
   sessionId,
@@ -83,16 +94,29 @@ export function PrivateMinistryRoom({
     setMemberVideoLayout(layout);
   }
 
+  const { leaveMeeting, meetingEnded } = useMeetingPresence({
+    meetingToken,
+    userId,
+    isHost,
+    hostId,
+    onMeetingEnded: () =>
+      router.push(isOnboardingApproval ? messagesPath : `${personalMinistryPath}?ended=1`),
+  });
+
+  useEffect(() => {
+    if (meetingEnded && !isHost) {
+      router.push(isOnboardingApproval ? messagesPath : `${personalMinistryPath}?ended=1`);
+    }
+  }, [meetingEnded, isHost, isOnboardingApproval, messagesPath, personalMinistryPath, router]);
+
   const {
-    localVideoRef,
-    remoteVideoRef,
     isLive,
     isMuted,
     isCameraOff,
     isRemoteCameraOff,
     isRemoteMuted,
-    isRecording,
-    isSavingRecording,
+    hostMainTrack,
+    localCameraTrack,
     videoInputDevices,
     audioInputDevices,
     selectedVideoDeviceId,
@@ -102,26 +126,36 @@ export function PrivateMinistryRoom({
     switchFacingMode,
     refreshMediaInputDevices,
     isRefreshingDevices,
-    error,
     toggleMute,
     toggleCamera,
-    beginRecording,
-    endBroadcast,
-  } = usePrivateMinistrySession({
-    meetingToken,
-    meetingTitle,
-    userId,
-    userName: isHost ? userName : peer.name,
-    isHost,
+  } = useLiveKitStage({
     hostId,
-    onMeetingEnded: () =>
-      router.push(isOnboardingApproval ? messagesPath : `${personalMinistryPath}?ended=1`),
+    userId,
+    isHost,
+    memberVideoEnabled: true,
+    memberMicEnabled: true,
+    mode: "private",
   });
 
+  const {
+    isRecording,
+    isSavingRecording,
+    error: recordingError,
+    beginRecording,
+    finalizeRecording,
+  } = usePrivateMinistryRecording({ meetingToken, meetingTitle, isHost });
+
+  const error = recordingError;
   const peerLabel = isHost ? peer.name : `Your Session Host ${peer.name}`;
 
   async function handleEndSession() {
-    await endBroadcast();
+    await finalizeRecording();
+    await fetch(`/api/meetings/${meetingToken}/signal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "host-ended", toUserId: null, payload: {} }),
+    });
+
     const res = await fetch("/api/private-ministry", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -135,6 +169,11 @@ export function PrivateMinistryRoom({
     }
 
     router.push(isOnboardingApproval ? messagesPath : `${personalMinistryPath}?ended=1`);
+  }
+
+  async function handleLeave() {
+    await leaveMeeting();
+    router.push(isOnboardingApproval ? messagesPath : personalMinistryPath);
   }
 
   async function handleDecision(decision: "approve" | "deny") {
@@ -160,252 +199,244 @@ export function PrivateMinistryRoom({
     router.push(`${adminPath}?tab=members`);
   }
 
+  if (meetingEnded && !isHost) {
+    return null;
+  }
+
   return (
     <>
-    {showDecision && invitedUserId && (
-      <OnboardingDecisionModal
-        memberName={peer.name}
-        userId={invitedUserId}
-        meetingId={sessionId}
-        loading={decisionLoading}
-        onApprove={() => void handleDecision("approve")}
-        onDeny={() => void handleDecision("deny")}
-        onCancel={() => {
-          setShowDecision(false);
-          router.push(`${adminPath}?tab=members`);
-        }}
-      />
-    )}
-    <div className="flex h-mobile-immersive min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
-      <div
-        className={`flex min-h-0 min-w-0 flex-1 flex-col ${
-          isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
-        }`}
-      >
-        {isHost && (
-          <div className="shrink-0 border-b border-gold/30 bg-gradient-to-r from-burgundy-deep to-burgundy px-4 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-sm text-gold-light">
-                <Shield className="h-4 w-4 text-gold" />
-                <span>
-                  Private session with <strong className="text-cream">{peer.name}</strong>
-                </span>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {!isRecording ? (
-                  <button
-                    type="button"
-                    onClick={beginRecording}
-                    disabled={!isLive}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gold/50 bg-gold/15 px-4 py-2 text-sm font-semibold text-gold-light hover:bg-gold/25 disabled:opacity-50"
-                  >
-                    <Circle className="h-3.5 w-3.5 fill-gold text-gold" />
-                    Record Session
-                  </button>
-                ) : (
-                  <span className="inline-flex items-center gap-2 rounded-lg border border-gold bg-burgundy-dark px-3 py-1.5 text-xs font-bold text-gold">
-                    <Circle className="h-2.5 w-2.5 fill-gold" />
-                    REC
-                  </span>
-                )}
-                <button
-                  type="button"
-                  disabled={isSavingRecording}
-                  onClick={() => void handleEndSession()}
-                  className="inline-flex items-center gap-2 rounded-lg border-2 border-gold bg-burgundy-dark px-4 py-2 text-sm font-bold text-cream hover:bg-burgundy disabled:opacity-60"
-                >
-                  <Square className="h-4 w-4 fill-current" />
-                  {isSavingRecording ? "Ending..." : "End Session"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
+      {showDecision && invitedUserId && (
+        <OnboardingDecisionModal
+          memberName={peer.name}
+          userId={invitedUserId}
+          meetingId={sessionId}
+          loading={decisionLoading}
+          onApprove={() => void handleDecision("approve")}
+          onDeny={() => void handleDecision("deny")}
+          onCancel={() => {
+            setShowDecision(false);
+            router.push(`${adminPath}?tab=members`);
+          }}
+        />
+      )}
+      <div className="flex h-mobile-immersive min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
         <div
-          className={`relative min-h-0 flex-1 overflow-hidden bg-black ${
-            memberVideoLayout === "side-by-side" ? "grid grid-cols-1 sm:grid-cols-2" : ""
+          className={`flex min-h-0 min-w-0 flex-1 flex-col ${
+            isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
           }`}
         >
-          <div
-            className={`relative min-h-0 min-w-0 bg-black ${
-              memberVideoLayout === "side-by-side"
-                ? "border-r border-gold/20"
-                : "absolute inset-0"
-            }`}
-          >
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className={`h-full w-full object-contain ${isRemoteCameraOff ? "hidden" : ""}`}
-            />
-            {isLive && isRemoteCameraOff && (
-              <CameraOffOverlay
-                userId={peer.id}
-                name={peer.name}
-                avatarUrl={peer.avatarUrl}
-              />
-            )}
-            <MuteIndicator visible={isRemoteMuted} />
-          </div>
-
-          <div
-            className={
-              memberVideoLayout === "side-by-side"
-                ? "relative min-h-[12rem] min-w-0 sm:min-h-0"
-                : "absolute bottom-4 right-4 z-10 h-28 w-40 overflow-hidden rounded-xl border-2 border-gold/50 bg-black shadow-2xl sm:h-36 sm:w-52"
-            }
-          >
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
-            />
-            {isCameraOff && (
-              <CameraOffOverlay
-                userId={userId}
-                name={userName}
-                compact={memberVideoLayout !== "side-by-side"}
-              />
-            )}
-            <MuteIndicator
-              visible={isMuted}
-              compact={memberVideoLayout !== "side-by-side"}
-            />
-          </div>
-
-          {!isLive && !error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-burgundy-deep/95">
-              <Heart className="h-10 w-10 animate-pulse text-gold" />
-              <p className="font-serif text-lg font-semibold text-cream">
-                Connecting with {peerLabel}...
-              </p>
-              <p className="text-sm text-gold-light/70">This room is private — just the two of you</p>
+          {isHost && (
+            <div className="shrink-0 border-b border-gold/30 bg-gradient-to-r from-burgundy-deep to-burgundy px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-gold-light">
+                  <Shield className="h-4 w-4 text-gold" />
+                  <span>
+                    Private session with <strong className="text-cream">{peer.name}</strong>
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {!isRecording ? (
+                    <button
+                      type="button"
+                      onClick={beginRecording}
+                      disabled={!isLive}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gold/50 bg-gold/15 px-4 py-2 text-sm font-semibold text-gold-light hover:bg-gold/25 disabled:opacity-50"
+                    >
+                      <Circle className="h-3.5 w-3.5 fill-gold text-gold" />
+                      Record Session
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 rounded-lg border border-gold bg-burgundy-dark px-3 py-1.5 text-xs font-bold text-gold">
+                      <Circle className="h-2.5 w-2.5 fill-gold" />
+                      REC
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isSavingRecording}
+                    onClick={() => void handleEndSession()}
+                    className="inline-flex items-center gap-2 rounded-lg border-2 border-gold bg-burgundy-dark px-4 py-2 text-sm font-bold text-cream hover:bg-burgundy disabled:opacity-60"
+                  >
+                    <Square className="h-4 w-4 fill-current" />
+                    {isSavingRecording ? "Ending..." : "End Session"}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-          <div className="absolute left-4 top-4 flex flex-col gap-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-burgundy-dark/90 px-3 py-1.5 text-xs font-bold text-gold-light backdrop-blur">
-              <Shield className="h-3.5 w-3.5" />
-              Private
+          <div
+            className={`relative min-h-0 flex-1 overflow-hidden bg-black ${
+              memberVideoLayout === "side-by-side" ? "grid grid-cols-1 sm:grid-cols-2" : ""
+            }`}
+          >
+            <div
+              className={`relative min-h-0 min-w-0 bg-black ${
+                memberVideoLayout === "side-by-side"
+                  ? "border-r border-gold/20"
+                  : "absolute inset-0"
+              }`}
+            >
+              <LiveKitVideoTile
+                trackRef={hostMainTrack}
+                userId={peer.id}
+                name={peer.name}
+                avatarUrl={peer.avatarUrl}
+                cameraOff={isRemoteCameraOff}
+                videoClassName="h-full w-full object-contain"
+              />
+              <MuteIndicator visible={isRemoteMuted} />
             </div>
-            {isLive && (
-              <div className="badge-live !text-xs">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
-                </span>
-                Connected
+
+            <div
+              className={
+                memberVideoLayout === "side-by-side"
+                  ? "relative min-h-[12rem] min-w-0 sm:min-h-0"
+                  : "absolute bottom-4 right-4 z-10 h-28 w-40 overflow-hidden rounded-xl border-2 border-gold/50 bg-black shadow-2xl sm:h-36 sm:w-52"
+              }
+            >
+              <LiveKitVideoTile
+                trackRef={localCameraTrack}
+                userId={userId}
+                name={userName}
+                cameraOff={isCameraOff}
+                compact={memberVideoLayout !== "side-by-side"}
+              />
+              <MuteIndicator
+                visible={isMuted}
+                compact={memberVideoLayout !== "side-by-side"}
+              />
+            </div>
+
+            {!isLive && !error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-burgundy-deep/95">
+                <Heart className="h-10 w-10 animate-pulse text-gold" />
+                <p className="font-serif text-lg font-semibold text-cream">
+                  Connecting with {peerLabel}...
+                </p>
+                <p className="text-sm text-gold-light/70">This room is private — just the two of you</p>
               </div>
             )}
-          </div>
 
-          <div className="absolute bottom-4 left-4 rounded-xl border border-gold/30 bg-burgundy-dark/80 px-4 py-2 backdrop-blur">
-            <p className="font-serif text-sm font-semibold text-cream">{meetingTitle}</p>
-            <p className="text-xs text-gold-light/80">One-on-one with {peerLabel}</p>
-          </div>
-        </div>
-
-        {error && (
-          <div className="shrink-0 border-t border-gold/30 bg-burgundy px-4 py-3 text-sm text-gold-light">
-            {error}
-          </div>
-        )}
-
-        <div className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-t border-gold/20 bg-burgundy-dark px-4 py-3">
-          <CameraDeviceSelect
-            devices={videoInputDevices}
-            selectedDeviceId={selectedVideoDeviceId}
-            onChange={(deviceId) => void switchVideoDevice(deviceId)}
-            onRefresh={() => void refreshMediaInputDevices()}
-            onFlip={() => void switchFacingMode()}
-            showFlip={isMobile}
-            refreshing={isRefreshingDevices}
-          />
-          <AudioDeviceSelect
-            devices={audioInputDevices}
-            selectedDeviceId={selectedAudioDeviceId}
-            onChange={(deviceId) => void switchAudioDevice(deviceId)}
-            onRefresh={() => void refreshMediaInputDevices()}
-            refreshing={isRefreshingDevices}
-          />
-          <VideoLayoutSelect
-            mode="member"
-            value={memberVideoLayout}
-            onChange={updateMemberVideoLayout}
-          />
-          <ControlButton
-            onClick={toggleMute}
-            active={!isMuted}
-            label={isMuted ? "Unmute" : "Mute"}
-            icon={isMuted ? MicOff : Mic}
-          />
-          <ControlButton
-            onClick={toggleCamera}
-            active={!isCameraOff}
-            label={isCameraOff ? "Camera On" : "Camera Off"}
-            icon={isCameraOff ? VideoOff : Video}
-          />
-          <button
-            type="button"
-            onClick={() => router.push(isOnboardingApproval ? messagesPath : personalMinistryPath)}
-            className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-burgundy px-5 py-2.5 text-sm font-semibold text-gold-light hover:bg-burgundy-dark"
-          >
-            <PhoneOff className="h-4 w-4" />
-            Leave
-          </button>
-        </div>
-      </div>
-
-      <div
-        className={`flex min-h-0 w-full flex-col border-t border-gold/20 lg:h-auto lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0 xl:w-96 ${
-          isMobile
-            ? mobileTab === "video"
-              ? "hidden lg:flex"
-              : "min-h-0 flex-1 border-t-0"
-            : "max-lg:h-[38vh]"
-        }`}
-      >
-        {(!isMobile || mobileTab === "chat") && (
-        <>
-        <div className="shrink-0 border-b border-gold/20 bg-burgundy p-4">
-          <div className="flex items-center gap-3">
-            <UserAvatar
-              userId={peer.id}
-              name={peer.name}
-              avatarUrl={peer.avatarUrl}
-              size="md"
-            />
-            <div>
-              <p className="font-serif font-semibold text-cream">{peerLabel}</p>
-              {isHost && (
-                <p className="text-xs text-gold-light/70">Member you&apos;re ministering to</p>
+            <div className="absolute left-4 top-4 flex flex-col gap-2">
+              <div className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-burgundy-dark/90 px-3 py-1.5 text-xs font-bold text-gold-light backdrop-blur">
+                <Shield className="h-3.5 w-3.5" />
+                Private
+              </div>
+              {isLive && (
+                <div className="badge-live !text-xs">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gold opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
+                  </span>
+                  Connected
+                </div>
               )}
             </div>
+
+            <div className="absolute bottom-4 left-4 rounded-xl border border-gold/30 bg-burgundy-dark/80 px-4 py-2 backdrop-blur">
+              <p className="font-serif text-sm font-semibold text-cream">{meetingTitle}</p>
+              <p className="text-xs text-gold-light/80">One-on-one with {peerLabel}</p>
+            </div>
           </div>
-          {isHost && <BlockedUsersPanel meetingToken={meetingToken} />}
+
+          {error && (
+            <div className="shrink-0 border-t border-gold/30 bg-burgundy px-4 py-3 text-sm text-gold-light">
+              {error}
+            </div>
+          )}
+
+          <div className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-t border-gold/20 bg-burgundy-dark px-4 py-3">
+            <CameraDeviceSelect
+              devices={videoInputDevices}
+              selectedDeviceId={selectedVideoDeviceId}
+              onChange={(deviceId) => void switchVideoDevice(deviceId)}
+              onRefresh={() => void refreshMediaInputDevices()}
+              onFlip={() => void switchFacingMode()}
+              showFlip={isMobile}
+              refreshing={isRefreshingDevices}
+            />
+            <AudioDeviceSelect
+              devices={audioInputDevices}
+              selectedDeviceId={selectedAudioDeviceId}
+              onChange={(deviceId) => void switchAudioDevice(deviceId)}
+              onRefresh={() => void refreshMediaInputDevices()}
+              refreshing={isRefreshingDevices}
+            />
+            <VideoLayoutSelect
+              mode="member"
+              value={memberVideoLayout}
+              onChange={updateMemberVideoLayout}
+            />
+            <ControlButton
+              onClick={toggleMute}
+              active={!isMuted}
+              label={isMuted ? "Unmute" : "Mute"}
+              icon={isMuted ? MicOff : Mic}
+            />
+            <ControlButton
+              onClick={toggleCamera}
+              active={!isCameraOff}
+              label={isCameraOff ? "Camera On" : "Camera Off"}
+              icon={isCameraOff ? VideoOff : Video}
+            />
+            <button
+              type="button"
+              onClick={() => void handleLeave()}
+              className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-burgundy px-5 py-2.5 text-sm font-semibold text-gold-light hover:bg-burgundy-dark"
+            >
+              <PhoneOff className="h-4 w-4" />
+              Leave
+            </button>
+          </div>
         </div>
-        <div className="min-h-0 flex-1">
-          <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
+
+        <div
+          className={`flex min-h-0 w-full flex-col border-t border-gold/20 lg:h-auto lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0 xl:w-96 ${
+            isMobile
+              ? mobileTab === "video"
+                ? "hidden lg:flex"
+                : "min-h-0 flex-1 border-t-0"
+              : "max-lg:h-[38vh]"
+          }`}
+        >
+          {(!isMobile || mobileTab === "chat") && (
+            <>
+              <div className="shrink-0 border-b border-gold/20 bg-burgundy p-4">
+                <div className="flex items-center gap-3">
+                  <UserAvatar
+                    userId={peer.id}
+                    name={peer.name}
+                    avatarUrl={peer.avatarUrl}
+                    size="md"
+                  />
+                  <div>
+                    <p className="font-serif font-semibold text-cream">{peerLabel}</p>
+                    {isHost && (
+                      <p className="text-xs text-gold-light/70">Member you&apos;re ministering to</p>
+                    )}
+                  </div>
+                </div>
+                {isHost && <BlockedUsersPanel meetingToken={meetingToken} />}
+              </div>
+              <div className="min-h-0 flex-1">
+                <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
+              </div>
+            </>
+          )}
         </div>
-        </>
+
+        {isMobile && (
+          <ImmersiveMobileTabs
+            active={mobileTab}
+            onChange={(id) => setMobileTab(id as "video" | "chat")}
+            tabs={[
+              { id: "video", label: "Video", icon: Video },
+              { id: "chat", label: "Chat", icon: MessageCircle },
+            ]}
+          />
         )}
       </div>
-
-      {isMobile && (
-        <ImmersiveMobileTabs
-          active={mobileTab}
-          onChange={(id) => setMobileTab(id as "video" | "chat")}
-          tabs={[
-            { id: "video", label: "Video", icon: Video },
-            { id: "chat", label: "Chat", icon: MessageCircle },
-          ]}
-        />
-      )}
-    </div>
     </>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { bindStreamToVideo } from "@/lib/media-video";
+import { trackIsActive } from "@/lib/media-devices";
 import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
 import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { ParticipantSignalBadges } from "@/components/livestream/LivestreamAudienceSignals";
@@ -36,14 +37,23 @@ function ParticipantTile({
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    if (memberVideoEnabled && member.cameraOn && member.stream) {
+    const videoTrack = member.stream?.getVideoTracks()[0];
+    const cameraActive =
+      memberVideoEnabled && !!videoTrack && trackIsActive(videoTrack) && member.cameraOn;
+    if (cameraActive && member.stream) {
       void bindStreamToVideo(el, member.stream);
     } else {
       void bindStreamToVideo(el, null);
     }
   }, [member.cameraOn, member.stream, memberVideoEnabled]);
 
-  const showVideo = memberVideoEnabled && member.cameraOn && member.stream;
+  const videoTrack = member.stream?.getVideoTracks()[0];
+  const showVideo =
+    memberVideoEnabled &&
+    member.cameraOn &&
+    !!member.stream &&
+    !!videoTrack &&
+    trackIsActive(videoTrack);
   const showMuted = member.connected && (!memberMicEnabled || !member.micOn);
 
   return (
@@ -53,7 +63,13 @@ function ParticipantTile({
         compact ? "w-full" : "w-44 sm:w-48",
       )}
     >
-      <div className={cn("relative bg-black", compact ? "aspect-video" : "aspect-[4/3]")}>
+      <div
+        className={cn(
+          "relative",
+          showVideo ? "bg-black" : "bg-burgundy-deep",
+          compact ? "aspect-video" : "aspect-[4/3]",
+        )}
+      >
         <video
           ref={videoRef}
           autoPlay

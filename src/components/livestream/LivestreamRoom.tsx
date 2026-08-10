@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { ShowMoreList } from "@/components/ShowMoreList";
-import { useLivestream, type GalleryMember } from "@/hooks/useLivestream";
+import { useMeetingPresence } from "@/hooks/useMeetingPresence";
+import { useLiveKitStage } from "@/hooks/useLiveKitStage";
 import { useAppPath } from "@/hooks/useAppBase";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
@@ -32,6 +33,14 @@ import { YouTubeStreamPanel } from "@/components/livestream/YouTubeStreamPanel";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { HostPrivateMessagePanel } from "@/components/livestream/HostPrivateMessagePanel";
 import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPopover";
+import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
+import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
+import {
+  getMemberVideoLayout,
+  setMemberVideoLayout,
+  type MemberVideoLayout,
+} from "@/lib/video-layout";
+
 type Props = {
   meetingToken: string;
   meetingTitle: string;
@@ -42,7 +51,15 @@ type Props = {
   hostId: string;
 };
 
-export function LivestreamRoom({
+export function LivestreamRoom(props: Props) {
+  return (
+    <LiveKitMeetingShell meetingToken={props.meetingToken}>
+      <LivestreamRoomContent {...props} />
+    </LiveKitMeetingShell>
+  );
+}
+
+function LivestreamRoomContent({
   meetingToken,
   meetingTitle,
   userId,
@@ -56,16 +73,50 @@ export function LivestreamRoom({
   const livestreamPath = useAppPath("/livestream");
   const adminPath = useAppPath("/admin");
   const [mobileTab, setMobileTab] = useState<"video" | "chat" | "people">("video");
+  const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
   const [privateMessageMember, setPrivateMessageMember] = useState<{
     id: string;
     name: string;
     avatarUrl: string | null;
   } | null>(null);
 
+  useEffect(() => {
+    setMemberVideoLayoutState(getMemberVideoLayout());
+  }, []);
+
+  function updateMemberVideoLayout(layout: MemberVideoLayout) {
+    setMemberVideoLayoutState(layout);
+    setMemberVideoLayout(layout);
+  }
+
   const {
-    localVideoRef,
-    remoteVideoRef,
-    remoteHostCameraVideoRef,
+    participants,
+    viewerCount,
+    handRaised,
+    thumbsUp,
+    thumbsDown,
+    myReaction,
+    memberVideoEnabled,
+    memberMicEnabled,
+    meetingEnded,
+    isSavingRecording,
+    error: presenceError,
+    toggleHand,
+    sendReaction,
+    toggleMemberVideo,
+    toggleMemberMic,
+    kickViewer,
+    leaveMeeting,
+    endBroadcast,
+  } = useMeetingPresence({
+    meetingToken,
+    userId,
+    isHost,
+    hostId,
+    onKicked: () => router.push(`${livestreamPath}?removed=1`),
+  });
+
+  const {
     isLive,
     isMuted,
     isCameraOff,
@@ -73,9 +124,11 @@ export function LivestreamRoom({
     isRemoteMuted,
     isRemoteScreenSharing,
     isScreenSharing,
-    localStream,
-    remoteStream,
-    isSavingRecording,
+    hostMainTrack,
+    hostCameraPipTrack,
+    localCameraTrack,
+    remoteMemberParticipants,
+    remoteParticipants,
     videoInputDevices,
     audioInputDevices,
     selectedVideoDeviceId,
@@ -85,36 +138,19 @@ export function LivestreamRoom({
     switchFacingMode,
     refreshMediaInputDevices,
     isRefreshingDevices,
-    participants,
-    galleryMembers,
-    viewerCount,
-    error,
-    handRaised,
-    thumbsUp,
-    thumbsDown,
-    myReaction,
-    memberVideoEnabled,
-    memberMicEnabled,
     toggleMute,
     toggleCamera,
-    toggleMemberVideo,
-    toggleMemberMic,
     toggleScreenShare,
-    endBroadcast,
-    toggleHand,
-    sendReaction,
-    kickViewer,
-    leaveMeeting,
-    meetingEnded,
-  } = useLivestream({
-    meetingToken,
-    meetingTitle,
-    userId,
-    userName,
-    isHost,
+  } = useLiveKitStage({
     hostId,
-    onKicked: () => router.push(`${livestreamPath}?removed=1`),
+    userId,
+    isHost,
+    memberVideoEnabled,
+    memberMicEnabled,
+    mode: "livestream",
   });
+
+  const error = presenceError;
 
   const raisedHands = useMemo(
     () =>
@@ -129,11 +165,11 @@ export function LivestreamRoom({
   );
   const viewerMicOnById = useMemo(() => {
     const map = new Map<string, boolean>();
-    for (const member of galleryMembers) {
-      map.set(member.userId, member.micOn);
+    for (const participant of remoteMemberParticipants) {
+      map.set(participant.identity, participant.isMicrophoneEnabled);
     }
     return map;
-  }, [galleryMembers]);
+  }, [remoteMemberParticipants]);
 
   const hostProfile = useMemo(() => {
     const host = participants.find((p) => p.user.id === hostId);
@@ -144,24 +180,23 @@ export function LivestreamRoom({
     };
   }, [participants, hostId, meetingTitle]);
 
-  const hostSelfTile = useMemo((): GalleryMember | null => {
-    if (!isHost || !isScreenSharing || !localStream) return null;
+  const hostSelfTile = useMemo(() => {
+    if (!isHost || !isScreenSharing) return null;
     return {
-      userId,
+      participantIdentity: userId,
       name: userName,
       avatarUrl: avatarUrl ?? null,
-      stream: localStream,
-      cameraOn: !isCameraOff,
+      trackRef: hostCameraPipTrack,
+      cameraOff: isCameraOff,
       micOn: !isMuted,
-      connected: true,
     };
   }, [
     isHost,
     isScreenSharing,
-    localStream,
     userId,
     userName,
     avatarUrl,
+    hostCameraPipTrack,
     isCameraOff,
     isMuted,
   ]);
@@ -178,7 +213,6 @@ export function LivestreamRoom({
 
   return (
     <div className="flex h-mobile-immersive min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
-      {/* Main stage */}
       <div
         className={`flex min-h-0 min-w-0 flex-1 flex-col ${
           isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
@@ -197,9 +231,12 @@ export function LivestreamRoom({
               userId={userId}
               userName={userName}
               avatarUrl={avatarUrl}
-              localVideoRef={localVideoRef}
+              hostMainTrack={hostMainTrack}
+              hostCameraPipTrack={hostCameraPipTrack}
               hostSelfTile={hostSelfTile}
-              galleryMembers={galleryMembers}
+              remoteParticipants={remoteParticipants}
+              participants={participants}
+              hostId={hostId}
               memberVideoEnabled={memberVideoEnabled}
               memberMicEnabled={memberMicEnabled}
               raisedHands={raisedHands}
@@ -207,10 +244,9 @@ export function LivestreamRoom({
               thumbsDown={thumbsDown}
             />
 
-            {/* Host controls */}
             <div className="z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark px-2 py-2.5 sm:px-4 sm:py-3">
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <YouTubeStreamPanel meetingTitle={meetingTitle} disabled={!isLive} />
+                <YouTubeStreamPanel meetingTitle={meetingTitle} />
                 <button
                   type="button"
                   disabled={isSavingRecording}
@@ -300,13 +336,14 @@ export function LivestreamRoom({
               isRemoteScreenSharing={isRemoteScreenSharing}
               memberVideoEnabled={memberVideoEnabled}
               memberMicEnabled={memberMicEnabled}
+              memberVideoLayout={memberVideoLayout}
               hostProfile={hostProfile}
               userId={userId}
               userName={userName}
               avatarUrl={avatarUrl}
-              remoteVideoRef={remoteVideoRef}
-              remoteHostCameraVideoRef={remoteHostCameraVideoRef}
-              localVideoRef={localVideoRef}
+              hostMainTrack={hostMainTrack}
+              hostCameraPipTrack={hostCameraPipTrack}
+              localCameraTrack={localCameraTrack}
               raisedHands={raisedHands}
               thumbsUp={thumbsUp}
               thumbsDown={thumbsDown}
@@ -315,6 +352,11 @@ export function LivestreamRoom({
             />
 
             <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-gold/20 bg-burgundy-dark px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+              <VideoLayoutSelect
+                mode="member"
+                value={memberVideoLayout}
+                onChange={updateMemberVideoLayout}
+              />
               <CameraDeviceSelect
                 devices={videoInputDevices}
                 selectedDeviceId={selectedVideoDeviceId}
@@ -400,7 +442,6 @@ export function LivestreamRoom({
         )}
       </div>
 
-      {/* Sidebar — chat & host tools */}
       <div
         className={`flex min-h-0 w-full flex-col border-t border-gold/20 lg:h-auto lg:w-[28rem] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[32rem] ${
           isMobile
@@ -519,9 +560,9 @@ export function LivestreamRoom({
         )}
 
         {(!isMobile || mobileTab === "chat") && (
-        <div className="min-h-0 flex-1">
-          <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
-        </div>
+          <div className="min-h-0 flex-1">
+            <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
+          </div>
         )}
       </div>
 

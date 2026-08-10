@@ -1105,8 +1105,12 @@ export function useLivestream({
 
   useEffect(() => {
     if (isScreenSharingRef.current) return;
+    if (isCameraOff || (!isHost && !memberVideoEnabledRef.current)) {
+      void bindStreamToVideo(localVideoRef.current, null);
+      return;
+    }
     void bindStreamToVideo(localVideoRef.current, localStream);
-  }, [localStream]);
+  }, [isCameraOff, isHost, localStream]);
 
   useEffect(() => {
     if (isHost) return;
@@ -1222,8 +1226,13 @@ export function useLivestream({
     for (const track of stream.getVideoTracks()) {
       track.enabled = !track.enabled;
     }
-    setIsCameraOff((c) => !c);
+    const turningOff = !isCameraOffRef.current;
+    isCameraOffRef.current = turningOff;
+    setIsCameraOff(turningOff);
     syncViewerMediaRef.current();
+    if (!isHost) {
+      void bindStreamToVideo(localVideoRef.current, turningOff ? null : stream);
+    }
     if (isScreenSharing) {
       void syncHostVideoToAllViewers();
     }

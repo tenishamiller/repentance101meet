@@ -1,12 +1,14 @@
 "use client";
 
 import { Radio } from "lucide-react";
-import { CameraOffOverlay } from "@/components/livestream/CameraOffOverlay";
+import type { TrackReference } from "@livekit/components-core";
 import {
   LivestreamAudienceSignals,
   ParticipantSignalBadges,
 } from "@/components/livestream/LivestreamAudienceSignals";
 import { MuteIndicator } from "@/components/livestream/MuteIndicator";
+import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
+import type { MemberVideoLayout } from "@/lib/video-layout";
 
 type HostProfile = {
   userId: string;
@@ -24,13 +26,14 @@ type Props = {
   isRemoteScreenSharing: boolean;
   memberVideoEnabled: boolean;
   memberMicEnabled: boolean;
+  memberVideoLayout: MemberVideoLayout;
   hostProfile: HostProfile;
   userId: string;
   userName: string;
   avatarUrl?: string | null;
-  remoteVideoRef: React.RefObject<HTMLVideoElement | null>;
-  remoteHostCameraVideoRef: React.RefObject<HTMLVideoElement | null>;
-  localVideoRef: React.RefObject<HTMLVideoElement | null>;
+  hostMainTrack?: TrackReference;
+  hostCameraPipTrack?: TrackReference;
+  localCameraTrack?: TrackReference;
   raisedHands: { userId: string; name: string }[];
   thumbsUp: number;
   thumbsDown: number;
@@ -38,7 +41,7 @@ type Props = {
   myReaction: string | null;
 };
 
-/** Member stage — host is primary; member self-view is a small PiP unless host is presenting. */
+/** Member stage — split or corner self-view; host stays primary unless presenting. */
 export function LivestreamMemberStage({
   meetingTitle,
   isLive,
@@ -49,13 +52,14 @@ export function LivestreamMemberStage({
   isRemoteScreenSharing,
   memberVideoEnabled,
   memberMicEnabled,
+  memberVideoLayout,
   hostProfile,
   userId,
   userName,
   avatarUrl,
-  remoteVideoRef,
-  remoteHostCameraVideoRef,
-  localVideoRef,
+  hostMainTrack,
+  hostCameraPipTrack,
+  localCameraTrack,
   raisedHands,
   thumbsUp,
   thumbsDown,
@@ -63,19 +67,21 @@ export function LivestreamMemberStage({
   myReaction,
 }: Props) {
   const present = isRemoteScreenSharing;
+  const splitView = !present && memberVideoLayout === "side-by-side";
   const selfMuted = isMuted || !memberMicEnabled;
+  const selfCameraOff = isCameraOff || !memberVideoEnabled;
 
   const statusParts = [
     isLive ? "Live meeting" : "Connecting",
     selfMuted ? "muted" : null,
-    isCameraOff ? "camera off" : null,
+    selfCameraOff ? "camera off" : null,
     !memberMicEnabled ? "mics off by host" : null,
     !memberVideoEnabled ? "cameras off by host" : null,
   ].filter(Boolean);
 
   return (
     <>
-      <div className="shrink-0 border-b border-gold/30 bg-burgundy px-3 py-2 sm:px-4">
+      <div className="shrink-0 border-b border-burgundy/30 bg-burgundy px-3 py-2 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate font-serif text-sm font-semibold text-cream sm:text-base">
@@ -97,24 +103,26 @@ export function LivestreamMemberStage({
 
       <div
         className={`relative flex min-h-0 flex-1 overflow-hidden bg-black ${
-          present ? "flex-row" : ""
+          present ? "flex-row" : splitView ? "grid grid-cols-1 sm:grid-cols-2" : ""
         }`}
       >
-        {/* Host main — screen when presenting, otherwise full-stage host camera */}
-        <div className={`relative min-h-0 min-w-0 bg-black ${present ? "flex-1" : "absolute inset-0"}`}>
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className={`h-full w-full object-contain ${!present && isRemoteCameraOff ? "hidden" : ""}`}
+        <div
+          className={`relative min-h-0 min-w-0 ${
+            present
+              ? "flex-1 bg-black"
+              : splitView
+                ? "border-b border-gold/20 bg-black sm:border-b-0 sm:border-r"
+                : "absolute inset-0 bg-black"
+          }`}
+        >
+          <LiveKitVideoTile
+            trackRef={hostMainTrack}
+            userId={hostProfile.userId}
+            name={hostProfile.name}
+            avatarUrl={hostProfile.avatarUrl}
+            cameraOff={!present && isRemoteCameraOff}
+            videoClassName="h-full w-full object-contain"
           />
-          {!present && isRemoteCameraOff && (
-            <CameraOffOverlay
-              userId={hostProfile.userId}
-              name={hostProfile.name}
-              avatarUrl={hostProfile.avatarUrl}
-            />
-          )}
           <MuteIndicator visible={isRemoteMuted} />
           {!present && (
             <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
@@ -124,23 +132,16 @@ export function LivestreamMemberStage({
         </div>
 
         {present ? (
-          /* Screen share: host camera + member self in right rail */
           <div className="flex w-36 shrink-0 flex-col border-l border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
-            <div className="relative aspect-video shrink-0 border-b border-gold/10">
-              <video
-                ref={remoteHostCameraVideoRef}
-                autoPlay
-                playsInline
-                className={`h-full w-full object-cover ${isRemoteCameraOff ? "hidden" : ""}`}
+            <div className="relative aspect-video shrink-0 border-b border-gold/10 bg-black">
+              <LiveKitVideoTile
+                trackRef={hostCameraPipTrack}
+                userId={hostProfile.userId}
+                name={hostProfile.name}
+                avatarUrl={hostProfile.avatarUrl}
+                cameraOff={isRemoteCameraOff}
+                compact
               />
-              {isRemoteCameraOff && (
-                <CameraOffOverlay
-                  userId={hostProfile.userId}
-                  name={hostProfile.name}
-                  avatarUrl={hostProfile.avatarUrl}
-                  compact
-                />
-              )}
               <MuteIndicator visible={isRemoteMuted} compact />
               <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
                 Host
@@ -149,11 +150,11 @@ export function LivestreamMemberStage({
 
             <div className="relative min-h-0 flex-1">
               <MemberSelfTile
-                localVideoRef={localVideoRef}
+                trackRef={localCameraTrack}
                 userId={userId}
                 userName={userName}
                 avatarUrl={avatarUrl}
-                isCameraOff={isCameraOff}
+                cameraOff={selfCameraOff}
                 selfMuted={selfMuted}
                 handRaised={handRaised}
                 myReaction={myReaction}
@@ -162,15 +163,28 @@ export function LivestreamMemberStage({
               />
             </div>
           </div>
-        ) : (
-          /* Default: small PiP for member self */
-          <div className="pointer-events-none absolute bottom-3 right-3 z-10 sm:bottom-4 sm:right-4">
+        ) : splitView ? (
+          <div className="relative min-h-[12rem] sm:min-h-0">
             <MemberSelfTile
-              localVideoRef={localVideoRef}
+              trackRef={localCameraTrack}
               userId={userId}
               userName={userName}
               avatarUrl={avatarUrl}
-              isCameraOff={isCameraOff}
+              cameraOff={selfCameraOff}
+              selfMuted={selfMuted}
+              handRaised={handRaised}
+              myReaction={myReaction}
+              showYouLabel
+            />
+          </div>
+        ) : (
+          <div className="pointer-events-none absolute bottom-3 right-3 z-10 sm:bottom-4 sm:right-4">
+            <MemberSelfTile
+              trackRef={localCameraTrack}
+              userId={userId}
+              userName={userName}
+              avatarUrl={avatarUrl}
+              cameraOff={selfCameraOff}
               selfMuted={selfMuted}
               handRaised={handRaised}
               myReaction={myReaction}
@@ -198,11 +212,11 @@ export function LivestreamMemberStage({
 }
 
 function MemberSelfTile({
-  localVideoRef,
+  trackRef,
   userId,
   userName,
   avatarUrl,
-  isCameraOff,
+  cameraOff,
   selfMuted,
   handRaised,
   myReaction,
@@ -210,11 +224,11 @@ function MemberSelfTile({
   compact = false,
   showYouLabel = false,
 }: {
-  localVideoRef: React.RefObject<HTMLVideoElement | null>;
+  trackRef?: TrackReference;
   userId: string;
   userName: string;
   avatarUrl?: string | null;
-  isCameraOff: boolean;
+  cameraOff: boolean;
   selfMuted: boolean;
   handRaised: boolean;
   myReaction: string | null;
@@ -226,29 +240,24 @@ function MemberSelfTile({
     <div
       className={
         pip
-          ? "h-24 w-36 overflow-hidden rounded-xl border-2 border-gold/50 bg-black shadow-2xl sm:h-32 sm:w-48 md:h-36 md:w-52"
-          : "relative h-full min-h-0 w-full"
+          ? "h-24 w-36 overflow-hidden rounded-xl border-2 border-gold/50 bg-burgundy-deep shadow-2xl sm:h-32 sm:w-48 md:h-36 md:w-52"
+          : "relative h-full min-h-0 w-full bg-burgundy-deep"
       }
     >
-      <video
-        ref={localVideoRef}
-        autoPlay
-        playsInline
-        muted
-        className={`h-full w-full object-cover ${isCameraOff ? "hidden" : ""}`}
+      <LiveKitVideoTile
+        trackRef={trackRef}
+        userId={userId}
+        name={userName}
+        avatarUrl={avatarUrl}
+        cameraOff={cameraOff}
+        compact={pip || compact}
       />
-      {isCameraOff && (
-        <CameraOffOverlay
-          userId={userId}
-          name={userName}
-          avatarUrl={avatarUrl}
-          compact={pip || compact}
-        />
-      )}
       <ParticipantSignalBadges handRaised={handRaised} reaction={myReaction} />
       <MuteIndicator visible={selfMuted} compact={pip || compact} />
       {(pip || showYouLabel) && (
-        <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">You</p>
+        <p className="absolute bottom-1 left-2 z-10 text-[10px] font-semibold text-gold-light/80">
+          You
+        </p>
       )}
     </div>
   );
