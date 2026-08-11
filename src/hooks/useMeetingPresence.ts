@@ -40,15 +40,37 @@ export function useMeetingPresence({
   const [memberVideoEnabled, setMemberVideoEnabled] = useState(true);
   const [memberMicEnabled, setMemberMicEnabled] = useState(true);
   const [meetingEnded, setMeetingEnded] = useState(false);
+  const [wasRemoved, setWasRemoved] = useState(false);
   const [isSavingRecording, setIsSavingRecording] = useState(false);
   const [error, setError] = useState("");
 
   const signalCursorRef = useRef(new Date().toISOString());
   const meetingEndedRef = useRef(false);
+  const kickedRef = useRef(false);
+  const wasParticipantRef = useRef(false);
   const onKickedRef = useRef(onKicked);
   const onMeetingEndedRef = useRef(onMeetingEnded);
   onKickedRef.current = onKicked;
   onMeetingEndedRef.current = onMeetingEnded;
+
+  const leaveMeeting = useCallback(async () => {
+    try {
+      await fetch(`/api/meetings/${meetingToken}/participants`, {
+        method: "DELETE",
+        keepalive: true,
+      });
+    } catch {
+      /* ignore */
+    }
+  }, [meetingToken]);
+
+  const handleKicked = useCallback(() => {
+    if (kickedRef.current || isHost) return;
+    kickedRef.current = true;
+    setWasRemoved(true);
+    void leaveMeeting();
+    onKickedRef.current?.();
+  }, [isHost, leaveMeeting]);
 
   const handleMeetingEnded = useCallback(() => {
     if (meetingEndedRef.current) return;
@@ -58,7 +80,7 @@ export function useMeetingPresence({
   }, []);
 
   const fetchParticipants = useCallback(async () => {
-    if (meetingEndedRef.current) return;
+    if (meetingEndedRef.current || kickedRef.current) return;
 
     const res = await fetch(`/api/meetings/${meetingToken}/participants`);
     if (!res.ok) return;
@@ -75,8 +97,16 @@ export function useMeetingPresence({
 
     const me = (data.participants as MeetingParticipant[]).find((p) => p.user.id === userId);
     if (me) {
+      wasParticipantRef.current = true;
       setHandRaised(me.handRaised);
       setMyReaction(me.reaction ?? null);
+    } else if (
+      !isHost &&
+      wasParticipantRef.current &&
+      data.meetingStatus === "LIVE"
+    ) {
+      handleKicked();
+      return;
     }
 
     const viewers = (data.participants as MeetingParticipant[]).filter(
@@ -85,10 +115,10 @@ export function useMeetingPresence({
     setViewerCount(viewers.length);
     setMemberVideoEnabled(data.memberVideoEnabled !== false);
     setMemberMicEnabled(data.memberMicEnabled !== false);
-  }, [handleMeetingEnded, meetingToken, userId]);
+  }, [handleKicked, handleMeetingEnded, isHost, meetingToken, userId]);
 
   const pollSignals = useCallback(async () => {
-    if (meetingEndedRef.current || isHost) return;
+    if (meetingEndedRef.current || kickedRef.current || isHost) return;
 
     const res = await fetch(
       `/api/meetings/${meetingToken}/signal?since=${encodeURIComponent(signalCursorRef.current)}`,
@@ -98,7 +128,7 @@ export function useMeetingPresence({
     const data = await res.json();
     for (const signal of data.signals as MeetingSignalMessage[]) {
       if (signal.type === "kick" && signal.toUserId === userId) {
-        onKickedRef.current?.();
+        handleKicked();
         return;
       }
       if (signal.type === "host-ended") {
@@ -113,7 +143,7 @@ export function useMeetingPresence({
       }
       signalCursorRef.current = signal.createdAt;
     }
-  }, [handleMeetingEnded, isHost, meetingToken, userId]);
+  }, [handleKicked, handleMeetingEnded, isHost, meetingToken, userId]);
 
   useEffect(() => {
     void fetchParticipants();
@@ -124,6 +154,22 @@ export function useMeetingPresence({
       clearInterval(signalInterval);
     };
   }, [fetchParticipants, pollSignals]);
+
+  useEffect(() => {
+    if (isHost || kickedRef.current) return;
+
+    const pollNow = () => {
+      void pollSignals();
+      void fetchParticipants();
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") pollNow();
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [fetchParticipants, isHost, pollSignals]);
 
   const toggleHand = useCallback(async () => {
     const action = handRaised ? "lower-hand" : "raise-hand";
@@ -182,6 +228,11 @@ export function useMeetingPresence({
 
   const kickViewer = useCallback(
     async (viewerId: string) => {
+      await fetch(`/api/meetings/${meetingToken}/chat`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: viewerId, action: "remove" }),
+      });
       try {
         await fetch(`/api/meetings/${meetingToken}/livekit-participant`, {
           method: "DELETE",
@@ -191,26 +242,10 @@ export function useMeetingPresence({
       } catch {
         /* ignore */
       }
-      await fetch(`/api/meetings/${meetingToken}/chat`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: viewerId, action: "remove" }),
-      });
       void fetchParticipants();
     },
     [fetchParticipants, meetingToken],
   );
-
-  const leaveMeeting = useCallback(async () => {
-    try {
-      await fetch(`/api/meetings/${meetingToken}/participants`, {
-        method: "DELETE",
-        keepalive: true,
-      });
-    } catch {
-      /* ignore */
-    }
-  }, [meetingToken]);
 
   const endBroadcast = useCallback(async () => {
     if (!isHost || meetingEndedRef.current) return;
@@ -244,6 +279,7 @@ export function useMeetingPresence({
     memberVideoEnabled,
     memberMicEnabled,
     meetingEnded,
+    wasRemoved,
     isSavingRecording,
     error,
     setError,

@@ -4,9 +4,11 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { X } from "lucide-react";
 import { MINISTRY_LEADER } from "@/lib/brand";
+import { useAppPath } from "@/hooks/useAppBase";
 
 export function LivestreamEndedBanner() {
   const searchParams = useSearchParams();
+  const livestreamPath = useAppPath("/livestream");
   const ended = searchParams.get("ended") === "1";
   const removed = searchParams.get("removed") === "1";
 
@@ -23,7 +25,7 @@ export function LivestreamEndedBanner() {
           : "The host has ended the live meeting. We hope to see you at the next session."}
       </p>
       <Link
-        href="/livestream"
+        href={livestreamPath}
         className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-gold-muted hover:underline"
       >
         <X className="h-3.5 w-3.5" />

@@ -25,6 +25,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
+import { RemovedFromMeetingScreen } from "@/components/livestream/RemovedFromMeetingScreen";
 import { LivestreamHostStage } from "@/components/livestream/room/LivestreamHostStage";
 import { LivestreamMemberStage } from "@/components/livestream/room/LivestreamMemberStage";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
@@ -99,6 +100,7 @@ function LivestreamRoomContent({
     memberVideoEnabled,
     memberMicEnabled,
     meetingEnded,
+    wasRemoved,
     isSavingRecording,
     error: presenceError,
     toggleHand,
@@ -113,7 +115,7 @@ function LivestreamRoomContent({
     userId,
     isHost,
     hostId,
-    onKicked: () => router.push(`${livestreamPath}?removed=1`),
+    onKicked: () => router.replace(`${livestreamPath}?removed=1`),
   });
 
   const {
@@ -204,6 +206,15 @@ function LivestreamRoomContent({
     isCameraOff,
     isMuted,
   ]);
+
+  if (wasRemoved) {
+    return (
+      <RemovedFromMeetingScreen
+        meetingTitle={meetingTitle}
+        onContinue={() => router.replace(`${livestreamPath}?removed=1`)}
+      />
+    );
+  }
 
   if (meetingEnded) {
     return (
