@@ -7,12 +7,33 @@ import {
   type VideoCaptureOptions,
 } from "livekit-client";
 
-/** Request tab/window audio when sharing screen (Chrome: check "Share tab audio"). */
+const screenShareResolution = ScreenSharePresets.h720fps15.resolution;
+
+/**
+ * Screen capture for livestream host.
+ * Do not set systemAudio: "include" — it breaks window sharing in Chrome (tabs still work).
+ * Tab audio uses audio: true plus the browser's "Share tab audio" checkbox.
+ */
 export const screenShareCaptureOptions: ScreenShareCaptureOptions = {
   audio: true,
-  systemAudio: "include",
-  resolution: ScreenSharePresets.h720fps15.resolution,
+  resolution: screenShareResolution,
+  contentHint: "detail",
+  surfaceSwitching: "include",
 };
+
+/** Fallback when the browser rejects audio in getDisplayMedia (still shares window/tab video). */
+export const screenShareVideoOnlyOptions: ScreenShareCaptureOptions = {
+  audio: false,
+  resolution: screenShareResolution,
+  contentHint: "detail",
+};
+
+/** Ordered attempts — stop at the first successful publish. */
+export const screenShareCaptureAttempts: ScreenShareCaptureOptions[] = [
+  screenShareCaptureOptions,
+  screenShareVideoOnlyOptions,
+  { audio: false },
+];
 
 /** Room-wide streaming defaults — adaptive layers for sidebar tiles during screen share. */
 export const liveKitRoomOptions: RoomOptions = {

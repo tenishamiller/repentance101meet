@@ -299,7 +299,7 @@ function LivestreamRoomContent({
                 />
                 <button
                   type="button"
-                  title="Share a browser tab and enable “Share tab audio” to include video sound for members."
+                  title="Share a window, screen, or browser tab. For tab audio, pick a Chrome tab and check “Share tab audio”."
                   onClick={() => void toggleScreenShare()}
                   className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition sm:text-sm ${
                     isScreenSharing

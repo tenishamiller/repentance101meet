@@ -16,7 +16,7 @@ import {
   getMemberCameraPublishOptions,
   hostLivestreamCameraCapture,
   hostLivestreamCameraPublish,
-  screenShareCaptureOptions,
+  screenShareCaptureAttempts,
 } from "@/lib/livekit-capture";
 import { isLiveKitPermissionError } from "@/lib/livekit-errors";
 
@@ -358,11 +358,19 @@ export function useLiveKitStage({
       }
       return;
     }
-    try {
-      await localParticipant.setScreenShareEnabled(true, screenShareCaptureOptions);
-    } catch {
-      await localParticipant.setScreenShareEnabled(true);
+
+    const publishOptions = { degradationPreference: "maintain-resolution" as const };
+
+    for (const options of screenShareCaptureAttempts) {
+      try {
+        await localParticipant.setScreenShareEnabled(true, options, publishOptions);
+        return;
+      } catch {
+        /* try the next capture profile */
+      }
     }
+
+    await localParticipant.setScreenShareEnabled(true, undefined, publishOptions);
   }, [cameraOffByUser, enableHostCamera, isHost, isScreenShareEnabled, localParticipant, mode]);
 
   const switchVideoDevice = useCallback(
