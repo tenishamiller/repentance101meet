@@ -182,11 +182,6 @@ export function useMeetingPresence({
 
   const kickViewer = useCallback(
     async (viewerId: string) => {
-      await fetch(`/api/meetings/${meetingToken}/chat`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: viewerId, action: "block" }),
-      });
       try {
         await fetch(`/api/meetings/${meetingToken}/livekit-participant`, {
           method: "DELETE",
@@ -196,6 +191,11 @@ export function useMeetingPresence({
       } catch {
         /* ignore */
       }
+      await fetch(`/api/meetings/${meetingToken}/chat`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: viewerId, action: "remove" }),
+      });
       void fetchParticipants();
     },
     [fetchParticipants, meetingToken],

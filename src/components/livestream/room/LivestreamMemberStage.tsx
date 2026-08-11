@@ -110,7 +110,11 @@ export function LivestreamMemberStage({
 
       <div
         className={`relative flex min-h-0 flex-1 overflow-hidden bg-black ${
-          present ? "flex-row" : splitView ? "grid grid-cols-1 sm:grid-cols-2" : ""
+          present
+            ? "flex-row"
+            : splitView
+              ? "grid min-h-0 grid-cols-1 grid-rows-2 sm:grid-cols-2 sm:grid-rows-1"
+              : ""
         }`}
       >
         {present ? (
@@ -170,7 +174,7 @@ export function LivestreamMemberStage({
         ) : (
           <>
         <div
-          className={`relative min-h-0 min-w-0 ${
+          className={`relative min-h-0 min-w-0 overflow-hidden ${
               splitView
                 ? "border-b border-gold/20 bg-black sm:border-b-0 sm:border-r"
                 : "absolute inset-0 bg-black"
@@ -193,7 +197,7 @@ export function LivestreamMemberStage({
         </div>
 
         {splitView ? (
-          <div className="relative min-h-[12rem] sm:min-h-0">
+          <div className="relative min-h-0 min-w-0 overflow-hidden">
             <MemberSelfTile
               trackRef={localCameraTrack}
               userId={userId}

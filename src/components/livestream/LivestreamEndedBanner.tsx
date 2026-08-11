@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { X } from "lucide-react";
+import { MINISTRY_LEADER } from "@/lib/brand";
 
 export function LivestreamEndedBanner() {
   const searchParams = useSearchParams();
@@ -14,11 +15,11 @@ export function LivestreamEndedBanner() {
   return (
     <div className="mb-6 rounded-2xl border border-gold/40 bg-gold/10 px-5 py-4 text-burgundy">
       <p className="font-serif text-lg font-bold">
-        {removed ? "You left the meeting" : "Thanks for joining the livestream"}
+        {removed ? "You were removed from the livestream" : "Thanks for joining the livestream"}
       </p>
       <p className="mt-1 text-sm text-burgundy/80">
         {removed
-          ? "You were removed from the session or chose to leave."
+          ? `The host removed you from this session. If you have questions, please contact ${MINISTRY_LEADER} for further information. You may rejoin future meetings unless you are explicitly blocked.`
           : "The host has ended the live meeting. We hope to see you at the next session."}
       </p>
       <Link

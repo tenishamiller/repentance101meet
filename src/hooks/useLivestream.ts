@@ -1626,16 +1626,24 @@ export function useLivestream({
 
   const kickViewer = useCallback(
     async (viewerId: string) => {
+      try {
+        await fetch(`/api/meetings/${meetingToken}/livekit-participant`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: viewerId }),
+        });
+      } catch {
+        /* ignore */
+      }
       await fetch(`/api/meetings/${meetingToken}/chat`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: viewerId, action: "block" }),
+        body: JSON.stringify({ userId: viewerId, action: "remove" }),
       });
-      await sendSignal("kick", viewerId);
       teardownViewerConnection(viewerId);
       void fetchParticipants();
     },
-    [fetchParticipants, meetingToken, sendSignal, teardownViewerConnection],
+    [fetchParticipants, meetingToken, teardownViewerConnection],
   );
 
   const setMemberMediaPolicy = useCallback(

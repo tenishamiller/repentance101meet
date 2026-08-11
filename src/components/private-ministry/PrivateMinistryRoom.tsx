@@ -267,13 +267,15 @@ function PrivateMinistryRoomContent({
 
           <div
             className={`relative min-h-0 flex-1 overflow-hidden bg-black ${
-              memberVideoLayout === "side-by-side" ? "grid grid-cols-1 sm:grid-cols-2" : ""
+              memberVideoLayout === "side-by-side"
+                ? "grid min-h-0 grid-cols-1 grid-rows-2 sm:grid-cols-2 sm:grid-rows-1"
+                : ""
             }`}
           >
             <div
-              className={`relative min-h-0 min-w-0 bg-black ${
+              className={`relative min-h-0 min-w-0 overflow-hidden bg-black ${
                 memberVideoLayout === "side-by-side"
-                  ? "border-r border-gold/20"
+                  ? "border-b border-gold/20 sm:border-b-0 sm:border-r"
                   : "absolute inset-0"
               }`}
             >
@@ -291,7 +293,7 @@ function PrivateMinistryRoomContent({
             <div
               className={
                 memberVideoLayout === "side-by-side"
-                  ? "relative min-h-[12rem] min-w-0 sm:min-h-0"
+                  ? "relative min-h-0 min-w-0 overflow-hidden"
                   : "absolute bottom-4 right-4 z-10 h-28 w-40 overflow-hidden rounded-xl border-2 border-gold/50 bg-black shadow-2xl sm:h-36 sm:w-52"
               }
             >

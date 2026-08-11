@@ -166,6 +166,29 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
   }
 
+  if (action === "remove") {
+    if (!userId || typeof userId !== "string") {
+      return Response.json({ error: "userId required" }, { status: 400 });
+    }
+    if (userId === meeting.createdById) {
+      return Response.json({ error: "Cannot remove the host" }, { status: 400 });
+    }
+
+    await prisma.meetingParticipant.deleteMany({
+      where: { meetingId: meeting.id, userId },
+    });
+    await prisma.meetingSignal.create({
+      data: {
+        meetingId: meeting.id,
+        fromUserId: session.user.id,
+        toUserId: userId,
+        type: "kick",
+        payload: { reason: "removed" },
+      },
+    });
+    return Response.json({ success: true });
+  }
+
   if (action === "block") {
     await prisma.meetingParticipant.update({
       where: { meetingId_userId: { meetingId: meeting.id, userId } },
@@ -187,7 +210,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         payload: {},
       },
     });
+    return Response.json({ success: true });
   }
 
-  return Response.json({ success: true });
+  return Response.json({ error: "Unknown action" }, { status: 400 });
 }
