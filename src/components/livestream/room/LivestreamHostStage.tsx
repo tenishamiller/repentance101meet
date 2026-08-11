@@ -75,9 +75,9 @@ export function LivestreamHostStage({
   const showCameraOff = isLive && isCameraOff && !isScreenSharing;
   const waitingForVideo = isLive && !showCameraOff && !hasHostVideo && !isScreenSharing;
   const memberCount = remoteParticipants.filter((p) => p.identity !== hostId).length;
-  const mobileHostSolo = isMobile && !isScreenSharing;
   const mobilePresenting = isMobile && isScreenSharing;
   const inRoomCount = memberCount + (mobilePresenting && hostSelfTile ? 1 : 0);
+  const mobilePrimaryKey = isScreenSharing ? "presenting" : "solo";
 
   const inRoomGallery = (
     <LiveKitParticipantGallery
@@ -110,20 +110,13 @@ export function LivestreamHostStage({
   const videoStage = (
     <div
       className={cn(
-        "relative min-h-0 min-w-0 flex-1 overflow-hidden",
-        showCameraOff ? "bg-burgundy-deep" : "bg-black",
-        mobilePresenting && "flex items-center justify-center",
+        "relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black",
+        showCameraOff && "bg-burgundy-deep",
       )}
     >
-      <div
-        className={cn(
-          "relative overflow-hidden",
-          mobilePresenting && "aspect-video w-full max-h-full",
-          mobileHostSolo && "h-full min-h-0 w-full",
-          !isMobile && "h-full min-h-0 w-full",
-        )}
-      >
+      <div className="relative h-full min-h-0 w-full overflow-hidden">
         <LiveKitVideoTile
+          key={isScreenSharing ? "host-screen" : "host-camera"}
           trackRef={hostMainTrack}
           userId={userId}
           name={userName}
@@ -185,6 +178,7 @@ export function LivestreamHostStage({
             secondary={inRoomPanel}
             secondaryLabel="In room"
             badge={inRoomCount}
+            snapPrimaryKey={mobilePrimaryKey}
           />
         ) : (
           <>

@@ -9,6 +9,8 @@ type Props = {
   secondary: React.ReactNode;
   secondaryLabel?: string;
   badge?: number;
+  /** When this value changes, snap back to the primary (video) panel. */
+  snapPrimaryKey?: string | number;
 };
 
 /** Two-page horizontal snap: video (default) and swipe-left secondary panel (mobile only). */
@@ -17,9 +19,21 @@ export function MobileSwipePanels({
   secondary,
   secondaryLabel = "In room",
   badge,
+  snapPrimaryKey,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(0);
+  const prevSnapKey = useRef(snapPrimaryKey);
+
+  useEffect(() => {
+    if (snapPrimaryKey === undefined) return;
+    if (prevSnapKey.current === snapPrimaryKey) return;
+    prevSnapKey.current = snapPrimaryKey;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ left: 0, behavior: "auto" });
+    setPage(0);
+  }, [snapPrimaryKey]);
 
   useEffect(() => {
     const el = scrollRef.current;
