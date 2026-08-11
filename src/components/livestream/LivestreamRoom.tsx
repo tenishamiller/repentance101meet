@@ -506,7 +506,7 @@ function LivestreamRoomContent({
             ? mobileTab === "video"
               ? "hidden lg:flex"
               : "min-h-0 flex-1 basis-0 border-t-0"
-            : "max-lg:max-h-[38vh] max-lg:shrink-0"
+            : "min-h-0 flex-1 basis-0 lg:flex-none lg:basis-auto max-lg:max-h-[38vh] max-lg:shrink-0"
         }`}
       >
         {isHost && (!isMobile || mobileTab === "people") && (
@@ -664,11 +664,13 @@ function LivestreamRoomContent({
           ]}
         />
       )}
-      <LivestreamRoomAudio
-        hostId={hostId}
-        isHost={isHost}
-        memberMicEnabled={memberMicEnabled}
-      />
+      <div className="pointer-events-none fixed h-0 w-0 overflow-hidden opacity-0" aria-hidden>
+        <LivestreamRoomAudio
+          hostId={hostId}
+          isHost={isHost}
+          memberMicEnabled={memberMicEnabled}
+        />
+      </div>
     </div>
   );
 }
