@@ -9,6 +9,7 @@ import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
 import { ParticipantSignalBadges } from "@/components/livestream/LivestreamAudienceSignals";
 import { ParticipantPanelNameRow } from "@/components/livestream/ParticipantPanelNameRow";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
+import { avatarUrlFromLiveKitMetadata } from "@/lib/avatar-url";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -27,6 +28,17 @@ function displayName(name: string, dbParticipant?: MeetingParticipant) {
   return prefix.length > 0 ? `${prefix.join(" ")} ${name}` : name;
 }
 
+function memberAvatarUrl(
+  participant: RemoteParticipant,
+  dbParticipant?: MeetingParticipant,
+) {
+  return (
+    dbParticipant?.user.avatarUrl ??
+    avatarUrlFromLiveKitMetadata(participant.metadata) ??
+    null
+  );
+}
+
 function MemberGalleryTile({
   participant,
   dbParticipant,
@@ -38,12 +50,17 @@ function MemberGalleryTile({
     participantIdentity: participant.identity,
   });
   const cameraTrack = cameraTracks.find((t) => t.source === Track.Source.Camera);
+  const cameraPublication = cameraTrack?.publication;
   const cameraOn =
-    memberVideoEnabled && !!cameraTrack?.publication?.track && participant.isCameraEnabled;
+    memberVideoEnabled &&
+    !!cameraPublication?.track &&
+    participant.isCameraEnabled &&
+    !cameraPublication.isMuted;
+
   const micOn = memberMicEnabled && participant.isMicrophoneEnabled;
 
   const name = dbParticipant?.user.name ?? participant.name ?? participant.identity;
-  const avatarUrl = dbParticipant?.user.avatarUrl ?? null;
+  const avatarUrl = memberAvatarUrl(participant, dbParticipant);
 
   return (
     <div

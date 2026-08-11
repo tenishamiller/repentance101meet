@@ -42,6 +42,7 @@ type CreateTokenOptions = {
   roomName: string;
   identity: string;
   name: string;
+  avatarUrl?: string | null;
   isHost: boolean;
   memberVideoEnabled?: boolean;
   memberMicEnabled?: boolean;
@@ -64,6 +65,9 @@ export async function createLiveKitAccessToken(options: CreateTokenOptions) {
     identity: options.identity,
     name: options.name,
     ttl: "6h",
+    metadata: JSON.stringify({
+      avatarUrl: options.avatarUrl ?? "",
+    }),
   });
 
   if (options.isHost) {

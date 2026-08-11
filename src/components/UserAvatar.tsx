@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AvatarImage } from "@/components/AvatarImage";
 import { MINISTRY_NAME } from "@/lib/brand";
+import { resolveAvatarUrl } from "@/lib/avatar-url";
 import { cn, formatMemberSince, getInitials } from "@/lib/utils";
 
 export type AvatarSize = "sm" | "md" | "lg" | "xl" | "2xl";
@@ -24,6 +25,10 @@ type UserAvatarProps = {
   className?: string;
   /** When false, shows avatar only (no profile popover). */
   interactive?: boolean;
+  /** Load profile photo from API when no avatarUrl prop is provided. */
+  loadProfileWhenEmpty?: boolean;
+  /** Use light initials/text on dark video panels. */
+  onDark?: boolean;
 };
 
 const sizes: Record<AvatarSize, string> = {
@@ -41,6 +46,8 @@ export function UserAvatar({
   size = "md",
   className,
   interactive = true,
+  loadProfileWhenEmpty = false,
+  onDark = false,
 }: UserAvatarProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -52,8 +59,29 @@ export function UserAvatar({
   }, [avatarUrl]);
 
   useEffect(() => {
+    if (interactive || (!loadProfileWhenEmpty && avatarUrl)) return;
+
+    let cancelled = false;
+    setProfileLoading(true);
+
+    fetch(`/api/users/${userId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.user) {
+          setProfile(data.user);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setProfileLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [avatarUrl, interactive, loadProfileWhenEmpty, userId]);
+
+  useEffect(() => {
     if (!showPopover) {
-      setProfile(null);
       return;
     }
 
@@ -77,7 +105,7 @@ export function UserAvatar({
   }, [showPopover, userId]);
 
   const displayName = profile?.name ?? name;
-  const displayAvatarUrl = profile?.avatarUrl ?? avatarUrl;
+  const displayAvatarUrl = resolveAvatarUrl(profile?.avatarUrl ?? avatarUrl);
   const showImage = displayAvatarUrl && !imageFailed;
 
   const face = (
@@ -90,7 +118,12 @@ export function UserAvatar({
           onError={() => setImageFailed(true)}
         />
       ) : (
-        <span className="flex h-full w-full items-center justify-center bg-burgundy/10 font-semibold text-burgundy">
+        <span
+          className={cn(
+            "flex h-full w-full items-center justify-center font-semibold",
+            onDark ? "bg-burgundy/40 text-cream" : "bg-burgundy/10 text-burgundy",
+          )}
+        >
           {getInitials(displayName)}
         </span>
       )}

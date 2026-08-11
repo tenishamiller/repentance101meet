@@ -40,6 +40,8 @@ export function CameraOffOverlay({
         avatarUrl={avatarUrl}
         size={resolvedSize}
         interactive={false}
+        loadProfileWhenEmpty
+        onDark
         className="ring-gold/50"
       />
       {showLabel && (

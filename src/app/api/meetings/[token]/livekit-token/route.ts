@@ -81,6 +81,11 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return Response.json({ error: "Complete your profile first" }, { status: 400 });
   }
 
+  const userRecord = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { avatarUrl: true },
+  });
+
   await prisma.meetingParticipant.upsert({
     where: {
       meetingId_userId: { meetingId: meeting.id, userId: session.user.id },
@@ -98,6 +103,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     roomName,
     identity: session.user.id,
     name: session.user.name,
+    avatarUrl: userRecord?.avatarUrl ?? session.user.avatarUrl ?? null,
     isHost,
     memberVideoEnabled: meeting.memberVideoEnabled,
     memberMicEnabled: meeting.memberMicEnabled,
