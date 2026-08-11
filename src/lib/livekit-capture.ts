@@ -33,20 +33,28 @@ export const liveKitRoomOptions: RoomOptions = {
   },
 };
 
-/** Host camera — 540p30 for sharper teaching video; simulcast layers for adaptive sidebar tiles. */
+/** Host camera — 720p24 for sharper teaching video; H.264 primary with VP8 fallback. */
 export const hostLivestreamCameraCapture: VideoCaptureOptions = {
-  resolution: VideoPresets.h540.resolution,
-  frameRate: 30,
+  resolution: VideoPresets.h720.resolution,
+  frameRate: 24,
 };
 
 export const hostLivestreamCameraPublish: TrackPublishOptions = {
+  videoCodec: "h264",
+  backupCodec: {
+    codec: "vp8",
+    encoding: {
+      maxBitrate: 1_350_000,
+      maxFramerate: 24,
+    },
+  },
   videoEncoding: {
-    maxBitrate: 1_000_000,
-    maxFramerate: 30,
+    maxBitrate: 1_350_000,
+    maxFramerate: 24,
   },
   degradationPreference: "maintain-framerate",
   simulcast: true,
-  videoSimulcastLayers: [VideoPresets.h360, VideoPresets.h180],
+  videoSimulcastLayers: [VideoPresets.h540, VideoPresets.h360, VideoPresets.h180],
 };
 
 /** Member camera when host is not presenting (pip / split layout). */
