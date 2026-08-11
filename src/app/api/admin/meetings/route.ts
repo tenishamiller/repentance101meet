@@ -82,7 +82,13 @@ export async function PATCH(request: NextRequest) {
 
     const updated = await prisma.meeting.update({
       where: { id: meetingId },
-      data: { status: "LIVE", startedAt: new Date() },
+      data: {
+        status: "LIVE",
+        startedAt: new Date(),
+        ...(meeting.kind === "LIVESTREAM"
+          ? { memberVideoEnabled: false, memberMicEnabled: false }
+          : {}),
+      },
     });
     return Response.json({ meeting: updated });
   }

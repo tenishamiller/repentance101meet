@@ -17,7 +17,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return Response.json({ error: "Meeting not found" }, { status: 404 });
   }
 
-  await expireStaleMeetingSignals(meeting.id);
+  const isHost = meeting.createdById === session.user.id;
+  if (isHost || session.user.role === "ADMIN") {
+    await expireStaleMeetingSignals(meeting.id);
+  }
 
   const participants = await prisma.meetingParticipant.findMany({
     where: { meetingId: meeting.id, blocked: false },

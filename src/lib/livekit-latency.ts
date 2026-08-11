@@ -19,6 +19,14 @@ export function applyMainStageLowLatency(publication?: TrackPublication) {
   }
 }
 
+/** Sidebar / panel tiles — lowest simulcast layer to save host bandwidth at scale. */
+export function applyPanelRemoteVideo(publication?: TrackPublication) {
+  if (!(publication instanceof RemoteTrackPublication)) return;
+  if (publication.source !== Track.Source.Camera) return;
+
+  publication.setVideoQuality(VideoQuality.LOW);
+}
+
 /** @deprecated Use applyMainStageLowLatency — only for main-stage tiles with lowLatency prop. */
 export function applyLowLatencyRemoteVideoPublication(publication?: TrackPublication) {
   applyMainStageLowLatency(publication);

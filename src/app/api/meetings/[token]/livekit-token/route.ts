@@ -66,7 +66,13 @@ export async function GET(_request: Request, { params }: RouteParams) {
   if (isHost && meeting.status === "SCHEDULED") {
     meeting = await prisma.meeting.update({
       where: { id: meeting.id },
-      data: { status: "LIVE", startedAt: new Date() },
+      data: {
+        status: "LIVE",
+        startedAt: new Date(),
+        ...(meeting.kind === "LIVESTREAM"
+          ? { memberVideoEnabled: false, memberMicEnabled: false }
+          : {}),
+      },
     });
   }
 

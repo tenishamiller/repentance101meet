@@ -16,7 +16,7 @@ export const screenShareCaptureOptions: ScreenShareCaptureOptions = {
 
 /** Room-wide streaming defaults — adaptive layers for sidebar tiles during screen share. */
 export const liveKitRoomOptions: RoomOptions = {
-  adaptiveStream: { pixelDensity: 1, pauseVideoInBackground: false },
+  adaptiveStream: { pixelDensity: 1, pauseVideoInBackground: true },
   dynacast: true,
   webAudioMix: true,
   videoCaptureDefaults: {
@@ -60,13 +60,13 @@ export const hostLivestreamCameraPublish: TrackPublishOptions = {
 /** Member camera when host is not presenting (pip / split layout). */
 export const memberLivestreamCameraCapture: VideoCaptureOptions = {
   resolution: VideoPresets.h360.resolution,
-  frameRate: 30,
+  frameRate: 24,
 };
 
 export const memberLivestreamCameraPublish: TrackPublishOptions = {
   videoEncoding: {
-    maxBitrate: 450_000,
-    maxFramerate: 30,
+    maxBitrate: 350_000,
+    maxFramerate: 24,
   },
   degradationPreference: "maintain-framerate",
   simulcast: true,

@@ -12,7 +12,7 @@ async function canModerateMeetingChat(
   return role === "ADMIN" || meeting.createdById === userId;
 }
 
-export async function GET(_request: Request, { params }: RouteParams) {
+export async function GET(request: Request, { params }: RouteParams) {
   const session = await auth();
   if (!session?.user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -30,14 +30,19 @@ export async function GET(_request: Request, { params }: RouteParams) {
     session.user.role,
   );
 
+  const sinceParam = new URL(request.url).searchParams.get("since");
+  const sinceDate = sinceParam ? new Date(sinceParam) : null;
+  const sinceValid = sinceDate && !Number.isNaN(sinceDate.getTime());
+
   const messages = await prisma.meetingMessage.findMany({
     where: {
       meetingId: meeting.id,
       ...(canModerate ? {} : { deletedAt: null }),
+      ...(sinceValid ? { createdAt: { gt: sinceDate } } : {}),
     },
     include: { user: { select: { id: true, name: true, avatarUrl: true } } },
     orderBy: { createdAt: "asc" },
-    take: 200,
+    take: sinceValid ? 100 : 200,
   });
 
   return Response.json({ messages, canModerate });

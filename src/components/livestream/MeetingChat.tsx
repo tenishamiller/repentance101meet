@@ -8,6 +8,8 @@ import { MEETING_CHAT_MAX_FILE_LABEL } from "@/lib/chat-attachments";
 import { uploadMeetingChatFile } from "@/lib/meeting-chat-upload";
 import { getEditTimeRemaining, isMessageEdited } from "@/lib/channel-messages";
 import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
+import { MEETING_POLL } from "@/lib/meeting-poll-intervals";
+import { useVisibilityPolling } from "@/hooks/useVisibilityPolling";
 import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { EmojiPicker } from "@/components/livestream/EmojiPicker";
 
@@ -44,26 +46,50 @@ export function MeetingChat({
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const lastMessageIdRef = useRef<string | null>(null);
+  const lastMessageAtRef = useRef<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const canSend = content.trim().length > 0 || pendingFiles.length > 0;
 
   const fetchMessages = useCallback(async () => {
-    const res = await fetch(`/api/meetings/${meetingToken}/chat`);
-    if (res.ok) {
-      const data = await res.json();
-      setMessages(data.messages);
-      if (typeof data.canModerate === "boolean") {
-        setCanModerate(data.canModerate);
-      }
+    const since = lastMessageAtRef.current;
+    const url = since
+      ? `/api/meetings/${meetingToken}/chat?since=${encodeURIComponent(since)}`
+      : `/api/meetings/${meetingToken}/chat`;
+    const res = await fetch(url);
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const incoming = data.messages as MeetingMessage[];
+
+    if (since && incoming.length > 0) {
+      setMessages((prev) => {
+        const byId = new Map(prev.map((m) => [m.id, m]));
+        for (const msg of incoming) {
+          byId.set(msg.id, msg);
+        }
+        return [...byId.values()].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+      });
+    } else if (!since) {
+      setMessages(incoming);
+    }
+
+    const latest = incoming.at(-1);
+    if (latest) {
+      lastMessageAtRef.current = latest.createdAt;
+    }
+
+    if (typeof data.canModerate === "boolean") {
+      setCanModerate(data.canModerate);
     }
   }, [meetingToken]);
 
-  useEffect(() => {
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 2500);
-    return () => clearInterval(interval);
-  }, [fetchMessages]);
+  useVisibilityPolling(
+    fetchMessages,
+    isAdmin ? MEETING_POLL.chatHostMs : MEETING_POLL.chatMemberMs,
+  );
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);

@@ -1,7 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { MeetingSignalMessage } from "@/lib/webrtc";
+import { MEETING_POLL } from "@/lib/meeting-poll-intervals";
+import { useVisibilityPolling } from "@/hooks/useVisibilityPolling";
 
 export type MeetingParticipant = {
   user: {
@@ -27,7 +29,6 @@ export function useMeetingPresence({
   meetingToken,
   userId,
   isHost,
-  hostId,
   onKicked,
   onMeetingEnded,
 }: Options) {
@@ -37,8 +38,8 @@ export function useMeetingPresence({
   const [thumbsUp, setThumbsUp] = useState(0);
   const [thumbsDown, setThumbsDown] = useState(0);
   const [myReaction, setMyReaction] = useState<string | null>(null);
-  const [memberVideoEnabled, setMemberVideoEnabled] = useState(true);
-  const [memberMicEnabled, setMemberMicEnabled] = useState(true);
+  const [memberVideoEnabled, setMemberVideoEnabled] = useState(false);
+  const [memberMicEnabled, setMemberMicEnabled] = useState(false);
   const [meetingEnded, setMeetingEnded] = useState(false);
   const [wasRemoved, setWasRemoved] = useState(false);
   const [isSavingRecording, setIsSavingRecording] = useState(false);
@@ -145,31 +146,17 @@ export function useMeetingPresence({
     }
   }, [handleKicked, handleMeetingEnded, isHost, meetingToken, userId]);
 
-  useEffect(() => {
-    void fetchParticipants();
-    const participantInterval = setInterval(() => void fetchParticipants(), 4000);
-    const signalInterval = setInterval(() => void pollSignals(), 1000);
-    return () => {
-      clearInterval(participantInterval);
-      clearInterval(signalInterval);
-    };
-  }, [fetchParticipants, pollSignals]);
+  useVisibilityPolling(
+    fetchParticipants,
+    isHost ? MEETING_POLL.participantsHostMs : MEETING_POLL.participantsMemberMs,
+    !meetingEnded && !wasRemoved,
+  );
 
-  useEffect(() => {
-    if (isHost || kickedRef.current) return;
-
-    const pollNow = () => {
-      void pollSignals();
-      void fetchParticipants();
-    };
-
-    const onVisible = () => {
-      if (document.visibilityState === "visible") pollNow();
-    };
-
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [fetchParticipants, isHost, pollSignals]);
+  useVisibilityPolling(
+    pollSignals,
+    MEETING_POLL.signalsMemberMs,
+    !isHost && !meetingEnded && !wasRemoved,
+  );
 
   const toggleHand = useCallback(async () => {
     const action = handRaised ? "lower-hand" : "raise-hand";

@@ -7,7 +7,7 @@ import {
   CameraOffOverlay,
   VideoLoadingOverlay,
 } from "@/components/livestream/CameraOffOverlay";
-import { applyMainStageLowLatency } from "@/lib/livekit-latency";
+import { applyMainStageLowLatency, applyPanelRemoteVideo } from "@/lib/livekit-latency";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -51,7 +51,18 @@ export function LiveKitVideoTile({
     : "no-track";
 
   useEffect(() => {
-    if (!lowLatency || !trackRef?.publication) return;
+    if (!trackRef?.publication) return;
+
+    if (panelLayout) {
+      applyPanelRemoteVideo(trackRef.publication);
+      const onSubscribed = () => applyPanelRemoteVideo(trackRef.publication);
+      trackRef.publication.on("subscribed", onSubscribed);
+      return () => {
+        trackRef.publication?.off("subscribed", onSubscribed);
+      };
+    }
+
+    if (!lowLatency) return;
 
     applyMainStageLowLatency(trackRef.publication);
 
@@ -60,7 +71,7 @@ export function LiveKitVideoTile({
     return () => {
       trackRef.publication?.off("subscribed", onSubscribed);
     };
-  }, [lowLatency, trackRef]);
+  }, [lowLatency, panelLayout, trackRef]);
 
   return (
     <div className={cn("relative h-full min-h-0 w-full overflow-hidden bg-black", className)}>
