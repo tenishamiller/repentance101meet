@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Hand,
@@ -36,6 +36,7 @@ import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPop
 import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
 import { LivestreamRoomAudio } from "@/components/livekit/LivestreamRoomAudio";
 import { useLiveKitMeeting } from "@/components/livekit/livekit-meeting-context";
+import { clearMemberJoinSession } from "@/lib/member-join-media";
 
 /** Lets every mobile control scroll fully into view (avoid justify-center in overflow rows). */
 const MOBILE_CONTROL_BAR =
@@ -120,6 +121,20 @@ function LivestreamRoomContent({
     initialMemberMicEnabled: liveKitMeeting?.memberMicEnabled ?? true,
     onMediaPolicyChange: liveKitMeeting?.reloadToken,
   });
+
+  useEffect(() => {
+    if (isHost) return;
+    if (meetingEnded || wasRemoved) {
+      clearMemberJoinSession(meetingToken);
+    }
+  }, [isHost, meetingEnded, meetingToken, wasRemoved]);
+
+  const leaveRoom = () => {
+    if (!isHost) {
+      clearMemberJoinSession(meetingToken);
+    }
+    void leaveMeeting().finally(() => router.push(livestreamPath));
+  };
 
   const {
     isLive,
@@ -481,9 +496,7 @@ function LivestreamRoomContent({
               <MemberMessagesPopover userId={userId} />
               <button
                 type="button"
-                onClick={() => {
-                  void leaveMeeting().finally(() => router.push(livestreamPath));
-                }}
+                onClick={leaveRoom}
                 className="rounded-full border border-gold/40 px-4 py-2.5 text-sm font-semibold text-gold-light hover:bg-burgundy"
               >
                 Leave

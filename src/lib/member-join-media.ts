@@ -1,41 +1,48 @@
-const STORAGE_KEY = "r101-member-join-media";
-const TTL_MS = 24 * 60 * 60 * 1000;
-
 export type MemberJoinMediaPrefs = {
   cameraOn: boolean;
   micOn: boolean;
 };
 
-type Stored = MemberJoinMediaPrefs & { expiresAt: number };
+type StoredSession = MemberJoinMediaPrefs & { consented: true };
 
-const DEFAULT: MemberJoinMediaPrefs = { cameraOn: false, micOn: false };
+const sessionKey = (meetingToken: string) => `r101-livestream-join:${meetingToken}`;
 
-export function getMemberJoinMediaPrefs(): MemberJoinMediaPrefs {
-  if (typeof window === "undefined") return DEFAULT;
+/** Join choices for this browser tab session — survives refresh, cleared when the member leaves. */
+export function getMemberJoinSession(meetingToken: string): MemberJoinMediaPrefs | null {
+  if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT;
-    const parsed = JSON.parse(raw) as Stored;
-    if (typeof parsed.expiresAt !== "number" || parsed.expiresAt <= Date.now()) {
-      localStorage.removeItem(STORAGE_KEY);
-      return DEFAULT;
-    }
+    const raw = window.sessionStorage.getItem(sessionKey(meetingToken));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredSession;
     return { cameraOn: !!parsed.cameraOn, micOn: !!parsed.micOn };
   } catch {
-    return DEFAULT;
+    return null;
   }
 }
 
-export function saveMemberJoinMediaPrefs(prefs: MemberJoinMediaPrefs) {
+export function hasMemberJoinSession(meetingToken: string) {
+  return getMemberJoinSession(meetingToken) !== null;
+}
+
+export function saveMemberJoinSession(meetingToken: string, prefs: MemberJoinMediaPrefs) {
   if (typeof window === "undefined") return;
   try {
-    const stored: Stored = {
+    const stored: StoredSession = {
       cameraOn: prefs.cameraOn,
       micOn: prefs.micOn,
-      expiresAt: Date.now() + TTL_MS,
+      consented: true,
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    window.sessionStorage.setItem(sessionKey(meetingToken), JSON.stringify(stored));
   } catch {
     /* private browsing / quota */
+  }
+}
+
+export function clearMemberJoinSession(meetingToken: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(sessionKey(meetingToken));
+  } catch {
+    /* ignore */
   }
 }

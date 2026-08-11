@@ -5,12 +5,11 @@ import Link from "next/link";
 import { LivestreamRoom } from "@/components/livestream/LivestreamRoom";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
 import {
-  hasRecordingConsent,
   RecordingConsentGate,
-  saveRecordingConsent,
 } from "@/components/livestream/RecordingConsentGate";
 import {
-  getMemberJoinMediaPrefs,
+  getMemberJoinSession,
+  saveMemberJoinSession,
   type MemberJoinMediaPrefs,
 } from "@/lib/member-join-media";
 
@@ -33,8 +32,9 @@ export function MeetingPageClient({ token }: Props) {
   });
 
   useEffect(() => {
-    if (hasRecordingConsent(token)) {
-      setJoinMedia(getMemberJoinMediaPrefs());
+    const session = getMemberJoinSession(token);
+    if (session) {
+      setJoinMedia(session);
       setConsented(true);
     }
   }, [token]);
@@ -57,7 +57,7 @@ export function MeetingPageClient({ token }: Props) {
   }, [token]);
 
   function acceptConsent(media: MemberJoinMediaPrefs) {
-    saveRecordingConsent(token);
+    saveMemberJoinSession(token, media);
     setJoinMedia(media);
     setConsented(true);
   }

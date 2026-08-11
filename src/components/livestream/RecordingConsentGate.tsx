@@ -3,11 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Circle, Mic, MicOff, Video, VideoOff } from "lucide-react";
-import {
-  getMemberJoinMediaPrefs,
-  saveMemberJoinMediaPrefs,
-  type MemberJoinMediaPrefs,
-} from "@/lib/member-join-media";
+import type { MemberJoinMediaPrefs } from "@/lib/member-join-media";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -74,14 +70,11 @@ function JoinMediaToggle({
 }
 
 export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
-  const saved = getMemberJoinMediaPrefs();
-  const [cameraOn, setCameraOn] = useState(saved.cameraOn);
-  const [micOn, setMicOn] = useState(saved.micOn);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [micOn, setMicOn] = useState(false);
 
   function handleAccept() {
-    const prefs = { cameraOn, micOn };
-    saveMemberJoinMediaPrefs(prefs);
-    onAccept(prefs);
+    onAccept({ cameraOn, micOn });
   }
 
   return (
@@ -128,8 +121,8 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
             offIcon={MicOff}
           />
           <p className="text-xs text-burgundy/55">
-            Your choice is remembered for 24 hours. You can change camera and mic anytime after you
-            join.
+            Choose whether to join with your camera and microphone on. You can change these anytime
+            after you join.
           </p>
         </div>
 
@@ -144,22 +137,4 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
       </div>
     </div>
   );
-}
-
-export function hasRecordingConsent(meetingToken: string) {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.sessionStorage.getItem(`r101-recording-consent:${meetingToken}`) === "1";
-  } catch {
-    return false;
-  }
-}
-
-export function saveRecordingConsent(meetingToken: string) {
-  if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.setItem(`r101-recording-consent:${meetingToken}`, "1");
-  } catch {
-    /* ignore private mode */
-  }
 }
