@@ -12,7 +12,6 @@ import { MEETING_POLL } from "@/lib/meeting-poll-intervals";
 import { useVisibilityPolling } from "@/hooks/useVisibilityPolling";
 import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { EmojiPicker } from "@/components/livestream/EmojiPicker";
-import { cn } from "@/lib/utils";
 
 type MeetingMessage = {
   id: string;
@@ -28,13 +27,10 @@ export function MeetingChat({
   meetingToken,
   userId,
   isAdmin,
-  wideMessageBox = false,
 }: {
   meetingToken: string;
   userId: string;
   isAdmin: boolean;
-  /** Desktop livestream members: extend the composer left over the video while keeping height. */
-  wideMessageBox?: boolean;
 }) {
   const [messages, setMessages] = useState<MeetingMessage[]>([]);
   const [canModerate, setCanModerate] = useState(isAdmin);
@@ -258,15 +254,15 @@ export function MeetingChat({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-burgundy-dark">
+    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-burgundy-dark">
       <div className="shrink-0 border-b border-gold/20 px-4 py-3">
         <h3 className="font-serif font-semibold text-cream">Meeting Chat</h3>
       </div>
-      <div className="relative min-h-0 flex-1 overflow-hidden">
+      <div className="relative min-h-0 overflow-hidden">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="chat-scroll chat-scroll-dark h-full overflow-y-auto overscroll-y-contain p-4"
+          className="chat-scroll chat-scroll-dark absolute inset-0 overflow-y-auto overscroll-y-contain p-4"
         >
         {messages.length === 0 && (
           <p className="text-center text-sm text-gold-light/60">
@@ -419,11 +415,7 @@ export function MeetingChat({
       </div>
       <form
         onSubmit={sendMessage}
-        className={cn(
-          "relative z-20 shrink-0 border-t border-gold/20 bg-burgundy-dark p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3",
-          wideMessageBox &&
-            "lg:-ml-[9rem] lg:w-[calc(100%+9rem)] lg:max-w-[38rem] lg:border-x lg:border-gold/20 lg:shadow-[0_-4px_24px_rgba(0,0,0,0.35)]",
-        )}
+        className="relative shrink-0 border-t border-gold/20 bg-burgundy-dark p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3"
       >
         {uploadError && (
           <p className="mb-2 text-xs text-red-300">{uploadError}</p>

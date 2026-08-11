@@ -513,13 +513,17 @@ function LivestreamRoomContent({
         )}
       </div>
 
-      <div
-        className={`flex min-h-0 flex-col overflow-hidden border-t border-gold/20 bg-burgundy-dark lg:h-full lg:min-h-0 lg:shrink-0 lg:border-l lg:border-t-0 lg:w-[28rem] xl:w-[32rem] ${
+      <aside
+        className={`min-h-0 overflow-hidden border-t border-gold/20 bg-burgundy-dark lg:h-full lg:shrink-0 lg:border-l lg:border-t-0 lg:w-[28rem] xl:w-[32rem] ${
           isMobile
             ? mobileTab === "video"
-              ? "hidden lg:flex"
-              : "min-h-0 flex-1 basis-0 w-full border-t-0"
-            : ""
+              ? "hidden lg:grid"
+              : "flex min-h-0 flex-1 basis-0 flex-col w-full border-t-0"
+            : isHost
+              ? privateMessageMember
+                ? "grid h-full grid-rows-[minmax(0,auto)_minmax(0,auto)_minmax(14rem,1fr)]"
+                : "grid h-full grid-rows-[minmax(0,auto)_minmax(14rem,1fr)]"
+              : "grid h-full grid-rows-[minmax(0,1fr)]"
         }`}
       >
         {isHost && (!isMobile || mobileTab === "people") && (
@@ -660,7 +664,13 @@ function LivestreamRoomContent({
         )}
 
         {(!isMobile || mobileTab === "chat") && (
-          <div className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden">
+          <div
+            className={
+              isMobile
+                ? "flex min-h-0 flex-1 basis-0 flex-col overflow-hidden"
+                : "min-h-0 overflow-hidden"
+            }
+          >
             <MeetingChat
               meetingToken={meetingToken}
               userId={userId}
@@ -668,7 +678,7 @@ function LivestreamRoomContent({
             />
           </div>
         )}
-      </div>
+      </aside>
 
       {isMobile && (
         <ImmersiveMobileTabs
