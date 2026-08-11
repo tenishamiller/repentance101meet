@@ -221,7 +221,7 @@ function PrivateMinistryRoomContent({
       )}
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
         <div
-          className={`flex min-h-0 min-w-0 flex-1 flex-col ${
+          className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
             isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
           }`}
         >
@@ -404,7 +404,7 @@ function PrivateMinistryRoomContent({
           }`}
         >
           {(!isMobile || mobileTab === "chat") && (
-            <>
+            <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
               <div className="shrink-0 border-b border-gold/20 bg-burgundy p-4">
                 <div className="flex items-center gap-3">
                   <UserAvatar
@@ -425,7 +425,7 @@ function PrivateMinistryRoomContent({
               <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
                 <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
               </div>
-            </>
+            </div>
           )}
         </div>
 

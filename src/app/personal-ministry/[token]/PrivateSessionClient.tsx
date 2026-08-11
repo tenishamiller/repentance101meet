@@ -105,17 +105,19 @@ export function PrivateSessionClient({ token }: Props) {
   }
 
   return (
-    <PrivateMinistryRoom
-      meetingToken={token}
-      meetingTitle={data.session.title}
-      sessionId={data.session.id}
-      userId={data.user.id}
-      userName={data.user.name}
-      isHost={data.isHost}
-      hostId={data.session.createdById}
-      peer={data.peer}
-      isOnboardingApproval={data.session.isOnboardingApproval}
-      invitedUserId={data.session.invitedUserId}
-    />
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+      <PrivateMinistryRoom
+        meetingToken={token}
+        meetingTitle={data.session.title}
+        sessionId={data.session.id}
+        userId={data.user.id}
+        userName={data.user.name}
+        isHost={data.isHost}
+        hostId={data.session.createdById}
+        peer={data.peer}
+        isOnboardingApproval={data.session.isOnboardingApproval}
+        invitedUserId={data.session.invitedUserId}
+      />
+    </div>
   );
 }
