@@ -48,7 +48,7 @@ export function RemovedFromMeetingScreen({ meetingTitle, onContinue }: Props) {
             Back to Livestream
           </button>
         ) : (
-          <Link href={`${livestreamPath}?removed=1`} className="btn-primary inline-flex !px-6 !py-3">
+          <Link href={livestreamPath} className="btn-primary inline-flex !px-6 !py-3">
             Back to Livestream
           </Link>
         )}

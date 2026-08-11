@@ -3,26 +3,20 @@
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { X } from "lucide-react";
-import { MINISTRY_LEADER } from "@/lib/brand";
 import { useAppPath } from "@/hooks/useAppBase";
 
 export function LivestreamEndedBanner() {
   const searchParams = useSearchParams();
   const livestreamPath = useAppPath("/livestream");
   const ended = searchParams.get("ended") === "1";
-  const removed = searchParams.get("removed") === "1";
 
-  if (!ended && !removed) return null;
+  if (!ended) return null;
 
   return (
     <div className="mb-6 rounded-2xl border border-gold/40 bg-gold/10 px-5 py-4 text-burgundy">
-      <p className="font-serif text-lg font-bold">
-        {removed ? "You were removed from the livestream" : "Thanks for joining the livestream"}
-      </p>
+      <p className="font-serif text-lg font-bold">Thanks for joining the livestream</p>
       <p className="mt-1 text-sm text-burgundy/80">
-        {removed
-          ? `The host removed you from this session. If you have questions, please contact ${MINISTRY_LEADER} for further information. You may rejoin future meetings unless you are explicitly blocked.`
-          : "The host has ended the live meeting. We hope to see you at the next session."}
+        The host has ended the live meeting. We hope to see you at the next session.
       </p>
       <Link
         href={livestreamPath}

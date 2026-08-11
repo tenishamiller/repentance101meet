@@ -114,7 +114,6 @@ function LivestreamRoomContent({
     userId,
     isHost,
     hostId,
-    onKicked: () => router.replace(`${livestreamPath}?removed=1`),
   });
 
   const {
@@ -210,7 +209,7 @@ function LivestreamRoomContent({
     return (
       <RemovedFromMeetingScreen
         meetingTitle={meetingTitle}
-        onContinue={() => router.replace(`${livestreamPath}?removed=1`)}
+        onContinue={() => router.replace(livestreamPath)}
       />
     );
   }
