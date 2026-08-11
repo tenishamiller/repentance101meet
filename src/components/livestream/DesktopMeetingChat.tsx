@@ -34,7 +34,7 @@ export function DesktopMeetingChat({ meetingToken, userId, isAdmin }: Props) {
         <div
           ref={chat.scrollRef}
           onScroll={chat.handleScroll}
-          className="livestream-panel-scroll chat-scroll chat-scroll-dark h-full overflow-y-auto overscroll-y-contain p-4"
+          className="desktop-livestream-chat-scroll h-full p-4"
         >
           {chat.messages.length === 0 && (
             <p className="text-center text-sm text-gold-light/60">
