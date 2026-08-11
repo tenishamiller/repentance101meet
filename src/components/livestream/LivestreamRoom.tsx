@@ -247,7 +247,7 @@ function LivestreamRoomContent({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-burgundy-deep lg:min-h-0 lg:flex-row">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden overscroll-none bg-burgundy-deep lg:min-h-0 lg:flex-row">
       <div
         className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
           isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
@@ -514,24 +514,22 @@ function LivestreamRoomContent({
       </div>
 
       <aside
-        className={`min-h-0 overflow-hidden border-t border-gold/20 bg-burgundy-dark lg:h-full lg:shrink-0 lg:border-l lg:border-t-0 lg:w-[28rem] xl:w-[32rem] ${
+        className={`min-h-0 overflow-hidden overscroll-none border-t border-gold/20 bg-burgundy-dark lg:h-full lg:min-h-0 lg:shrink-0 lg:border-l lg:border-t-0 lg:w-[28rem] xl:w-[32rem] ${
           isMobile
             ? mobileTab === "video"
               ? "hidden lg:grid"
               : "flex min-h-0 flex-1 basis-0 flex-col w-full border-t-0"
             : isHost
               ? privateMessageMember
-                ? "grid h-full grid-rows-[minmax(0,auto)_minmax(0,auto)_minmax(14rem,1fr)]"
-                : "grid h-full grid-rows-[minmax(0,auto)_minmax(14rem,1fr)]"
+                ? "grid h-full grid-rows-[minmax(0,28vh)_minmax(0,auto)_minmax(0,1fr)]"
+                : "grid h-full grid-rows-[minmax(0,32vh)_minmax(0,1fr)]"
               : "grid h-full grid-rows-[minmax(0,1fr)]"
         }`}
       >
         {isHost && (!isMobile || mobileTab === "people") && (
           <section
             className={`flex min-h-0 flex-col overflow-hidden border-b border-gold/20 bg-burgundy ${
-              isMobile && mobileTab === "people"
-                ? "min-h-0 flex-1"
-                : "max-h-[min(280px,38vh)] shrink-0 lg:max-h-[min(320px,40vh)]"
+              isMobile && mobileTab === "people" ? "min-h-0 flex-1" : "min-h-0 lg:h-full"
             }`}
           >
             <div className="shrink-0 px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
@@ -562,7 +560,7 @@ function LivestreamRoomContent({
                 Viewers ({viewerCount})
               </h3>
             </div>
-            <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-y-auto overscroll-y-contain space-y-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
+            <div className="livestream-panel-scroll chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-y-auto overscroll-y-contain space-y-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
               {viewers.length === 0 ? (
                 <p className="text-sm text-gold-light/60">Waiting for viewers to join...</p>
               ) : (

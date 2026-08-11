@@ -262,7 +262,7 @@ export function MeetingChat({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="chat-scroll chat-scroll-dark absolute inset-0 overflow-y-auto overscroll-y-contain p-4 lg:static lg:inset-auto lg:min-h-0 lg:flex-1"
+          className="chat-scroll chat-scroll-dark livestream-panel-scroll absolute inset-0 overflow-y-auto overscroll-y-contain p-4 lg:static lg:inset-auto lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-y-contain"
         >
         {messages.length === 0 && (
           <p className="text-center text-sm text-gold-light/60">
