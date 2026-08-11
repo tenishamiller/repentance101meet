@@ -345,7 +345,7 @@ body {
 
   /** Desktop livestream meeting chat message list */
   .desktop-livestream-chat-scroll {
-    overflow-y: scroll;
+    overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
     min-height: 0;

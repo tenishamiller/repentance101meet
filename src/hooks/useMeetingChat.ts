@@ -100,7 +100,7 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
     if (showScrollDown || !hasNewMessages) return;
     if (!stickToBottomRef.current) return;
 
-    scrollContainerToBottom(node);
+    scrollContainerToBottom(node, "auto");
   }, [messages, showScrollDown]);
 
   function handleScroll() {
@@ -116,7 +116,7 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
     if (!node) return;
     stickToBottomRef.current = true;
     setShowScrollDown(false);
-    scrollContainerToBottom(node);
+    scrollContainerToBottom(node, "auto");
   }
 
   function handleFilesSelected() {
@@ -178,6 +178,18 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
         content: content.trim(),
         attachments: attachments.length ? attachments : undefined,
       }),
+    }).then(async (res) => {
+      if (!res.ok) return;
+      const data = (await res.json()) as { message?: MeetingChatMessage };
+      if (!data.message) return;
+      setMessages((prev) => {
+        const byId = new Map(prev.map((m) => [m.id, m]));
+        byId.set(data.message!.id, data.message!);
+        return [...byId.values()].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+      });
+      lastMessageAtRef.current = data.message.createdAt;
     });
 
     setContent("");
@@ -185,7 +197,10 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
     setSending(false);
     stickToBottomRef.current = true;
     setShowScrollDown(false);
-    fetchMessages();
+    requestAnimationFrame(() => {
+      const node = scrollRef.current;
+      if (node) scrollContainerToBottom(node, "auto");
+    });
   }
 
   function insertEmoji(emoji: string) {

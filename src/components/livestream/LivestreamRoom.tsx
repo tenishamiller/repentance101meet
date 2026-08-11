@@ -39,6 +39,7 @@ import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
 import { LivestreamRoomAudio } from "@/components/livekit/LivestreamRoomAudio";
 import { useLiveKitMeeting } from "@/components/livekit/livekit-meeting-context";
 import { clearMemberJoinSession } from "@/lib/member-join-media";
+import { cn } from "@/lib/utils";
 
 /** Lets every mobile control scroll fully into view (avoid justify-center in overflow rows). */
 const MOBILE_CONTROL_BAR =
@@ -666,11 +667,20 @@ function LivestreamRoomContent({
       </aside>
 
       {/* Desktop sidebar */}
-      <aside className="hidden h-full min-h-0 w-[28rem] shrink-0 flex-col overflow-hidden border-l border-gold/20 bg-burgundy-dark lg:flex xl:w-[32rem]">
+      <aside
+        className={cn(
+          "hidden h-full min-h-0 w-[28rem] shrink-0 overflow-hidden border-l border-gold/20 bg-burgundy-dark lg:grid xl:w-[32rem]",
+          isHost
+            ? privateMessageMember
+              ? "lg:grid-rows-[13rem_11rem_minmax(0,1fr)]"
+              : "lg:grid-rows-[13rem_minmax(0,1fr)]"
+            : "lg:grid-rows-[minmax(0,1fr)]",
+        )}
+      >
         {isHost && (
           <>
             <LivestreamViewersPanel
-              className="h-52 shrink-0"
+              className="min-h-0 overflow-hidden"
               meetingToken={meetingToken}
               viewerCount={viewerCount}
               viewers={viewers}
@@ -689,7 +699,7 @@ function LivestreamRoomContent({
               onKickViewer={(viewerId) => void kickViewer(viewerId)}
             />
             {privateMessageMember && (
-              <div className="h-44 shrink-0 overflow-hidden border-b border-gold/20 bg-burgundy-dark">
+              <div className="min-h-0 overflow-hidden border-b border-gold/20 bg-burgundy-dark">
                 <HostPrivateMessagePanel
                   member={privateMessageMember}
                   hostId={userId}
@@ -699,11 +709,13 @@ function LivestreamRoomContent({
             )}
           </>
         )}
-        <DesktopMeetingChat
-          meetingToken={meetingToken}
-          userId={userId}
-          isAdmin={isHost}
-        />
+        <div className="min-h-0 overflow-hidden">
+          <DesktopMeetingChat
+            meetingToken={meetingToken}
+            userId={userId}
+            isAdmin={isHost}
+          />
+        </div>
       </aside>
 
       {isMobile && (
