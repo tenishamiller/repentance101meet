@@ -8,8 +8,8 @@ import {
   useRoomContext,
   useTracks,
 } from "@livekit/components-react";
-import { ConnectionState, Track } from "livekit-client";
-import type { Participant, TrackPublication } from "livekit-client";
+import { ConnectionState, RoomEvent, Track } from "livekit-client";
+import type { LocalTrackPublication, Participant, TrackPublication } from "livekit-client";
 import type { TrackReference } from "@livekit/components-core";
 import { listAudioInputDevices, listVideoInputDevices } from "@/lib/media-devices";
 import {
@@ -116,7 +116,9 @@ export function useLiveKitStage({
     [privatePeer, publishedTracks],
   );
 
-  const isScreenSharing = isHost && mode === "livestream" && isScreenShareEnabled;
+  const hasLocalScreenTrack = !!localScreenTrack?.publication?.track;
+  const isScreenSharing =
+    isHost && mode === "livestream" && isScreenShareEnabled && hasLocalScreenTrack;
   const isRemoteScreenSharing =
     mode === "livestream" &&
     !isHost &&
@@ -126,7 +128,7 @@ export function useLiveKitStage({
     mode === "private"
       ? privatePeerCameraTrack
       : isHost
-        ? isScreenShareEnabled
+        ? isScreenSharing
           ? localScreenTrack
           : localCameraTrack
         : isRemoteScreenSharing
@@ -137,7 +139,7 @@ export function useLiveKitStage({
     mode === "private"
       ? undefined
       : isHost
-        ? isScreenShareEnabled
+        ? isScreenSharing
           ? localCameraTrack
           : undefined
         : isRemoteScreenSharing
@@ -295,6 +297,34 @@ export function useLiveKitStage({
     mode,
   ]);
 
+  /** Restore host camera on the main stage as soon as screen share ends. */
+  useEffect(() => {
+    if (!isHost || mode !== "livestream" || connectionState !== ConnectionState.Connected) return;
+    if (isScreenSharing || cameraOffByUser) return;
+    void enableHostCamera(true);
+  }, [
+    cameraOffByUser,
+    connectionState,
+    enableHostCamera,
+    isHost,
+    isScreenSharing,
+    mode,
+  ]);
+
+  useEffect(() => {
+    if (!isHost || mode !== "livestream") return;
+
+    const onLocalTrackUnpublished = (publication: LocalTrackPublication) => {
+      if (publication.source !== Track.Source.ScreenShare || cameraOffByUser) return;
+      void enableHostCamera(true);
+    };
+
+    room.on(RoomEvent.LocalTrackUnpublished, onLocalTrackUnpublished);
+    return () => {
+      room.off(RoomEvent.LocalTrackUnpublished, onLocalTrackUnpublished);
+    };
+  }, [cameraOffByUser, enableHostCamera, isHost, mode, room]);
+
   const toggleMute = useCallback(async () => {
     if (!canUseMic) return;
     await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
@@ -319,6 +349,9 @@ export function useLiveKitStage({
     if (!isHost) return;
     if (isScreenShareEnabled) {
       await localParticipant.setScreenShareEnabled(false);
+      if (!cameraOffByUser && mode === "livestream") {
+        await enableHostCamera(true);
+      }
       return;
     }
     try {
@@ -326,7 +359,7 @@ export function useLiveKitStage({
     } catch {
       await localParticipant.setScreenShareEnabled(true);
     }
-  }, [isHost, isScreenShareEnabled, localParticipant]);
+  }, [cameraOffByUser, enableHostCamera, isHost, isScreenShareEnabled, localParticipant, mode]);
 
   const switchVideoDevice = useCallback(
     async (deviceId: string) => {

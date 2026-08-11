@@ -50,6 +50,9 @@ export function LiveKitVideoTile({
     compact && videoClassName === "h-full w-full object-cover"
       ? "h-full w-full object-contain"
       : videoClassName;
+  const videoKey = trackRef
+    ? `${trackRef.source}-${trackRef.publication?.trackSid ?? trackRef.publication?.trackName ?? "pending"}`
+    : "no-track";
 
   useEffect(() => {
     if (!tuneForLowLatency || !trackRef?.publication) return;
@@ -66,7 +69,7 @@ export function LiveKitVideoTile({
   return (
     <div className={cn("relative h-full min-h-0 w-full overflow-hidden bg-black", className)}>
       {showVideo && trackRef ? (
-        <VideoTrack trackRef={trackRef} className={resolvedVideoClassName} />
+        <VideoTrack key={videoKey} trackRef={trackRef} className={resolvedVideoClassName} />
       ) : cameraOff ? (
         <CameraOffOverlay
           userId={userId}
