@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MeetingSignalMessage } from "@/lib/webrtc";
 import { MEETING_POLL } from "@/lib/meeting-poll-intervals";
 import { useVisibilityPolling } from "@/hooks/useVisibilityPolling";
@@ -20,6 +20,9 @@ type Options = {
   userId: string;
   isHost: boolean;
   hostId: string;
+  initialMemberVideoEnabled?: boolean;
+  initialMemberMicEnabled?: boolean;
+  onMediaPolicyChange?: () => void;
   onKicked?: () => void;
   onMeetingEnded?: () => void;
 };
@@ -29,6 +32,9 @@ export function useMeetingPresence({
   meetingToken,
   userId,
   isHost,
+  initialMemberVideoEnabled = false,
+  initialMemberMicEnabled = false,
+  onMediaPolicyChange,
   onKicked,
   onMeetingEnded,
 }: Options) {
@@ -38,8 +44,8 @@ export function useMeetingPresence({
   const [thumbsUp, setThumbsUp] = useState(0);
   const [thumbsDown, setThumbsDown] = useState(0);
   const [myReaction, setMyReaction] = useState<string | null>(null);
-  const [memberVideoEnabled, setMemberVideoEnabled] = useState(false);
-  const [memberMicEnabled, setMemberMicEnabled] = useState(false);
+  const [memberVideoEnabled, setMemberVideoEnabled] = useState(initialMemberVideoEnabled);
+  const [memberMicEnabled, setMemberMicEnabled] = useState(initialMemberMicEnabled);
   const [meetingEnded, setMeetingEnded] = useState(false);
   const [wasRemoved, setWasRemoved] = useState(false);
   const [isSavingRecording, setIsSavingRecording] = useState(false);
@@ -51,8 +57,15 @@ export function useMeetingPresence({
   const wasParticipantRef = useRef(false);
   const onKickedRef = useRef(onKicked);
   const onMeetingEndedRef = useRef(onMeetingEnded);
+  const onMediaPolicyChangeRef = useRef(onMediaPolicyChange);
   onKickedRef.current = onKicked;
   onMeetingEndedRef.current = onMeetingEnded;
+  onMediaPolicyChangeRef.current = onMediaPolicyChange;
+
+  useEffect(() => {
+    setMemberVideoEnabled(initialMemberVideoEnabled);
+    setMemberMicEnabled(initialMemberMicEnabled);
+  }, [initialMemberMicEnabled, initialMemberVideoEnabled]);
 
   const leaveMeeting = useCallback(async () => {
     try {
@@ -138,9 +151,11 @@ export function useMeetingPresence({
       }
       if (signal.type === "member-video-policy") {
         setMemberVideoEnabled(signal.payload.enabled !== false);
+        onMediaPolicyChangeRef.current?.();
       }
       if (signal.type === "member-mic-policy") {
         setMemberMicEnabled(signal.payload.enabled !== false);
+        onMediaPolicyChangeRef.current?.();
       }
       signalCursorRef.current = signal.createdAt;
     }

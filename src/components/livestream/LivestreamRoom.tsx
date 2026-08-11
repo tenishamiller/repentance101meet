@@ -35,6 +35,7 @@ import { HostPrivateMessagePanel } from "@/components/livestream/HostPrivateMess
 import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPopover";
 import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
+import { useLiveKitMeeting } from "@/components/livekit/livekit-meeting-context";
 import {
   getMemberVideoLayout,
   setMemberVideoLayout,
@@ -89,6 +90,8 @@ function LivestreamRoomContent({
     setMemberVideoLayout(layout);
   }
 
+  const liveKitMeeting = useLiveKitMeeting();
+
   const {
     participants,
     viewerCount,
@@ -114,6 +117,9 @@ function LivestreamRoomContent({
     userId,
     isHost,
     hostId,
+    initialMemberVideoEnabled: liveKitMeeting?.memberVideoEnabled ?? false,
+    initialMemberMicEnabled: liveKitMeeting?.memberMicEnabled ?? false,
+    onMediaPolicyChange: liveKitMeeting?.reloadToken,
   });
 
   const {

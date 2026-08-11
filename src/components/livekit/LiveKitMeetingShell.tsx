@@ -1,15 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "@livekit/components-styles";
 import { LiveKitRoom, RoomAudioRenderer, useConnectionState } from "@livekit/components-react";
 import { ConnectionState, type MediaDeviceFailure } from "livekit-client";
 import { liveKitRoomOptions } from "@/lib/livekit-capture";
+import { isLiveKitPermissionError } from "@/lib/livekit-errors";
+import {
+  LiveKitMeetingContext,
+  type LiveKitMeetingContextValue,
+} from "@/components/livekit/livekit-meeting-context";
 
 type TokenResponse = {
   token: string;
   serverUrl: string;
   roomName: string;
+  isHost: boolean;
+  memberVideoEnabled: boolean;
+  memberMicEnabled: boolean;
 };
 
 type Props = {
@@ -72,6 +80,9 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
         token: data.token,
         serverUrl: data.serverUrl,
         roomName: data.roomName,
+        isHost: data.isHost === true,
+        memberVideoEnabled: data.memberVideoEnabled !== false,
+        memberMicEnabled: data.memberMicEnabled !== false,
       });
     } catch {
       setError("Network error while connecting to video");
@@ -84,6 +95,16 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
   useEffect(() => {
     void loadToken();
   }, [loadToken]);
+
+  const meetingContext = useMemo<LiveKitMeetingContextValue | null>(() => {
+    if (!credentials) return null;
+    return {
+      isHost: credentials.isHost,
+      memberVideoEnabled: credentials.memberVideoEnabled,
+      memberMicEnabled: credentials.memberMicEnabled,
+      reloadToken: loadToken,
+    };
+  }, [credentials, loadToken]);
 
   if (loading) {
     return (
@@ -105,30 +126,35 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
   }
 
   return (
-    <LiveKitRoom
-      token={credentials.token}
-      serverUrl={credentials.serverUrl}
-      connect
-      audio
-      video
-      options={liveKitRoomOptions}
-      connectOptions={{ autoSubscribe: true }}
-      onDisconnected={onDisconnected}
-      onConnected={() => setRoomError("")}
-      onError={(err) => setRoomError(err.message || "Could not connect to video room")}
-      onMediaDeviceFailure={(failure?: MediaDeviceFailure) => {
-        setRoomError(
-          failure
-            ? `Camera or microphone error: ${failure}. Check browser permissions and try again.`
-            : "Could not access camera or microphone.",
-        );
-      }}
-      data-lk-theme="default"
-      className="flex h-full min-h-0 flex-1 flex-col"
-    >
-      <RoomConnectionMonitor roomError={roomError} onRoomError={setRoomError} />
-      {children}
-      <RoomAudioRenderer />
-    </LiveKitRoom>
+    <LiveKitMeetingContext.Provider value={meetingContext}>
+      <LiveKitRoom
+        key={credentials.token}
+        token={credentials.token}
+        serverUrl={credentials.serverUrl}
+        connect
+        options={liveKitRoomOptions}
+        connectOptions={{ autoSubscribe: true }}
+        onDisconnected={onDisconnected}
+        onConnected={() => setRoomError("")}
+        onError={(err) => {
+          const message = err.message || "Could not connect to video room";
+          if (isLiveKitPermissionError(message)) return;
+          setRoomError(message);
+        }}
+        onMediaDeviceFailure={(failure?: MediaDeviceFailure) => {
+          setRoomError(
+            failure
+              ? `Camera or microphone error: ${failure}. Check browser permissions and try again.`
+              : "Could not access camera or microphone.",
+          );
+        }}
+        data-lk-theme="default"
+        className="flex h-full min-h-0 flex-1 flex-col"
+      >
+        <RoomConnectionMonitor roomError={roomError} onRoomError={setRoomError} />
+        {children}
+        <RoomAudioRenderer />
+      </LiveKitRoom>
+    </LiveKitMeetingContext.Provider>
   );
 }

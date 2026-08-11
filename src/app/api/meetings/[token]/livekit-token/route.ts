@@ -120,5 +120,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     serverUrl,
     roomName,
     isHost,
+    memberVideoEnabled: meeting.memberVideoEnabled,
+    memberMicEnabled: meeting.memberMicEnabled,
   });
 }

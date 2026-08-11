@@ -18,6 +18,7 @@ import {
   hostLivestreamCameraPublish,
   screenShareCaptureOptions,
 } from "@/lib/livekit-capture";
+import { isLiveKitPermissionError } from "@/lib/livekit-errors";
 
 function toTrackRef(
   participant: Participant | undefined,
@@ -187,7 +188,10 @@ export function useLiveKitStage({
     [hostId, remoteParticipants, userId],
   );
 
-  const mediaError = lastCameraError?.message || lastMicrophoneError?.message || "";
+  const mediaError = (() => {
+    const message = lastCameraError?.message || lastMicrophoneError?.message || "";
+    return isLiveKitPermissionError(message) ? "" : message;
+  })();
 
   const enableHostCamera = useCallback(async (enabled: boolean) => {
     if (enabled) {
