@@ -25,16 +25,10 @@ import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
 import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
-import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { OnboardingDecisionModal } from "@/components/onboarding/OnboardingDecisionModal";
 import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
 import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
-import {
-  getMemberVideoLayout,
-  setMemberVideoLayout,
-  type MemberVideoLayout,
-} from "@/lib/video-layout";
 
 type Peer = {
   id: string;
@@ -81,18 +75,8 @@ function PrivateMinistryRoomContent({
   const personalMinistryPath = useAppPath("/personal-ministry");
   const adminPath = useAppPath("/admin");
   const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
-  const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
   const [showDecision, setShowDecision] = useState(false);
   const [decisionLoading, setDecisionLoading] = useState(false);
-
-  useEffect(() => {
-    setMemberVideoLayoutState(getMemberVideoLayout());
-  }, []);
-
-  function updateMemberVideoLayout(layout: MemberVideoLayout) {
-    setMemberVideoLayoutState(layout);
-    setMemberVideoLayout(layout);
-  }
 
   const { leaveMeeting, meetingEnded } = useMeetingPresence({
     meetingToken,
@@ -265,20 +249,8 @@ function PrivateMinistryRoomContent({
             </div>
           )}
 
-          <div
-            className={`relative min-h-0 flex-1 overflow-hidden bg-black ${
-              memberVideoLayout === "side-by-side"
-                ? "grid min-h-0 grid-cols-2 grid-rows-1"
-                : ""
-            }`}
-          >
-            <div
-              className={`relative min-h-0 min-w-0 overflow-hidden bg-black ${
-                memberVideoLayout === "side-by-side"
-                  ? "border-r border-gold/20"
-                  : "absolute inset-0"
-              }`}
-            >
+          <div className="relative grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden bg-black">
+            <div className="relative min-h-0 min-w-0 overflow-hidden border-r border-gold/20 bg-black">
               <LiveKitVideoTile
                 trackRef={hostMainTrack}
                 userId={peer.id}
@@ -291,24 +263,14 @@ function PrivateMinistryRoomContent({
               <MuteIndicator visible={isRemoteMuted} />
             </div>
 
-            <div
-              className={
-                memberVideoLayout === "side-by-side"
-                  ? "relative min-h-0 min-w-0 overflow-hidden"
-                  : "absolute bottom-4 right-4 z-10 h-28 w-40 overflow-hidden rounded-xl border-2 border-gold/50 bg-black shadow-2xl sm:h-36 sm:w-52"
-              }
-            >
+            <div className="relative min-h-0 min-w-0 overflow-hidden">
               <LiveKitVideoTile
                 trackRef={localCameraTrack}
                 userId={userId}
                 name={userName}
                 cameraOff={isCameraOff}
-                compact={memberVideoLayout !== "side-by-side"}
               />
-              <MuteIndicator
-                visible={isMuted}
-                compact={memberVideoLayout !== "side-by-side"}
-              />
+              <MuteIndicator visible={isMuted} />
             </div>
 
             {!isLive && !error && (
@@ -365,11 +327,6 @@ function PrivateMinistryRoomContent({
               onChange={(deviceId) => void switchAudioDevice(deviceId)}
               onRefresh={() => void refreshMediaInputDevices()}
               refreshing={isRefreshingDevices}
-            />
-            <VideoLayoutSelect
-              mode="member"
-              value={memberVideoLayout}
-              onChange={updateMemberVideoLayout}
             />
             <ControlButton
               onClick={toggleMute}
