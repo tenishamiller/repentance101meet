@@ -42,6 +42,12 @@ import {
   type MemberVideoLayout,
 } from "@/lib/video-layout";
 
+/** Lets every mobile control scroll fully into view (avoid justify-center in overflow rows). */
+const MOBILE_CONTROL_BAR =
+  "overflow-x-auto overscroll-x-contain touch-pan-x px-2 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+const MOBILE_CONTROL_ROW =
+  "flex w-max min-w-full flex-nowrap items-center justify-start gap-2 ps-1 pe-6 [&>*]:shrink-0";
+
 type Props = {
   meetingToken: string;
   meetingTitle: string;
@@ -263,8 +269,18 @@ function LivestreamRoomContent({
               thumbsDown={thumbsDown}
             />
 
-            <div className="z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark px-2 py-2.5 sm:px-4 sm:py-3">
-              <div className="flex flex-wrap items-center justify-center gap-2">
+            <div
+              className={`z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark ${
+                isMobile ? MOBILE_CONTROL_BAR : "px-3 py-2.5 sm:px-4 sm:py-3"
+              }`}
+            >
+              <div
+                className={
+                  isMobile
+                    ? MOBILE_CONTROL_ROW
+                    : "flex flex-wrap items-center justify-center gap-2"
+                }
+              >
                 <YouTubeStreamPanel />
                 <button
                   type="button"
@@ -378,15 +394,15 @@ function LivestreamRoomContent({
 
             <div
               className={`shrink-0 border-t border-gold/20 bg-burgundy-dark ${
-                isMobile
-                  ? "overflow-x-auto px-2 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                  : "px-3 py-2.5 sm:px-4 sm:py-3"
+                isMobile ? MOBILE_CONTROL_BAR : "px-3 py-2.5 sm:px-4 sm:py-3"
               }`}
             >
               <div
-                className={`flex items-center justify-center gap-2 ${
-                  isMobile ? "min-w-max flex-nowrap px-1" : "flex-wrap sm:gap-3"
-                }`}
+                className={
+                  isMobile
+                    ? MOBILE_CONTROL_ROW
+                    : "flex flex-wrap items-center justify-center gap-2 sm:gap-3"
+                }
               >
               <VideoLayoutSelect
                 mode="member"
