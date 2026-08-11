@@ -11,6 +11,7 @@ import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { ParticipantPanelNameRow } from "@/components/livestream/ParticipantPanelNameRow";
 import type { MemberVideoLayout } from "@/lib/video-layout";
 import { PANEL_TILE_CARD_CLASS, PANEL_TILE_FRAME_CLASS } from "@/lib/panel-tile";
+import { cn } from "@/lib/utils";
 
 type HostProfile = {
   userId: string;
@@ -288,7 +289,11 @@ function MemberSelfTile({
         panelLayout
           ? PANEL_TILE_FRAME_CLASS
           : pip
-            ? "h-32 w-36 overflow-hidden rounded-xl border-2 border-gold/50 bg-burgundy-deep shadow-2xl sm:h-32 sm:w-48 md:h-36 md:w-52"
+            ? cn(
+                "overflow-hidden border-2 border-gold/50 bg-burgundy-deep shadow-2xl",
+                "h-32 w-36 rounded-xl sm:h-32 sm:w-48",
+                "md:h-36 md:w-36 md:rounded-full",
+              )
             : "relative h-full min-h-0 w-full bg-burgundy-deep"
       }
     >
@@ -301,6 +306,7 @@ function MemberSelfTile({
         waitingForVideo={waitingForVideo}
         compact={pip || compact}
         panelLayout={panelLayout}
+        pipLayout={pip}
       />
       <ParticipantSignalBadges handRaised={handRaised} reaction={myReaction} />
       {!panelLayout && (

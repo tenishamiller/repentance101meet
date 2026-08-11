@@ -10,6 +10,8 @@ type Props = {
   avatarUrl?: string | null;
   size?: AvatarSize;
   compact?: boolean;
+  /** Member self-view PiP — fill the circular tile with the avatar. */
+  pipLayout?: boolean;
   /** When false, only the avatar is shown (name row handles the label). */
   showName?: boolean;
   className?: string;
@@ -21,16 +23,18 @@ export function CameraOffOverlay({
   avatarUrl,
   size,
   compact = false,
+  pipLayout = false,
   showName,
   className,
 }: Props) {
-  const resolvedSize = size ?? (compact ? "xl" : "2xl");
+  const resolvedSize = size ?? (pipLayout ? "xl" : compact ? "xl" : "2xl");
   const showLabel = showName ?? !compact;
 
   return (
     <div
       className={cn(
-        "absolute inset-0 z-[1] flex flex-col items-center justify-center bg-burgundy-deep px-4",
+        "absolute inset-0 z-[1] flex flex-col items-center justify-center bg-burgundy-deep",
+        pipLayout ? "px-0" : "px-4",
         className,
       )}
     >
@@ -42,7 +46,12 @@ export function CameraOffOverlay({
         interactive={false}
         loadProfileWhenEmpty
         onDark
-        className="ring-gold/50"
+        imageFit={pipLayout ? "contain" : "cover"}
+        className={cn(
+          "ring-gold/50",
+          pipLayout &&
+            "!h-[5.25rem] !w-[5.25rem] !text-xl md:!h-[7.25rem] md:!w-[7.25rem] md:!text-2xl",
+        )}
       />
       {showLabel && (
         <>

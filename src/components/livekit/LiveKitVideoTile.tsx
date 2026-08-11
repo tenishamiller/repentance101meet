@@ -22,6 +22,8 @@ type Props = {
   compact?: boolean;
   /** Sidebar tile: avatar in video area, name on the row below. */
   panelLayout?: boolean;
+  /** Member self-view PiP — circular on desktop, cover-fit video. */
+  pipLayout?: boolean;
   /** Main-stage remote video (host feed for members) — lower playback delay. */
   lowLatency?: boolean;
 };
@@ -37,11 +39,12 @@ export function LiveKitVideoTile({
   videoClassName = "h-full w-full object-cover",
   compact = false,
   panelLayout = false,
+  pipLayout = false,
   lowLatency = false,
 }: Props) {
   const hasTrack = !!trackRef?.publication?.track;
   const showVideo = hasTrack && !cameraOff;
-  const resolvedVideoClassName = panelLayout
+  const resolvedVideoClassName = panelLayout || pipLayout
     ? "h-full w-full object-cover object-center"
     : compact && videoClassName === "h-full w-full object-cover"
       ? "h-full w-full object-contain"
@@ -83,7 +86,8 @@ export function LiveKitVideoTile({
           name={name}
           avatarUrl={avatarUrl ?? null}
           compact={compact || panelLayout}
-          showName={!panelLayout}
+          pipLayout={pipLayout}
+          showName={!panelLayout && !pipLayout}
         />
       ) : waitingForVideo || !hasTrack ? (
         <VideoLoadingOverlay label={waitingForVideo ? "Starting camera…" : "Waiting for video…"} />
@@ -93,7 +97,8 @@ export function LiveKitVideoTile({
           name={name}
           avatarUrl={avatarUrl ?? null}
           compact={compact || panelLayout}
-          showName={!panelLayout}
+          pipLayout={pipLayout}
+          showName={!panelLayout && !pipLayout}
         />
       )}
     </div>
