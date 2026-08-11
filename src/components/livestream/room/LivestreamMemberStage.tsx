@@ -168,7 +168,7 @@ export function LivestreamMemberStage({
         "relative min-h-0 w-full flex-1 overflow-hidden bg-black",
         desktopPresentSidebar && "flex flex-row",
         desktopSplitHostSelf && "grid min-h-0 grid-cols-2 grid-rows-1",
-        mobilePresentFullscreen && "flex flex-col items-center justify-center",
+        mobilePresentFullscreen && "flex flex-col items-stretch justify-start",
       )}
     >
       {desktopPresentSidebar ? (
@@ -224,7 +224,7 @@ export function LivestreamMemberStage({
           </div>
         </>
       ) : mobilePresentFullscreen ? (
-        <div className="relative aspect-video w-full max-h-full min-h-0 overflow-hidden bg-black">
+        <div className="mobile-livestream-screen-share relative mx-auto w-full shrink-0 overflow-hidden bg-black">
           <LiveKitVideoTile
             trackRef={hostMainTrack}
             userId={hostProfile.userId}

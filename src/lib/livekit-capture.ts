@@ -35,24 +35,42 @@ export const screenShareCaptureAttempts: ScreenShareCaptureOptions[] = [
   { audio: false },
 ];
 
-/** Room-wide streaming defaults — adaptive layers for sidebar tiles during screen share. */
-export const liveKitRoomOptions: RoomOptions = {
-  adaptiveStream: { pixelDensity: 1, pauseVideoInBackground: true },
-  dynacast: true,
-  webAudioMix: true,
-  videoCaptureDefaults: {
-    resolution: VideoPresets.h360.resolution,
-    frameRate: 30,
-  },
-  publishDefaults: {
-    simulcast: true,
-    backupCodec: false,
-    videoCodec: "vp8",
-    degradationPreference: "maintain-framerate",
-    screenShareEncoding: ScreenSharePresets.h720fps15.encoding,
-    videoSimulcastLayers: [VideoPresets.h180],
-  },
-};
+function isMobileLiveKitClient() {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+/**
+ * LiveKit room defaults. When `persistInBackground` is true (livestream), the room
+ * stays connected while the tab is hidden and mobile clients use HTML audio playback
+ * so listeners can keep hearing the host after switching apps.
+ */
+export function getLiveKitRoomOptions(persistInBackground = false): RoomOptions {
+  const mobileClient = isMobileLiveKitClient();
+
+  return {
+    adaptiveStream: { pixelDensity: 1, pauseVideoInBackground: true },
+    dynacast: true,
+    // WebAudio is suspended in background on iOS; HTML audio elements keep playing.
+    webAudioMix: mobileClient ? false : true,
+    disconnectOnPageLeave: !persistInBackground,
+    videoCaptureDefaults: {
+      resolution: VideoPresets.h360.resolution,
+      frameRate: 30,
+    },
+    publishDefaults: {
+      simulcast: true,
+      backupCodec: false,
+      videoCodec: "vp8",
+      degradationPreference: "maintain-framerate",
+      screenShareEncoding: ScreenSharePresets.h720fps15.encoding,
+      videoSimulcastLayers: [VideoPresets.h180],
+    },
+  };
+}
+
+/** @deprecated Use getLiveKitRoomOptions() */
+export const liveKitRoomOptions: RoomOptions = getLiveKitRoomOptions(false);
 
 /** Host camera — 720p24 for sharper teaching video; H.264 primary with VP8 fallback. */
 export const hostLivestreamCameraCapture: VideoCaptureOptions = {

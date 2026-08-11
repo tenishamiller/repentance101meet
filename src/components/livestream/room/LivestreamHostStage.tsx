@@ -112,9 +112,17 @@ export function LivestreamHostStage({
       className={cn(
         "relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black",
         showCameraOff && "bg-burgundy-deep",
+        mobilePresenting && "flex flex-col items-stretch justify-start",
       )}
     >
-      <div className="relative h-full min-h-0 w-full overflow-hidden">
+      <div
+        className={cn(
+          "relative overflow-hidden",
+          mobilePresenting
+            ? "mobile-livestream-screen-share mx-auto w-full shrink-0"
+            : "h-full min-h-0 w-full",
+        )}
+      >
         <LiveKitVideoTile
           key={isScreenSharing ? "host-screen" : "host-camera"}
           trackRef={hostMainTrack}

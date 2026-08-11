@@ -55,7 +55,11 @@ type Props = {
 
 export function LivestreamRoom(props: Props) {
   return (
-    <LiveKitMeetingShell meetingToken={props.meetingToken}>
+    <LiveKitMeetingShell
+      meetingToken={props.meetingToken}
+      persistInBackground
+      meetingTitle={props.meetingTitle}
+    >
       <LivestreamRoomContent {...props} />
     </LiveKitMeetingShell>
   );
@@ -504,7 +508,7 @@ function LivestreamRoomContent({
           isMobile
             ? mobileTab === "video"
               ? "hidden lg:flex"
-              : "h-0 min-h-0 flex-1 border-t-0"
+              : "min-h-0 flex-1 basis-0 border-t-0"
             : "max-lg:max-h-[38vh] max-lg:shrink-0"
         }`}
       >
@@ -644,7 +648,7 @@ function LivestreamRoomContent({
         )}
 
         {(!isMobile || mobileTab === "chat") && (
-          <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden">
             <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
           </div>
         )}

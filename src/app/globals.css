@@ -267,6 +267,16 @@ body {
   min-height: 0;
 }
 
+/** Livestream mobile: cap shared desktop/screen video (host + members). */
+@media (max-width: 1023px) {
+  .mobile-livestream-screen-share {
+    width: 100%;
+    max-height: min(38dvh, calc(100vw * 9 / 16));
+    aspect-ratio: 16 / 9;
+    flex-shrink: 0;
+  }
+}
+
 /* Visible scrollbars for chat feeds — keeps composer above footer */
 .chat-scroll {
   overflow-y: auto;

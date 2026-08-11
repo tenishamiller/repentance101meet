@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import "@livekit/components-styles";
 import { LiveKitRoom, RoomAudioRenderer, useConnectionState } from "@livekit/components-react";
 import { ConnectionState, type MediaDeviceFailure } from "livekit-client";
-import { liveKitRoomOptions } from "@/lib/livekit-capture";
+import { getLiveKitRoomOptions } from "@/lib/livekit-capture";
 import { isLiveKitPermissionError } from "@/lib/livekit-errors";
 import {
   LiveKitMeetingContext,
   type LiveKitMeetingContextValue,
 } from "@/components/livekit/livekit-meeting-context";
+import { LiveKitBackgroundAudio } from "@/components/livekit/LiveKitBackgroundAudio";
 
 type TokenResponse = {
   token: string;
@@ -24,6 +25,9 @@ type Props = {
   meetingToken: string;
   children: React.ReactNode;
   onDisconnected?: () => void;
+  /** Livestream: stay connected and keep audio when the tab/app is backgrounded. */
+  persistInBackground?: boolean;
+  meetingTitle?: string;
 };
 
 function RoomErrorBanner({ message }: { message: string }) {
@@ -53,7 +57,13 @@ function RoomConnectionMonitor({
   return <RoomErrorBanner message={roomError} />;
 }
 
-export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: Props) {
+export function LiveKitMeetingShell({
+  meetingToken,
+  children,
+  onDisconnected,
+  persistInBackground = false,
+  meetingTitle,
+}: Props) {
   const [credentials, setCredentials] = useState<TokenResponse | null>(null);
   const [error, setError] = useState("");
   const [roomError, setRoomError] = useState("");
@@ -151,7 +161,7 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
         token={credentials.token}
         serverUrl={credentials.serverUrl}
         connect
-        options={liveKitRoomOptions}
+        options={getLiveKitRoomOptions(persistInBackground)}
         connectOptions={{ autoSubscribe: true }}
         onDisconnected={onDisconnected}
         onConnected={() => setRoomError("")}
@@ -171,7 +181,8 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
         className="flex h-full min-h-0 flex-1 flex-col"
       >
         <RoomConnectionMonitor roomError={roomError} onRoomError={setRoomError} />
-        {children}
+        {persistInBackground && <LiveKitBackgroundAudio meetingTitle={meetingTitle} />}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
         <RoomAudioRenderer />
       </LiveKitRoom>
     </LiveKitMeetingContext.Provider>
