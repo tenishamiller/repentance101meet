@@ -6,8 +6,8 @@ import {
   type TrackPublication,
 } from "livekit-client";
 
-/** Prefer the highest simulcast layer and minimal browser buffering for remote camera video. */
-export function applyLowLatencyRemoteVideoPublication(publication?: TrackPublication) {
+/** Main-stage remote camera: highest simulcast layer + minimal browser buffering. */
+export function applyMainStageLowLatency(publication?: TrackPublication) {
   if (!(publication instanceof RemoteTrackPublication)) return;
   if (publication.source !== Track.Source.Camera) return;
 
@@ -19,7 +19,12 @@ export function applyLowLatencyRemoteVideoPublication(publication?: TrackPublica
   }
 }
 
-/** @deprecated Prefer applyLowLatencyRemoteVideoPublication — kept for tile-level hooks. */
+/** @deprecated Use applyMainStageLowLatency — only for main-stage tiles with lowLatency prop. */
+export function applyLowLatencyRemoteVideoPublication(publication?: TrackPublication) {
+  applyMainStageLowLatency(publication);
+}
+
+/** @deprecated Prefer applyMainStageLowLatency — kept for tile-level hooks. */
 export function applyLowLatencyRemoteVideo(trackRef?: TrackReference) {
-  applyLowLatencyRemoteVideoPublication(trackRef?.publication);
+  applyMainStageLowLatency(trackRef?.publication);
 }

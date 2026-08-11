@@ -113,7 +113,7 @@ export function LivestreamMemberStage({
           present
             ? "flex-row"
             : splitView
-              ? "grid min-h-0 grid-cols-1 grid-rows-2 sm:grid-cols-2 sm:grid-rows-1"
+              ? "grid min-h-0 grid-cols-2 grid-rows-1"
               : ""
         }`}
       >
@@ -176,7 +176,7 @@ export function LivestreamMemberStage({
         <div
           className={`relative min-h-0 min-w-0 overflow-hidden ${
               splitView
-                ? "border-b border-gold/20 bg-black sm:border-b-0 sm:border-r"
+                ? "border-r border-gold/20 bg-black"
                 : "absolute inset-0 bg-black"
           }`}
         >

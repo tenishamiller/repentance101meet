@@ -33,20 +33,20 @@ export const liveKitRoomOptions: RoomOptions = {
   },
 };
 
-/** Host camera — 360p30 for faster encode/decode and smoother motion than 540p24. */
+/** Host camera — 540p30 for sharper teaching video; simulcast layers for adaptive sidebar tiles. */
 export const hostLivestreamCameraCapture: VideoCaptureOptions = {
-  resolution: VideoPresets.h360.resolution,
+  resolution: VideoPresets.h540.resolution,
   frameRate: 30,
 };
 
 export const hostLivestreamCameraPublish: TrackPublishOptions = {
   videoEncoding: {
-    maxBitrate: 600_000,
+    maxBitrate: 1_000_000,
     maxFramerate: 30,
   },
   degradationPreference: "maintain-framerate",
   simulcast: true,
-  videoSimulcastLayers: [VideoPresets.h180],
+  videoSimulcastLayers: [VideoPresets.h360, VideoPresets.h180],
 };
 
 /** Member camera when host is not presenting (pip / split layout). */

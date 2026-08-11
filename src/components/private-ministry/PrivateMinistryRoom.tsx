@@ -268,14 +268,14 @@ function PrivateMinistryRoomContent({
           <div
             className={`relative min-h-0 flex-1 overflow-hidden bg-black ${
               memberVideoLayout === "side-by-side"
-                ? "grid min-h-0 grid-cols-1 grid-rows-2 sm:grid-cols-2 sm:grid-rows-1"
+                ? "grid min-h-0 grid-cols-2 grid-rows-1"
                 : ""
             }`}
           >
             <div
               className={`relative min-h-0 min-w-0 overflow-hidden bg-black ${
                 memberVideoLayout === "side-by-side"
-                  ? "border-b border-gold/20 sm:border-b-0 sm:border-r"
+                  ? "border-r border-gold/20"
                   : "absolute inset-0"
               }`}
             >
@@ -286,6 +286,7 @@ function PrivateMinistryRoomContent({
                 avatarUrl={peer.avatarUrl}
                 cameraOff={isRemoteCameraOff}
                 videoClassName="h-full w-full object-contain"
+                lowLatency
               />
               <MuteIndicator visible={isRemoteMuted} />
             </div>

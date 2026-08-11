@@ -29,6 +29,8 @@ type UserAvatarProps = {
   loadProfileWhenEmpty?: boolean;
   /** Use light initials/text on dark video panels. */
   onDark?: boolean;
+  /** Show full face in circular tiles without cropping the top of the head. */
+  imageFit?: "cover" | "contain";
 };
 
 const sizes: Record<AvatarSize, string> = {
@@ -48,6 +50,7 @@ export function UserAvatar({
   interactive = true,
   loadProfileWhenEmpty = false,
   onDark = false,
+  imageFit = "cover",
 }: UserAvatarProps) {
   const [showPopover, setShowPopover] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -114,7 +117,10 @@ export function UserAvatar({
         <AvatarImage
           src={displayAvatarUrl}
           alt={displayName}
-          className="h-full w-full object-cover"
+          className={cn(
+            "h-full w-full",
+            imageFit === "contain" ? "object-contain" : "object-cover",
+          )}
           onError={() => setImageFailed(true)}
         />
       ) : (
