@@ -30,6 +30,8 @@ export function MobileAppShell({ children }: Props) {
           immersive ? "h-[100dvh] min-h-0 overflow-hidden" : showNav && "mobile-main-pad",
         )}
       >
+        {children}
+      </main>
       {showNav && <MobileBottomNav mobileApp />}
     </div>
   );
