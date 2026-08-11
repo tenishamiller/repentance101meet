@@ -13,7 +13,6 @@ import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { ParticipantPanelNameRow } from "@/components/livestream/ParticipantPanelNameRow";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
 import type { RemoteParticipant } from "livekit-client";
-import type { MemberVideoLayout } from "@/lib/video-layout";
 import { PANEL_TILE_CARD_CLASS, PANEL_TILE_FRAME_CLASS } from "@/lib/panel-tile";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +33,6 @@ type Props = {
   isRemoteScreenSharing: boolean;
   memberVideoEnabled: boolean;
   memberMicEnabled: boolean;
-  memberVideoLayout: MemberVideoLayout;
   hostProfile: HostProfile;
   userId: string;
   userName: string;
@@ -55,7 +53,7 @@ type Props = {
   participants?: MeetingParticipant[];
 };
 
-/** Member stage — split or corner self-view; host stays primary unless presenting. */
+/** Member stage — always host+self split; other members via swipe (mobile) or gallery. */
 export function LivestreamMemberStage({
   meetingTitle,
   isLive,
@@ -67,7 +65,6 @@ export function LivestreamMemberStage({
   isRemoteScreenSharing,
   memberVideoEnabled,
   memberMicEnabled,
-  memberVideoLayout,
   hostProfile,
   userId,
   userName,
@@ -88,7 +85,9 @@ export function LivestreamMemberStage({
   participants = [],
 }: Props) {
   const present = isRemoteScreenSharing;
-  const splitView = !present && memberVideoLayout === "side-by-side";
+  const splitHostAndSelf = !present;
+  const splitScreenAndSelf = isMobile && present;
+  const desktopPresentSidebar = present && !isMobile;
   const selfMuted = isMuted || !memberMicEnabled;
   const selfCameraOff = isCameraOff || !memberVideoEnabled;
   const otherMemberCount = participants.filter(
@@ -162,11 +161,11 @@ export function LivestreamMemberStage({
     <div
       className={cn(
         "relative min-h-0 w-full flex-1 overflow-hidden bg-black",
-        present && !isMobile && "flex flex-row",
-        !present && splitView && "grid min-h-0 grid-cols-2 grid-rows-1",
+        desktopPresentSidebar && "flex flex-row",
+        (splitHostAndSelf || splitScreenAndSelf) && "grid min-h-0 grid-cols-2 grid-rows-1",
       )}
     >
-      {present && !isMobile ? (
+      {desktopPresentSidebar ? (
         <>
           <div className="flex min-h-0 w-36 shrink-0 flex-col self-stretch overflow-hidden border-r border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
             <p className="shrink-0 border-b border-gold/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
@@ -218,7 +217,7 @@ export function LivestreamMemberStage({
             />
           </div>
         </>
-      ) : splitView ? (
+      ) : (
         <>
           <div className="relative min-h-0 min-w-0 overflow-hidden border-r border-gold/20 bg-black">
             <LiveKitVideoTile
@@ -226,12 +225,17 @@ export function LivestreamMemberStage({
               userId={hostProfile.userId}
               name={hostProfile.name}
               avatarUrl={hostProfile.avatarUrl}
-              cameraOff={isRemoteCameraOff}
+              cameraOff={present ? false : isRemoteCameraOff}
               waitingForVideo={waitingForHostVideo}
               videoClassName="h-full w-full object-contain"
               lowLatency
             />
-            <MuteIndicator visible={isRemoteMuted} />
+            <MuteIndicator visible={isRemoteMuted && !present} />
+            {!present && (
+              <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
+                {hostProfile.name}
+              </p>
+            )}
           </div>
           <div className="relative min-h-0 min-w-0 overflow-hidden">
             <MemberSelfTile
@@ -248,39 +252,6 @@ export function LivestreamMemberStage({
             />
           </div>
         </>
-      ) : (
-        <div className="relative h-full min-h-0 w-full">
-          <div className="absolute inset-0 overflow-hidden bg-black">
-            <LiveKitVideoTile
-              trackRef={hostMainTrack}
-              userId={hostProfile.userId}
-              name={hostProfile.name}
-              avatarUrl={hostProfile.avatarUrl}
-              cameraOff={isRemoteCameraOff}
-              waitingForVideo={waitingForHostVideo}
-              videoClassName="h-full w-full object-contain"
-              lowLatency
-            />
-            <MuteIndicator visible={isRemoteMuted} />
-            <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
-              {hostProfile.name}
-            </p>
-          </div>
-          <div className="pointer-events-none absolute bottom-3 right-3 z-10 sm:bottom-4 sm:right-4">
-            <MemberSelfTile
-              trackRef={localCameraTrack}
-              userId={userId}
-              userName={userName}
-              avatarUrl={avatarUrl}
-              cameraOff={selfCameraOff}
-              waitingForVideo={waitingForSelfVideo}
-              selfMuted={selfMuted}
-              handRaised={handRaised}
-              myReaction={myReaction}
-              pip
-            />
-          </div>
-        </div>
       )}
 
       {!isLive && (

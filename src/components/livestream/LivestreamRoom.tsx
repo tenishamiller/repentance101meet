@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Hand,
@@ -36,11 +36,6 @@ import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPop
 import { VideoLayoutSelect } from "@/components/livestream/VideoLayoutSelect";
 import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
 import { useLiveKitMeeting } from "@/components/livekit/livekit-meeting-context";
-import {
-  getMemberVideoLayout,
-  setMemberVideoLayout,
-  type MemberVideoLayout,
-} from "@/lib/video-layout";
 
 /** Lets every mobile control scroll fully into view (avoid justify-center in overflow rows). */
 const MOBILE_CONTROL_BAR =
@@ -80,21 +75,11 @@ function LivestreamRoomContent({
   const livestreamPath = useAppPath("/livestream");
   const adminPath = useAppPath("/admin");
   const [mobileTab, setMobileTab] = useState<"video" | "chat" | "people">("video");
-  const [memberVideoLayout, setMemberVideoLayoutState] = useState<MemberVideoLayout>("pip");
   const [privateMessageMember, setPrivateMessageMember] = useState<{
     id: string;
     name: string;
     avatarUrl: string | null;
   } | null>(null);
-
-  useEffect(() => {
-    setMemberVideoLayoutState(getMemberVideoLayout());
-  }, []);
-
-  function updateMemberVideoLayout(layout: MemberVideoLayout) {
-    setMemberVideoLayoutState(layout);
-    setMemberVideoLayout(layout);
-  }
 
   const liveKitMeeting = useLiveKitMeeting();
 
@@ -375,7 +360,6 @@ function LivestreamRoomContent({
                 isRemoteScreenSharing={isRemoteScreenSharing}
                 memberVideoEnabled={memberVideoEnabled}
                 memberMicEnabled={memberMicEnabled}
-                memberVideoLayout={memberVideoLayout}
                 hostProfile={hostProfile}
                 userId={userId}
                 userName={userName}
@@ -409,11 +393,6 @@ function LivestreamRoomContent({
                     : "flex flex-wrap items-center justify-center gap-2 sm:gap-3"
                 }
               >
-              <VideoLayoutSelect
-                mode="member"
-                value={memberVideoLayout}
-                onChange={updateMemberVideoLayout}
-              />
               <CameraDeviceSelect
                 devices={videoInputDevices}
                 selectedDeviceId={selectedVideoDeviceId}
