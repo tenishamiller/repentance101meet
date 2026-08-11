@@ -86,7 +86,7 @@ export async function PATCH(request: NextRequest) {
         status: "LIVE",
         startedAt: new Date(),
         ...(meeting.kind === "LIVESTREAM"
-          ? { memberVideoEnabled: false, memberMicEnabled: false }
+          ? { memberVideoEnabled: true, memberMicEnabled: true }
           : {}),
       },
     });

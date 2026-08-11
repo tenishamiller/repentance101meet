@@ -44,6 +44,8 @@ type Options = {
   isHost: boolean;
   memberVideoEnabled: boolean;
   memberMicEnabled: boolean;
+  initialMemberCameraOn?: boolean;
+  initialMemberMicOn?: boolean;
   mode?: StageMode;
 };
 
@@ -51,8 +53,8 @@ export function useLiveKitStage({
   hostId,
   userId,
   isHost,
-  memberVideoEnabled,
-  memberMicEnabled,
+  initialMemberCameraOn = false,
+  initialMemberMicOn = false,
   mode = "livestream",
 }: Options) {
   const room = useRoomContext();
@@ -147,8 +149,8 @@ export function useLiveKitStage({
           ? hostCameraFromRoom
           : undefined;
 
-  const canUseMic = isHost || memberMicEnabled || mode === "private";
-  const canUseCamera = isHost || memberVideoEnabled || mode === "private";
+  const canUseMic = isHost || mode === "private" || mode === "livestream";
+  const canUseCamera = isHost || mode === "private" || mode === "livestream";
 
   const isMuted = !isMicrophoneEnabled || !canUseMic;
   const isCameraOff =
@@ -179,8 +181,8 @@ export function useLiveKitStage({
     isLive &&
     !isHost &&
     mode === "livestream" &&
-    memberVideoEnabled &&
-    !isCameraOff &&
+    initialMemberCameraOn &&
+    !cameraOffByUser &&
     !hasLocalVideoTrack;
 
   const remoteMemberParticipants = useMemo(
@@ -218,18 +220,57 @@ export function useLiveKitStage({
   );
 
   useEffect(() => {
-    if (isHost) return;
-    if (!memberMicEnabled) {
-      void localParticipant.setMicrophoneEnabled(false);
-    }
-  }, [isHost, localParticipant, memberMicEnabled]);
+    if (connectionState !== ConnectionState.Connected) return;
+
+    void (async () => {
+      try {
+        if (isHost || mode === "private") {
+          if (isHost && mode === "livestream") {
+            await enableHostCamera(true);
+          } else {
+            await localParticipant.setCameraEnabled(true);
+          }
+          await localParticipant.setMicrophoneEnabled(true);
+          setCameraOffByUser(false);
+          return;
+        }
+
+        if (initialMemberCameraOn) {
+          await enableMemberCamera(true);
+          setCameraOffByUser(false);
+        } else {
+          setCameraOffByUser(true);
+          await localParticipant.setCameraEnabled(false);
+        }
+
+        await localParticipant.setMicrophoneEnabled(initialMemberMicOn);
+      } catch {
+        /* surfaced via lastCameraError */
+      }
+    })();
+  }, [
+    connectionState,
+    enableHostCamera,
+    enableMemberCamera,
+    initialMemberCameraOn,
+    initialMemberMicOn,
+    isHost,
+    localParticipant,
+    mode,
+  ]);
 
   useEffect(() => {
-    if (isHost) return;
-    if (!memberVideoEnabled) {
-      void localParticipant.setCameraEnabled(false);
-    }
-  }, [isHost, localParticipant, memberVideoEnabled]);
+    if (isHost || mode !== "livestream" || connectionState !== ConnectionState.Connected) return;
+    if (cameraOffByUser) return;
+    void enableMemberCamera(true);
+  }, [
+    cameraOffByUser,
+    connectionState,
+    enableMemberCamera,
+    isHost,
+    isRemoteScreenSharing,
+    mode,
+  ]);
 
   const refreshMediaInputDevices = useCallback(async () => {
     setIsRefreshingDevices(true);
@@ -248,58 +289,6 @@ export function useLiveKitStage({
   useEffect(() => {
     void refreshMediaInputDevices();
   }, [refreshMediaInputDevices]);
-
-  useEffect(() => {
-    if (connectionState !== ConnectionState.Connected) return;
-
-    void (async () => {
-      try {
-        if (isHost || mode === "private") {
-          if (isHost && mode === "livestream") {
-            await enableHostCamera(true);
-          } else {
-            await localParticipant.setCameraEnabled(true);
-          }
-          await localParticipant.setMicrophoneEnabled(true);
-          setCameraOffByUser(false);
-          return;
-        }
-
-        if (memberVideoEnabled) {
-          await enableMemberCamera(true);
-          setCameraOffByUser(false);
-        }
-        if (memberMicEnabled) {
-          await localParticipant.setMicrophoneEnabled(true);
-        }
-      } catch {
-        /* surfaced via lastCameraError */
-      }
-    })();
-  }, [
-    connectionState,
-    enableHostCamera,
-    enableMemberCamera,
-    isHost,
-    localParticipant,
-    memberMicEnabled,
-    memberVideoEnabled,
-    mode,
-  ]);
-
-  useEffect(() => {
-    if (isHost || mode !== "livestream" || connectionState !== ConnectionState.Connected) return;
-    if (!memberVideoEnabled || cameraOffByUser) return;
-    void enableMemberCamera(true);
-  }, [
-    cameraOffByUser,
-    connectionState,
-    enableMemberCamera,
-    isHost,
-    isRemoteScreenSharing,
-    memberVideoEnabled,
-    mode,
-  ]);
 
   /** Restore host camera on the main stage as soon as screen share ends. */
   useEffect(() => {

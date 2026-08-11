@@ -9,6 +9,10 @@ import {
   RecordingConsentGate,
   saveRecordingConsent,
 } from "@/components/livestream/RecordingConsentGate";
+import {
+  getMemberJoinMediaPrefs,
+  type MemberJoinMediaPrefs,
+} from "@/lib/member-join-media";
 
 type Props = {
   token: string;
@@ -23,9 +27,14 @@ export function MeetingPageClient({ token }: Props) {
   const [endedMeeting, setEndedMeeting] = useState<{ title: string } | null>(null);
   const [error, setError] = useState("");
   const [consented, setConsented] = useState(false);
+  const [joinMedia, setJoinMedia] = useState<MemberJoinMediaPrefs>({
+    cameraOn: false,
+    micOn: false,
+  });
 
   useEffect(() => {
     if (hasRecordingConsent(token)) {
+      setJoinMedia(getMemberJoinMediaPrefs());
       setConsented(true);
     }
   }, [token]);
@@ -47,8 +56,9 @@ export function MeetingPageClient({ token }: Props) {
       .catch(() => setError("Failed to connect"));
   }, [token]);
 
-  function acceptConsent() {
+  function acceptConsent(media: MemberJoinMediaPrefs) {
     saveRecordingConsent(token);
+    setJoinMedia(media);
     setConsented(true);
   }
 
@@ -93,6 +103,8 @@ export function MeetingPageClient({ token }: Props) {
       avatarUrl={data.user.avatarUrl}
       isHost={data.isHost}
       hostId={data.meeting.createdById}
+      joinCameraOn={joinMedia.cameraOn}
+      joinMicOn={joinMedia.micOn}
     />
     </div>
   );

@@ -70,7 +70,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
         status: "LIVE",
         startedAt: new Date(),
         ...(meeting.kind === "LIVESTREAM"
-          ? { memberVideoEnabled: false, memberMicEnabled: false }
+          ? { memberVideoEnabled: true, memberMicEnabled: true }
           : {}),
       },
     });
@@ -105,14 +105,19 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const roomKind = meeting.kind === "PRIVATE" ? "private" : "livestream";
   const roomName = liveKitRoomName(token, roomKind);
 
+  const memberVideoEnabled =
+    meeting.kind === "LIVESTREAM" ? true : meeting.memberVideoEnabled;
+  const memberMicEnabled =
+    meeting.kind === "LIVESTREAM" ? true : meeting.memberMicEnabled;
+
   const accessToken = await createLiveKitAccessToken({
     roomName,
     identity: session.user.id,
     name: session.user.name,
     avatarUrl: userRecord?.avatarUrl ?? session.user.avatarUrl ?? null,
     isHost,
-    memberVideoEnabled: meeting.memberVideoEnabled,
-    memberMicEnabled: meeting.memberMicEnabled,
+    memberVideoEnabled,
+    memberMicEnabled,
   });
 
   return Response.json({
@@ -120,7 +125,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     serverUrl,
     roomName,
     isHost,
-    memberVideoEnabled: meeting.memberVideoEnabled,
-    memberMicEnabled: meeting.memberMicEnabled,
+    memberVideoEnabled,
+    memberMicEnabled,
   });
 }

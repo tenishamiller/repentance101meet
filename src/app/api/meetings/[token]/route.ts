@@ -45,7 +45,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
         status: "LIVE",
         startedAt: new Date(),
         ...(meeting.kind === "LIVESTREAM"
-          ? { memberVideoEnabled: false, memberMicEnabled: false }
+          ? { memberVideoEnabled: true, memberMicEnabled: true }
           : {}),
       },
     });
