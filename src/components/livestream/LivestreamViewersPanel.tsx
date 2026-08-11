@@ -53,7 +53,7 @@ export function LivestreamViewersPanel({
         className,
       )}
     >
-      <div className="shrink-0 px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
+      <div className="shrink-0 px-2.5 pb-1.5 pt-2 sm:px-3">
         {(thumbsUp > 0 || thumbsDown > 0 || clapCount > 0) && (
           <div className="mb-2 flex gap-2 text-sm">
             {thumbsUp > 0 && (
@@ -81,7 +81,7 @@ export function LivestreamViewersPanel({
           Viewers ({viewerCount})
         </h3>
       </div>
-      <div className="livestream-panel-scroll chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-y-auto overscroll-y-contain space-y-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
+      <div className="livestream-panel-scroll chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-y-auto overscroll-y-contain space-y-1 px-2.5 pb-2 sm:px-3">
         {viewers.length === 0 ? (
           <p className="text-sm text-gold-light/60">Waiting for viewers to join...</p>
         ) : (

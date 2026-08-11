@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef } from "react";
 import { Paperclip, Pencil, RotateCcw, Smile, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatDate } from "@/lib/utils";
@@ -14,20 +15,41 @@ type Props = {
   isAdmin: boolean;
 };
 
-/** Desktop livestream chat — 3-row grid: header, scroll messages, fixed composer. */
+/** Desktop livestream chat — composer is absolutely pinned; messages scroll between header and footer. */
 export function DesktopMeetingChat({ meetingToken, userId, isAdmin }: Props) {
   const chat = useMeetingChat({ meetingToken, userId, isAdmin });
+  const shellRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const shell = shellRef.current;
+    const header = headerRef.current;
+    const footer = footerRef.current;
+    if (!shell || !header || !footer) return;
+
+    const syncHeights = () => {
+      shell.style.setProperty("--desktop-chat-header-h", `${header.offsetHeight}px`);
+      shell.style.setProperty("--desktop-chat-footer-h", `${footer.offsetHeight}px`);
+    };
+
+    syncHeights();
+    const observer = new ResizeObserver(syncHeights);
+    observer.observe(header);
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, [chat.messages.length, chat.uploadError, chat.pendingFiles.length, chat.showEmoji]);
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-burgundy-dark">
-      <div className="border-b border-gold/20 px-4 py-3">
+    <div ref={shellRef} className="desktop-livestream-chat">
+      <div ref={headerRef} className="desktop-livestream-chat__header">
         <h3 className="font-serif font-semibold text-cream">Meeting Chat</h3>
       </div>
 
       <div
         ref={chat.scrollRef}
         onScroll={chat.handleScroll}
-        className="desktop-livestream-chat-scroll min-h-0 overflow-y-auto overscroll-y-contain p-4"
+        className="desktop-livestream-chat__messages desktop-livestream-chat-scroll"
       >
         {chat.messages.length === 0 && (
           <p className="text-center text-sm text-gold-light/60">
@@ -44,8 +66,8 @@ export function DesktopMeetingChat({ meetingToken, userId, isAdmin }: Props) {
             ? chat.getEditTimeRemaining(msg.createdAt, chat.now)
             : null;
 
-          return (
-            <article key={msg.id} className="mb-3 flex gap-2">
+            return (
+            <article key={msg.id} className="mb-2 flex gap-2">
               <UserAvatar
                 userId={msg.user.id}
                 name={msg.user.name}
@@ -179,7 +201,7 @@ export function DesktopMeetingChat({ meetingToken, userId, isAdmin }: Props) {
         )}
       </div>
 
-      <div className="relative border-t border-gold/20 bg-burgundy-dark p-3">
+      <div ref={footerRef} className="desktop-livestream-chat__composer">
         <form onSubmit={(e) => void chat.sendMessage(e)}>
           {chat.uploadError && (
             <p className="mb-2 text-xs text-red-300">{chat.uploadError}</p>
@@ -215,33 +237,33 @@ export function DesktopMeetingChat({ meetingToken, userId, isAdmin }: Props) {
             id={`desktop-meeting-file-${meetingToken}`}
             onChange={chat.handleFilesSelected}
           />
-          <div className="flex min-w-0 items-stretch gap-2">
+          <div className="flex min-w-0 items-stretch gap-1.5">
             <label
               htmlFor={`desktop-meeting-file-${meetingToken}`}
-              className="flex shrink-0 cursor-pointer items-center rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-gold-light hover:bg-burgundy-deep"
+              className="flex shrink-0 cursor-pointer items-center rounded-md border border-gold/30 bg-burgundy px-2 py-1.5 text-gold-light hover:bg-burgundy-deep"
               title={`Attach file (max ${MEETING_CHAT_MAX_FILE_LABEL})`}
             >
-              <Paperclip className="h-4 w-4" />
+              <Paperclip className="h-3.5 w-3.5" />
             </label>
             <button
               type="button"
               onClick={() => chat.setShowEmoji((s) => !s)}
-              className="shrink-0 rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-gold-light hover:bg-burgundy-deep"
+              className="shrink-0 rounded-md border border-gold/30 bg-burgundy px-2 py-1.5 text-gold-light hover:bg-burgundy-deep"
               title="Add emoji"
             >
-              <Smile className="h-4 w-4" />
+              <Smile className="h-3.5 w-3.5" />
             </button>
             <input
               type="text"
               value={chat.content}
               onChange={(e) => chat.setContent(e.target.value)}
               placeholder="Message..."
-              className="min-w-0 flex-1 rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-sm text-cream placeholder:text-gold-light/40 focus:outline-none focus:ring-2 focus:ring-gold/40"
+              className="min-w-0 flex-1 rounded-md border border-gold/30 bg-burgundy px-2 py-1.5 text-sm text-cream placeholder:text-gold-light/40 focus:outline-none focus:ring-2 focus:ring-gold/40"
             />
             <button
               type="submit"
               disabled={chat.sending || !chat.canSend}
-              className="shrink-0 rounded-lg bg-gold px-4 py-2 text-sm font-bold text-burgundy-deep disabled:opacity-60"
+              className="shrink-0 rounded-md bg-gold px-3 py-1.5 text-xs font-bold text-burgundy-deep disabled:opacity-60"
             >
               {chat.sending ? "..." : "Send"}
             </button>

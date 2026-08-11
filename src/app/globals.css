@@ -343,7 +343,57 @@ body {
     background: rgba(201, 162, 39, 0.85);
   }
 
-  /** Desktop livestream meeting chat message list */
+  /** Desktop livestream meeting chat shell — composer pinned with absolute positioning */
+  .desktop-livestream-chat {
+    --desktop-chat-header-h: 40px;
+    --desktop-chat-footer-h: 52px;
+    position: relative;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: #3d1515;
+  }
+
+  .desktop-livestream-chat__header {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 2;
+    border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+    background: #3d1515;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .desktop-livestream-chat__header h3 {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .desktop-livestream-chat__composer {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 2;
+    border-top: 1px solid rgba(201, 162, 39, 0.2);
+    background: #3d1515;
+    padding: 0.5rem;
+  }
+
+  .desktop-livestream-chat__messages {
+    position: absolute;
+    top: var(--desktop-chat-header-h);
+    right: 0;
+    bottom: var(--desktop-chat-footer-h);
+    left: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.625rem 0.75rem;
+  }
+
+  /** Desktop livestream meeting chat message list scrollbar */
   .desktop-livestream-chat-scroll {
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -354,7 +404,7 @@ body {
   }
 
   .desktop-livestream-chat-scroll::-webkit-scrollbar {
-    width: 10px;
+    width: 8px;
   }
 
   .desktop-livestream-chat-scroll::-webkit-scrollbar-track {

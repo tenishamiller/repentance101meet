@@ -39,7 +39,6 @@ import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
 import { LivestreamRoomAudio } from "@/components/livekit/LivestreamRoomAudio";
 import { useLiveKitMeeting } from "@/components/livekit/livekit-meeting-context";
 import { clearMemberJoinSession } from "@/lib/member-join-media";
-import { cn } from "@/lib/utils";
 
 /** Lets every mobile control scroll fully into view (avoid justify-center in overflow rows). */
 const MOBILE_CONTROL_BAR =
@@ -666,21 +665,12 @@ function LivestreamRoomContent({
         )}
       </aside>
 
-      {/* Desktop sidebar */}
-      <aside
-        className={cn(
-          "hidden h-full min-h-0 w-[28rem] shrink-0 overflow-hidden border-l border-gold/20 bg-burgundy-dark lg:grid xl:w-[32rem]",
-          isHost
-            ? privateMessageMember
-              ? "lg:grid-rows-[13rem_11rem_minmax(0,1fr)]"
-              : "lg:grid-rows-[13rem_minmax(0,1fr)]"
-            : "lg:grid-rows-[minmax(0,1fr)]",
-        )}
-      >
+      {/* Desktop sidebar — compact width matching private ministry / message panels */}
+      <aside className="hidden h-full min-h-0 w-72 shrink-0 flex-col overflow-hidden border-l border-gold/20 bg-burgundy-dark lg:flex xl:w-80">
         {isHost && (
           <>
             <LivestreamViewersPanel
-              className="min-h-0 overflow-hidden"
+              className="h-36 shrink-0 overflow-hidden"
               meetingToken={meetingToken}
               viewerCount={viewerCount}
               viewers={viewers}
@@ -699,7 +689,7 @@ function LivestreamRoomContent({
               onKickViewer={(viewerId) => void kickViewer(viewerId)}
             />
             {privateMessageMember && (
-              <div className="min-h-0 overflow-hidden border-b border-gold/20 bg-burgundy-dark">
+              <div className="h-32 shrink-0 overflow-hidden border-b border-gold/20 bg-burgundy-dark">
                 <HostPrivateMessagePanel
                   member={privateMessageMember}
                   hostId={userId}
@@ -709,7 +699,7 @@ function LivestreamRoomContent({
             )}
           </>
         )}
-        <div className="min-h-0 overflow-hidden">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           <DesktopMeetingChat
             meetingToken={meetingToken}
             userId={userId}
