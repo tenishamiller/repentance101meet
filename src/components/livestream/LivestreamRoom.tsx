@@ -23,6 +23,7 @@ import { useAppPath } from "@/hooks/useAppBase";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
+import { DesktopMeetingChat } from "@/components/livestream/DesktopMeetingChat";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
 import { RemovedFromMeetingScreen } from "@/components/livestream/RemovedFromMeetingScreen";
 import { LivestreamHostStage } from "@/components/livestream/room/LivestreamHostStage";
@@ -653,14 +654,8 @@ function LivestreamRoomContent({
           </div>
         )}
 
-        {(!isMobile || mobileTab === "chat") && (
-          <div
-            className={
-              isMobile
-                ? "flex min-h-0 flex-1 basis-0 flex-col overflow-hidden"
-                : "flex h-full min-h-0 flex-col overflow-hidden"
-            }
-          >
+        {mobileTab === "chat" && (
+          <div className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden">
             <MeetingChat
               meetingToken={meetingToken}
               userId={userId}
@@ -670,12 +665,12 @@ function LivestreamRoomContent({
         )}
       </aside>
 
-      {/* Desktop sidebar — flex column so chat composer stays pinned at the bottom */}
+      {/* Desktop sidebar */}
       <aside className="hidden h-full min-h-0 w-[28rem] shrink-0 flex-col overflow-hidden border-l border-gold/20 bg-burgundy-dark lg:flex xl:w-[32rem]">
         {isHost && (
           <>
             <LivestreamViewersPanel
-              className="max-h-[34vh] shrink-0"
+              className="h-52 shrink-0"
               meetingToken={meetingToken}
               viewerCount={viewerCount}
               viewers={viewers}
@@ -694,7 +689,7 @@ function LivestreamRoomContent({
               onKickViewer={(viewerId) => void kickViewer(viewerId)}
             />
             {privateMessageMember && (
-              <div className="max-h-[min(220px,28vh)] min-h-0 shrink-0 overflow-hidden border-b border-gold/20 bg-burgundy-dark">
+              <div className="h-44 shrink-0 overflow-hidden border-b border-gold/20 bg-burgundy-dark">
                 <HostPrivateMessagePanel
                   member={privateMessageMember}
                   hostId={userId}
@@ -704,13 +699,11 @@ function LivestreamRoomContent({
             )}
           </>
         )}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <MeetingChat
-            meetingToken={meetingToken}
-            userId={userId}
-            isAdmin={isHost}
-          />
-        </div>
+        <DesktopMeetingChat
+          meetingToken={meetingToken}
+          userId={userId}
+          isAdmin={isHost}
+        />
       </aside>
 
       {isMobile && (
