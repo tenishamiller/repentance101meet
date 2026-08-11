@@ -25,6 +25,7 @@ function displayName(name: string, dbParticipant?: MeetingParticipant) {
   const prefix: string[] = [];
   if (dbParticipant?.handRaised) prefix.push("✋");
   if (dbParticipant?.reaction === "UP") prefix.push("👍");
+  if (dbParticipant?.reaction === "CLAP") prefix.push("👏");
   if (dbParticipant?.reaction === "DOWN") prefix.push("👎");
   return prefix.length > 0 ? `${prefix.join(" ")} ${name}` : name;
 }

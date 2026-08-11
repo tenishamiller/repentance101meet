@@ -42,6 +42,7 @@ type Props = {
   raisedHands: { userId: string; name: string }[];
   thumbsUp: number;
   thumbsDown: number;
+  clapCount: number;
   isMobile?: boolean;
 };
 
@@ -67,13 +68,16 @@ export function LivestreamHostStage({
   raisedHands,
   thumbsUp,
   thumbsDown,
+  clapCount,
   isMobile = false,
 }: Props) {
   const hasHostVideo = !!hostMainTrack?.publication?.track;
   const showCameraOff = isLive && isCameraOff && !isScreenSharing;
   const waitingForVideo = isLive && !showCameraOff && !hasHostVideo && !isScreenSharing;
   const memberCount = remoteParticipants.filter((p) => p.identity !== hostId).length;
-  const inRoomCount = memberCount + (isScreenSharing && hostSelfTile ? 1 : 0);
+  const mobileHostSolo = isMobile && !isScreenSharing;
+  const mobilePresenting = isMobile && isScreenSharing;
+  const inRoomCount = memberCount + (mobilePresenting && hostSelfTile ? 1 : 0);
 
   const inRoomGallery = (
     <LiveKitParticipantGallery
@@ -85,8 +89,22 @@ export function LivestreamHostStage({
       memberMicEnabled={memberMicEnabled}
       layout="sidebar"
       side={isScreenSharing ? "left" : "right"}
-      className={isMobile ? "h-full w-full max-w-none shrink border-0 xl:w-full" : undefined}
+      hideHeader={isMobile}
+      className={isMobile ? "h-full w-full max-w-none shrink border-0 bg-transparent xl:w-full" : undefined}
     />
+  );
+
+  const inRoomPanel = isMobile ? (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <p className="shrink-0 border-b border-gold/10 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
+        In room
+      </p>
+      <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-y-auto p-3">
+        {inRoomGallery}
+      </div>
+    </div>
+  ) : (
+    inRoomGallery
   );
 
   const videoStage = (
@@ -94,13 +112,15 @@ export function LivestreamHostStage({
       className={cn(
         "relative min-h-0 min-w-0 flex-1 overflow-hidden",
         showCameraOff ? "bg-burgundy-deep" : "bg-black",
-        isMobile && "flex items-center justify-center",
+        mobilePresenting && "flex items-center justify-center",
       )}
     >
       <div
         className={cn(
           "relative overflow-hidden",
-          isMobile ? "aspect-video w-full max-h-full" : "h-full min-h-0 w-full",
+          mobilePresenting && "aspect-video w-full max-h-full",
+          mobileHostSolo && "h-full min-h-0 w-full",
+          !isMobile && "h-full min-h-0 w-full",
         )}
       >
         <LiveKitVideoTile
@@ -126,6 +146,7 @@ export function LivestreamHostStage({
         raisedHands={raisedHands}
         thumbsUp={thumbsUp}
         thumbsDown={thumbsDown}
+        clapCount={clapCount}
       />
     </div>
   );
@@ -161,7 +182,7 @@ export function LivestreamHostStage({
         {isMobile ? (
           <MobileSwipePanels
             primary={videoStage}
-            secondary={inRoomGallery}
+            secondary={inRoomPanel}
             secondaryLabel="In room"
             badge={inRoomCount}
           />

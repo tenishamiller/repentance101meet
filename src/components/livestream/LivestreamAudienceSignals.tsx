@@ -8,6 +8,7 @@ type Props = {
   raisedHands: RaisedHand[];
   thumbsUp: number;
   thumbsDown: number;
+  clapCount: number;
   className?: string;
 };
 
@@ -16,9 +17,11 @@ export function LivestreamAudienceSignals({
   raisedHands,
   thumbsUp,
   thumbsDown,
+  clapCount,
   className,
 }: Props) {
-  const hasSignals = raisedHands.length > 0 || thumbsUp > 0 || thumbsDown > 0;
+  const hasSignals =
+    raisedHands.length > 0 || thumbsUp > 0 || thumbsDown > 0 || clapCount > 0;
   if (!hasSignals) return null;
 
   return (
@@ -42,12 +45,20 @@ export function LivestreamAudienceSignals({
           </ul>
         </div>
       )}
-      {(thumbsUp > 0 || thumbsDown > 0) && (
+      {(thumbsUp > 0 || thumbsDown > 0 || clapCount > 0) && (
         <div className="flex flex-wrap justify-end gap-2">
           {thumbsUp > 0 && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-burgundy-dark/90 px-3 py-1.5 text-sm font-semibold text-cream shadow-lg backdrop-blur">
               <ThumbsUp className="h-4 w-4 text-gold" aria-hidden />
               {thumbsUp}
+            </span>
+          )}
+          {clapCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-burgundy-dark/90 px-3 py-1.5 text-sm font-semibold text-cream shadow-lg backdrop-blur">
+              <span className="text-base leading-none" aria-hidden>
+                👏
+              </span>
+              {clapCount}
             </span>
           )}
           {thumbsDown > 0 && (
@@ -89,6 +100,7 @@ export function ParticipantSignalBadges({
     <div className={`absolute left-1.5 top-1.5 z-10 flex flex-col gap-1 ${className ?? ""}`}>
       {handRaised && <ParticipantSignalBadge emoji="✋" title="Hand raised" />}
       {reaction === "UP" && <ParticipantSignalBadge emoji="👍" title="Thumbs up" />}
+      {reaction === "CLAP" && <ParticipantSignalBadge emoji="👏" title="Clapping" />}
       {reaction === "DOWN" && <ParticipantSignalBadge emoji="👎" title="Thumbs down" />}
     </div>
   );

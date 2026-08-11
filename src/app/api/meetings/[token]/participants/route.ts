@@ -32,6 +32,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   const thumbsUp = participants.filter((p) => p.reaction === "UP").length;
   const thumbsDown = participants.filter((p) => p.reaction === "DOWN").length;
+  const clapCount = participants.filter((p) => p.reaction === "CLAP").length;
 
   return Response.json({
     hostId: meeting.createdById,
@@ -41,6 +42,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     participants,
     thumbsUp,
     thumbsDown,
+    clapCount,
   });
 }
 

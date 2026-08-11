@@ -115,7 +115,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return Response.json({ success: true });
   }
 
-  if (action === "react-up" || action === "react-down" || action === "react-clear") {
+  if (action === "react-up" || action === "react-down" || action === "react-clap" || action === "react-clear") {
     const participant = await prisma.meetingParticipant.findUnique({
       where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
     });
@@ -131,6 +131,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       reactionAt = reaction ? new Date() : null;
     } else if (action === "react-down") {
       reaction = participant.reaction === "DOWN" ? null : "DOWN";
+      reactionAt = reaction ? new Date() : null;
+    } else if (action === "react-clap") {
+      reaction = participant.reaction === "CLAP" ? null : "CLAP";
       reactionAt = reaction ? new Date() : null;
     }
 

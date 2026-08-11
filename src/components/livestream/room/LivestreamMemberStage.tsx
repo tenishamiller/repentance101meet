@@ -45,6 +45,7 @@ type Props = {
   raisedHands: { userId: string; name: string }[];
   thumbsUp: number;
   thumbsDown: number;
+  clapCount: number;
   handRaised: boolean;
   myReaction: string | null;
   isMobile?: boolean;
@@ -77,6 +78,7 @@ export function LivestreamMemberStage({
   raisedHands,
   thumbsUp,
   thumbsDown,
+  clapCount,
   handRaised,
   myReaction,
   isMobile = false,
@@ -320,6 +322,7 @@ export function LivestreamMemberStage({
         raisedHands={raisedHands}
         thumbsUp={thumbsUp}
         thumbsDown={thumbsDown}
+        clapCount={clapCount}
       />
     </div>
   );

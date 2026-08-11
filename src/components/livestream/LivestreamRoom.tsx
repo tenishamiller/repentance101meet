@@ -89,6 +89,7 @@ function LivestreamRoomContent({
     handRaised,
     thumbsUp,
     thumbsDown,
+    clapCount,
     myReaction,
     memberVideoEnabled,
     memberMicEnabled,
@@ -253,6 +254,7 @@ function LivestreamRoomContent({
               raisedHands={raisedHands}
               thumbsUp={thumbsUp}
               thumbsDown={thumbsDown}
+              clapCount={clapCount}
               isMobile={isMobile}
             />
             </div>
@@ -374,6 +376,7 @@ function LivestreamRoomContent({
                 raisedHands={raisedHands}
                 thumbsUp={thumbsUp}
                 thumbsDown={thumbsDown}
+                clapCount={clapCount}
                 handRaised={handRaised}
                 myReaction={myReaction}
                 isMobile={isMobile}
@@ -434,6 +437,21 @@ function LivestreamRoomContent({
               >
                 <ThumbsUp className="h-4 w-4" />
                 <span className="hidden sm:inline">Like</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void sendReaction("react-clap")}
+                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
+                  myReaction === "CLAP"
+                    ? "bg-gold text-burgundy-deep"
+                    : "border border-gold/40 bg-burgundy text-gold-light hover:bg-burgundy-dark"
+                }`}
+                title="Clap"
+              >
+                <span className="text-base leading-none" aria-hidden>
+                  👏
+                </span>
+                <span className="hidden sm:inline">Clap</span>
               </button>
               <button
                 type="button"
@@ -499,12 +517,18 @@ function LivestreamRoomContent({
             }`}
           >
             <div className="shrink-0 px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
-              {(thumbsUp > 0 || thumbsDown > 0) && (
+              {(thumbsUp > 0 || thumbsDown > 0 || clapCount > 0) && (
                 <div className="mb-2 flex gap-2 text-sm">
                   {thumbsUp > 0 && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-gold/20 px-2.5 py-1 font-semibold text-gold-light">
                       <ThumbsUp className="h-3.5 w-3.5" />
                       {thumbsUp}
+                    </span>
+                  )}
+                  {clapCount > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gold/20 px-2.5 py-1 font-semibold text-gold-light">
+                      <span aria-hidden>👏</span>
+                      {clapCount}
                     </span>
                   )}
                   {thumbsDown > 0 && (
@@ -546,6 +570,11 @@ function LivestreamRoomContent({
                       )}
                       {p.reaction === "UP" && (
                         <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-gold" aria-label="Thumbs up" />
+                      )}
+                      {p.reaction === "CLAP" && (
+                        <span className="shrink-0 text-sm leading-none" title="Clapping" aria-label="Clapping">
+                          👏
+                        </span>
                       )}
                       {p.reaction === "DOWN" && (
                         <ThumbsDown

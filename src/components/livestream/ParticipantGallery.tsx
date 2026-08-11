@@ -109,6 +109,7 @@ function ParticipantTile({
         <div className="truncate px-2 py-1.5 text-xs font-semibold text-gold-light">
           {member.handRaised && <span className="mr-1">✋</span>}
           {member.reaction === "UP" && <span className="mr-1">👍</span>}
+          {member.reaction === "CLAP" && <span className="mr-1">👏</span>}
           {member.reaction === "DOWN" && <span className="mr-1">👎</span>}
           {member.name}
           {!member.connected && (

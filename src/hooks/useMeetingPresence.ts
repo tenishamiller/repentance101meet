@@ -43,6 +43,7 @@ export function useMeetingPresence({
   const [handRaised, setHandRaised] = useState(false);
   const [thumbsUp, setThumbsUp] = useState(0);
   const [thumbsDown, setThumbsDown] = useState(0);
+  const [clapCount, setClapCount] = useState(0);
   const [myReaction, setMyReaction] = useState<string | null>(null);
   const [memberVideoEnabled, setMemberVideoEnabled] = useState(initialMemberVideoEnabled);
   const [memberMicEnabled, setMemberMicEnabled] = useState(initialMemberMicEnabled);
@@ -108,6 +109,7 @@ export function useMeetingPresence({
     setParticipants(data.participants);
     setThumbsUp(data.thumbsUp ?? 0);
     setThumbsDown(data.thumbsDown ?? 0);
+    setClapCount(data.clapCount ?? 0);
 
     const me = (data.participants as MeetingParticipant[]).find((p) => p.user.id === userId);
     if (me) {
@@ -185,7 +187,7 @@ export function useMeetingPresence({
   }, [fetchParticipants, handRaised, meetingToken, userId]);
 
   const sendReaction = useCallback(
-    async (action: "react-up" | "react-down") => {
+    async (action: "react-up" | "react-down" | "react-clap") => {
       const res = await fetch(`/api/meetings/${meetingToken}/chat`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -277,6 +279,7 @@ export function useMeetingPresence({
     handRaised,
     thumbsUp,
     thumbsDown,
+    clapCount,
     myReaction,
     memberVideoEnabled,
     memberMicEnabled,
