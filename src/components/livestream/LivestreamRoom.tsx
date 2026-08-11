@@ -668,7 +668,7 @@ function LivestreamRoomContent({
             className={
               isMobile
                 ? "flex min-h-0 flex-1 basis-0 flex-col overflow-hidden"
-                : "min-h-0 overflow-hidden"
+                : "flex h-full min-h-0 flex-col overflow-hidden"
             }
           >
             <MeetingChat

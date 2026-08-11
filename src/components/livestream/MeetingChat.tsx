@@ -254,15 +254,15 @@ export function MeetingChat({
   }
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-burgundy-dark">
+    <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)_auto] bg-burgundy-dark lg:flex lg:h-full lg:min-h-0 lg:flex-col lg:overflow-hidden">
       <div className="shrink-0 border-b border-gold/20 px-4 py-3">
         <h3 className="font-serif font-semibold text-cream">Meeting Chat</h3>
       </div>
-      <div className="relative min-h-0 overflow-hidden">
+      <div className="relative min-h-0 overflow-hidden lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="chat-scroll chat-scroll-dark absolute inset-0 overflow-y-auto overscroll-y-contain p-4"
+          className="chat-scroll chat-scroll-dark absolute inset-0 overflow-y-auto overscroll-y-contain p-4 lg:static lg:inset-auto lg:min-h-0 lg:flex-1"
         >
         {messages.length === 0 && (
           <p className="text-center text-sm text-gold-light/60">
@@ -415,7 +415,7 @@ export function MeetingChat({
       </div>
       <form
         onSubmit={sendMessage}
-        className="relative shrink-0 border-t border-gold/20 bg-burgundy-dark p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3"
+        className="relative shrink-0 border-t border-gold/20 bg-burgundy-dark p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3 lg:z-10"
       >
         {uploadError && (
           <p className="mb-2 text-xs text-red-300">{uploadError}</p>
