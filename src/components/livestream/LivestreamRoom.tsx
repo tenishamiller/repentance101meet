@@ -230,7 +230,8 @@ function LivestreamRoomContent({
       >
         {isHost ? (
           <>
-            <LivestreamHostStage
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <LivestreamHostStage
               meetingTitle={meetingTitle}
               viewerCount={viewerCount}
               isLive={isLive}
@@ -254,6 +255,7 @@ function LivestreamRoomContent({
               thumbsDown={thumbsDown}
               isMobile={isMobile}
             />
+            </div>
 
             <div
               className={`z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark ${

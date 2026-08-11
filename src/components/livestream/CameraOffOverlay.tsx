@@ -27,14 +27,14 @@ export function CameraOffOverlay({
   showName,
   className,
 }: Props) {
-  const resolvedSize = size ?? (pipLayout ? "xl" : compact ? "xl" : "2xl");
+  const resolvedSize = size ?? (pipLayout ? "xl" : compact ? "lg" : "2xl");
   const showLabel = showName ?? !compact;
 
   return (
     <div
       className={cn(
-        "absolute inset-0 z-[1] flex flex-col items-center justify-center bg-burgundy-deep",
-        pipLayout ? "px-0" : "px-4",
+        "absolute inset-0 z-[1] flex min-h-0 flex-col items-center justify-center gap-1 overflow-hidden bg-burgundy-deep px-2 py-2 sm:gap-2 sm:px-4 sm:py-3",
+        pipLayout && "px-0 py-0 sm:px-0 sm:py-0",
         className,
       )}
     >
@@ -50,20 +50,27 @@ export function CameraOffOverlay({
         className={cn(
           "ring-gold/50",
           pipLayout &&
-            "!h-[5.25rem] !w-[5.25rem] !text-xl md:!h-[7.25rem] md:!w-[7.25rem] md:!text-2xl",
+            "!h-[4rem] !w-[4rem] !text-lg sm:!h-[5.25rem] sm:!w-[5.25rem] sm:!text-xl md:!h-[7.25rem] md:!w-[7.25rem] md:!text-2xl",
+          !pipLayout &&
+            !size &&
+            (compact
+              ? "!h-10 !w-10 !text-xs sm:!h-16 sm:!w-16 sm:!text-lg"
+              : "!h-14 !w-14 !text-sm sm:!h-20 sm:!w-20 sm:!text-lg md:!h-24 md:!w-24 md:!text-xl lg:!h-32 lg:!w-32 lg:!text-3xl"),
         )}
       />
       {showLabel && (
         <>
           <p
             className={cn(
-              "mt-3 text-center font-serif font-semibold text-cream",
-              compact ? "text-sm" : "text-lg sm:text-xl",
+              "max-w-full truncate px-1 text-center font-serif font-semibold text-cream",
+              compact ? "text-[11px] sm:text-sm" : "text-xs sm:text-base md:text-lg lg:text-xl",
             )}
           >
             {name}
           </p>
-          {!compact && <p className="mt-1 text-sm text-gold-light/70">Camera off</p>}
+          {!compact && (
+            <p className="text-[10px] text-gold-light/70 sm:text-sm">Camera off</p>
+          )}
         </>
       )}
     </div>

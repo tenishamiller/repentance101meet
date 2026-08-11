@@ -9,6 +9,7 @@ import { LiveKitParticipantGallery } from "@/components/livekit/LiveKitParticipa
 import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
 import type { RemoteParticipant } from "livekit-client";
+import { cn } from "@/lib/utils";
 
 type HostSelfTile = {
   participantIdentity: string;
@@ -90,19 +91,29 @@ export function LivestreamHostStage({
 
   const videoStage = (
     <div
-      className={`relative min-h-0 min-w-0 flex-1 overflow-hidden ${
-        showCameraOff ? "bg-burgundy-deep" : "bg-black"
-      }`}
+      className={cn(
+        "relative min-h-0 min-w-0 flex-1 overflow-hidden",
+        showCameraOff ? "bg-burgundy-deep" : "bg-black",
+        isMobile && "flex items-center justify-center",
+      )}
     >
-      <LiveKitVideoTile
-        trackRef={hostMainTrack}
-        userId={userId}
-        name={userName}
-        avatarUrl={avatarUrl}
-        cameraOff={showCameraOff}
-        waitingForVideo={waitingForVideo}
-        videoClassName="h-full w-full object-contain"
-      />
+      <div
+        className={cn(
+          "relative overflow-hidden",
+          isMobile ? "aspect-video w-full max-h-full" : "h-full min-h-0 w-full",
+        )}
+      >
+        <LiveKitVideoTile
+          trackRef={hostMainTrack}
+          userId={userId}
+          name={userName}
+          avatarUrl={avatarUrl}
+          cameraOff={showCameraOff}
+          waitingForVideo={waitingForVideo}
+          videoClassName="h-full w-full object-contain"
+          className="h-full w-full"
+        />
+      </div>
       {!isScreenSharing && <MuteIndicator visible={isMuted} />}
       {!isLive && !error && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-burgundy-deep/90">
