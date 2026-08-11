@@ -34,6 +34,8 @@ import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { HostPrivateMessagePanel } from "@/components/livestream/HostPrivateMessagePanel";
 import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPopover";
 import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
+import { LivestreamRoomAudio } from "@/components/livekit/LivestreamRoomAudio";
+import { useLiveKitMeeting } from "@/components/livekit/livekit-meeting-context";
 
 /** Lets every mobile control scroll fully into view (avoid justify-center in overflow rows). */
 const MOBILE_CONTROL_BAR =
@@ -59,6 +61,7 @@ export function LivestreamRoom(props: Props) {
       meetingToken={props.meetingToken}
       persistInBackground
       meetingTitle={props.meetingTitle}
+      skipRoomAudio
     >
       <LivestreamRoomContent {...props} />
     </LiveKitMeetingShell>
@@ -87,6 +90,8 @@ function LivestreamRoomContent({
     avatarUrl: string | null;
   } | null>(null);
 
+  const liveKitMeeting = useLiveKitMeeting();
+
   const {
     participants,
     viewerCount,
@@ -95,12 +100,14 @@ function LivestreamRoomContent({
     thumbsDown,
     clapCount,
     myReaction,
+    memberMicEnabled,
     meetingEnded,
     wasRemoved,
     isSavingRecording,
     error: presenceError,
     toggleHand,
     sendReaction,
+    toggleMemberMic,
     kickViewer,
     leaveMeeting,
     endBroadcast,
@@ -110,7 +117,8 @@ function LivestreamRoomContent({
     isHost,
     hostId,
     initialMemberVideoEnabled: true,
-    initialMemberMicEnabled: true,
+    initialMemberMicEnabled: liveKitMeeting?.memberMicEnabled ?? true,
+    onMediaPolicyChange: liveKitMeeting?.reloadToken,
   });
 
   const {
@@ -147,7 +155,7 @@ function LivestreamRoomContent({
     userId,
     isHost,
     memberVideoEnabled: true,
-    memberMicEnabled: true,
+    memberMicEnabled,
     initialMemberCameraOn: joinCameraOn,
     initialMemberMicOn: joinMicOn,
     mode: "livestream",
@@ -251,7 +259,7 @@ function LivestreamRoomContent({
               participants={participants}
               hostId={hostId}
               memberVideoEnabled={true}
-              memberMicEnabled={true}
+              memberMicEnabled={memberMicEnabled}
               raisedHands={raisedHands}
               thumbsUp={thumbsUp}
               thumbsDown={thumbsDown}
@@ -320,6 +328,14 @@ function LivestreamRoomContent({
                     </>
                   )}
                 </button>
+                <HostPolicyToggle
+                  active={memberMicEnabled}
+                  onClick={toggleMemberMic}
+                  enabledLabel="Member Mics On"
+                  disabledLabel="Member Mics Off"
+                  enabledIcon={Mic}
+                  disabledIcon={MicOff}
+                />
                 <ControlButton
                   onClick={toggleMute}
                   active={!isMuted}
@@ -348,7 +364,7 @@ function LivestreamRoomContent({
                 isRemoteMuted={isRemoteMuted}
                 isRemoteScreenSharing={isRemoteScreenSharing}
                 memberVideoEnabled={true}
-                memberMicEnabled={true}
+                memberMicEnabled={memberMicEnabled}
                 hostProfile={hostProfile}
                 userId={userId}
                 userName={userName}
@@ -547,7 +563,7 @@ function LivestreamRoomContent({
                       />
                       <span className="truncate text-sm text-cream">{p.user.name}</span>
                       {p.handRaised && <span title="Hand raised">✋</span>}
-                      {viewerMicOnById.get(p.user.id) === false && (
+                      {(!memberMicEnabled || viewerMicOnById.get(p.user.id) === false) && (
                         <MicOff
                           className="h-3.5 w-3.5 shrink-0 text-gold-light/70"
                           aria-label="Muted"
@@ -648,7 +664,46 @@ function LivestreamRoomContent({
           ]}
         />
       )}
+      <LivestreamRoomAudio
+        hostId={hostId}
+        isHost={isHost}
+        memberMicEnabled={memberMicEnabled}
+      />
     </div>
+  );
+}
+
+function HostPolicyToggle({
+  active,
+  onClick,
+  enabledLabel,
+  disabledLabel,
+  enabledIcon: EnabledIcon,
+  disabledIcon: DisabledIcon,
+}: {
+  active: boolean;
+  onClick: () => void;
+  enabledLabel: string;
+  disabledLabel: string;
+  enabledIcon: React.ComponentType<{ className?: string }>;
+  disabledIcon: React.ComponentType<{ className?: string }>;
+}) {
+  const label = active ? enabledLabel : disabledLabel;
+  const Icon = active ? EnabledIcon : DisabledIcon;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition sm:text-sm ${
+        active
+          ? "border-gold/50 bg-burgundy-dark text-gold-light hover:border-gold"
+          : "border-gold bg-gold/20 text-cream"
+      }`}
+    >
+      <Icon className="h-4 w-4" />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
   );
 }
 

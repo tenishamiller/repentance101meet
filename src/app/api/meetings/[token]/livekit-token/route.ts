@@ -107,8 +107,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   const memberVideoEnabled =
     meeting.kind === "LIVESTREAM" ? true : meeting.memberVideoEnabled;
-  const memberMicEnabled =
-    meeting.kind === "LIVESTREAM" ? true : meeting.memberMicEnabled;
+  const memberMicEnabled = meeting.memberMicEnabled;
 
   const accessToken = await createLiveKitAccessToken({
     roomName,

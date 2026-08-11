@@ -28,6 +28,8 @@ type Props = {
   /** Livestream: stay connected and keep audio when the tab/app is backgrounded. */
   persistInBackground?: boolean;
   meetingTitle?: string;
+  /** Livestream uses selective audio routing instead of the default renderer. */
+  skipRoomAudio?: boolean;
 };
 
 function RoomErrorBanner({ message }: { message: string }) {
@@ -63,6 +65,7 @@ export function LiveKitMeetingShell({
   onDisconnected,
   persistInBackground = false,
   meetingTitle,
+  skipRoomAudio = false,
 }: Props) {
   const [credentials, setCredentials] = useState<TokenResponse | null>(null);
   const [error, setError] = useState("");
@@ -183,7 +186,7 @@ export function LiveKitMeetingShell({
         <RoomConnectionMonitor roomError={roomError} onRoomError={setRoomError} />
         {persistInBackground && <LiveKitBackgroundAudio meetingTitle={meetingTitle} />}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
-        <RoomAudioRenderer />
+        {!skipRoomAudio && <RoomAudioRenderer />}
       </LiveKitRoom>
     </LiveKitMeetingContext.Provider>
   );

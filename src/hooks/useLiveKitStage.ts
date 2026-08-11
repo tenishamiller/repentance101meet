@@ -53,6 +53,7 @@ export function useLiveKitStage({
   hostId,
   userId,
   isHost,
+  memberMicEnabled,
   initialMemberCameraOn = false,
   initialMemberMicOn = false,
   mode = "livestream",
@@ -220,6 +221,13 @@ export function useLiveKitStage({
   );
 
   useEffect(() => {
+    if (isHost || mode !== "livestream") return;
+    if (!memberMicEnabled) {
+      void localParticipant.setMicrophoneEnabled(false);
+    }
+  }, [isHost, localParticipant, memberMicEnabled, mode]);
+
+  useEffect(() => {
     if (connectionState !== ConnectionState.Connected) return;
 
     void (async () => {
@@ -243,7 +251,11 @@ export function useLiveKitStage({
           await localParticipant.setCameraEnabled(false);
         }
 
-        await localParticipant.setMicrophoneEnabled(initialMemberMicOn);
+        if (memberMicEnabled && initialMemberMicOn) {
+          await localParticipant.setMicrophoneEnabled(true);
+        } else {
+          await localParticipant.setMicrophoneEnabled(false);
+        }
       } catch {
         /* surfaced via lastCameraError */
       }
@@ -256,6 +268,7 @@ export function useLiveKitStage({
     initialMemberMicOn,
     isHost,
     localParticipant,
+    memberMicEnabled,
     mode,
   ]);
 
@@ -319,9 +332,9 @@ export function useLiveKitStage({
   }, [cameraOffByUser, enableHostCamera, isHost, mode, room]);
 
   const toggleMute = useCallback(async () => {
-    if (!canUseMic) return;
+    if (!canUseMic || (!isHost && mode === "livestream" && !memberMicEnabled)) return;
     await localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled);
-  }, [canUseMic, isMicrophoneEnabled, localParticipant]);
+  }, [canUseMic, isHost, isMicrophoneEnabled, localParticipant, memberMicEnabled, mode]);
 
   const toggleCamera = useCallback(async () => {
     if (!canUseCamera) return;

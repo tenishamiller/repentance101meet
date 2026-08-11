@@ -90,7 +90,7 @@ export function LivestreamMemberStage({
   const desktopPresentSidebar = present && !isMobile;
   const mobilePresentShare = isMobile && present;
   const desktopCornerPip = !isMobile && !present;
-  const selfMuted = isMuted;
+  const selfMuted = isMuted || !memberMicEnabled;
   const selfCameraOff = isCameraOff;
   const otherMemberCount = participants.filter(
     (p) => p.user.id !== hostId && p.user.id !== userId,
@@ -307,6 +307,7 @@ export function LivestreamMemberStage({
     isLive ? "Live meeting" : "Connecting",
     selfMuted ? "muted" : null,
     selfCameraOff ? "camera off" : null,
+    !memberMicEnabled ? "mics off by host" : null,
   ].filter(Boolean);
 
   const swipeBadge =
