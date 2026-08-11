@@ -12,6 +12,7 @@ import { MEETING_POLL } from "@/lib/meeting-poll-intervals";
 import { useVisibilityPolling } from "@/hooks/useVisibilityPolling";
 import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { EmojiPicker } from "@/components/livestream/EmojiPicker";
+import { cn } from "@/lib/utils";
 
 type MeetingMessage = {
   id: string;
@@ -27,10 +28,13 @@ export function MeetingChat({
   meetingToken,
   userId,
   isAdmin,
+  wideMessageBox = false,
 }: {
   meetingToken: string;
   userId: string;
   isAdmin: boolean;
+  /** Desktop livestream members: extend the composer left over the video while keeping height. */
+  wideMessageBox?: boolean;
 }) {
   const [messages, setMessages] = useState<MeetingMessage[]>([]);
   const [canModerate, setCanModerate] = useState(isAdmin);
@@ -415,7 +419,11 @@ export function MeetingChat({
       </div>
       <form
         onSubmit={sendMessage}
-        className="relative shrink-0 border-t border-gold/20 bg-burgundy-dark p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3"
+        className={cn(
+          "relative z-20 shrink-0 border-t border-gold/20 bg-burgundy-dark p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3",
+          wideMessageBox &&
+            "lg:-ml-[9rem] lg:w-[calc(100%+9rem)] lg:max-w-[38rem] lg:border-x lg:border-gold/20 lg:shadow-[0_-4px_24px_rgba(0,0,0,0.35)]",
+        )}
       >
         {uploadError && (
           <p className="mb-2 text-xs text-red-300">{uploadError}</p>
