@@ -6,8 +6,9 @@ import {
   LivestreamAudienceSignals,
   ParticipantSignalBadges,
 } from "@/components/livestream/LivestreamAudienceSignals";
-import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
+import { MuteIndicator } from "@/components/livestream/MuteIndicator";
+import { ParticipantPanelNameRow } from "@/components/livestream/ParticipantPanelNameRow";
 import type { MemberVideoLayout } from "@/lib/video-layout";
 
 type HostProfile = {
@@ -112,11 +113,64 @@ export function LivestreamMemberStage({
           present ? "flex-row" : splitView ? "grid grid-cols-1 sm:grid-cols-2" : ""
         }`}
       >
+        {present ? (
+          <>
+            <div className="flex w-36 shrink-0 flex-col border-r border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
+              <p className="shrink-0 border-b border-gold/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
+                In room
+              </p>
+              <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-2 p-2">
+                <div className="flex shrink-0 flex-col overflow-hidden rounded-lg border border-gold/30 bg-burgundy-dark">
+                  <div className="relative aspect-video bg-black">
+                    <LiveKitVideoTile
+                      trackRef={hostCameraPipTrack}
+                      userId={hostProfile.userId}
+                      name={hostProfile.name}
+                      avatarUrl={hostProfile.avatarUrl}
+                      cameraOff={isRemoteCameraOff}
+                      waitingForVideo={waitingForHostVideo}
+                      compact
+                    />
+                  </div>
+                  <ParticipantPanelNameRow name={hostProfile.name} muted={isRemoteMuted} />
+                </div>
+
+                <div className="flex shrink-0 flex-col overflow-hidden rounded-lg border border-gold/30 bg-burgundy-dark">
+                  <MemberSelfTile
+                    trackRef={localCameraTrack}
+                    userId={userId}
+                    userName={userName}
+                    avatarUrl={avatarUrl}
+                    cameraOff={selfCameraOff}
+                    waitingForVideo={waitingForSelfVideo}
+                    selfMuted={selfMuted}
+                    handRaised={handRaised}
+                    myReaction={myReaction}
+                    compact
+                    panelLayout
+                  />
+                  <ParticipantPanelNameRow name="You" muted={selfMuted} />
+                </div>
+              </div>
+            </div>
+
+            <div className="relative min-h-0 min-w-0 flex-1 bg-black">
+              <LiveKitVideoTile
+                trackRef={hostMainTrack}
+                userId={hostProfile.userId}
+                name={hostProfile.name}
+                avatarUrl={hostProfile.avatarUrl}
+                waitingForVideo={waitingForHostVideo}
+                videoClassName="h-full w-full object-contain"
+                lowLatency
+              />
+            </div>
+          </>
+        ) : (
+          <>
         <div
           className={`relative min-h-0 min-w-0 ${
-            present
-              ? "flex-1 bg-black"
-              : splitView
+              splitView
                 ? "border-b border-gold/20 bg-black sm:border-b-0 sm:border-r"
                 : "absolute inset-0 bg-black"
           }`}
@@ -126,53 +180,18 @@ export function LivestreamMemberStage({
             userId={hostProfile.userId}
             name={hostProfile.name}
             avatarUrl={hostProfile.avatarUrl}
-            cameraOff={!present && isRemoteCameraOff}
+            cameraOff={isRemoteCameraOff}
             waitingForVideo={waitingForHostVideo}
             videoClassName="h-full w-full object-contain"
+            lowLatency
           />
           <MuteIndicator visible={isRemoteMuted} />
-          {!present && (
-            <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
-              {hostProfile.name}
-            </p>
-          )}
+          <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
+            {hostProfile.name}
+          </p>
         </div>
 
-        {present ? (
-          <div className="flex w-36 shrink-0 flex-col border-l border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
-            <div className="relative aspect-video shrink-0 border-b border-gold/10 bg-black">
-              <LiveKitVideoTile
-                trackRef={hostCameraPipTrack}
-                userId={hostProfile.userId}
-                name={hostProfile.name}
-                avatarUrl={hostProfile.avatarUrl}
-                cameraOff={isRemoteCameraOff}
-                waitingForVideo={waitingForHostVideo}
-                compact
-              />
-              <MuteIndicator visible={isRemoteMuted} compact />
-              <p className="absolute bottom-1 left-2 text-[10px] font-semibold text-gold-light/80">
-                Host
-              </p>
-            </div>
-
-            <div className="relative min-h-0 flex-1">
-              <MemberSelfTile
-                trackRef={localCameraTrack}
-                userId={userId}
-                userName={userName}
-                avatarUrl={avatarUrl}
-                cameraOff={selfCameraOff}
-                waitingForVideo={waitingForSelfVideo}
-                selfMuted={selfMuted}
-                handRaised={handRaised}
-                myReaction={myReaction}
-                compact
-                showYouLabel
-              />
-            </div>
-          </div>
-        ) : splitView ? (
+        {splitView ? (
           <div className="relative min-h-[12rem] sm:min-h-0">
             <MemberSelfTile
               trackRef={localCameraTrack}
@@ -202,6 +221,8 @@ export function LivestreamMemberStage({
               pip
             />
           </div>
+        )}
+          </>
         )}
 
         {!isLive && (
@@ -239,6 +260,7 @@ function MemberSelfTile({
   pip = false,
   compact = false,
   showYouLabel = false,
+  panelLayout = false,
 }: {
   trackRef?: TrackReference;
   userId: string;
@@ -252,13 +274,16 @@ function MemberSelfTile({
   pip?: boolean;
   compact?: boolean;
   showYouLabel?: boolean;
+  panelLayout?: boolean;
 }) {
   return (
     <div
       className={
-        pip
-          ? "h-24 w-36 overflow-hidden rounded-xl border-2 border-gold/50 bg-burgundy-deep shadow-2xl sm:h-32 sm:w-48 md:h-36 md:w-52"
-          : "relative h-full min-h-0 w-full bg-burgundy-deep"
+        panelLayout
+          ? "relative aspect-video bg-black"
+          : pip
+            ? "h-24 w-36 overflow-hidden rounded-xl border-2 border-gold/50 bg-burgundy-deep shadow-2xl sm:h-32 sm:w-48 md:h-36 md:w-52"
+            : "relative h-full min-h-0 w-full bg-burgundy-deep"
       }
     >
       <LiveKitVideoTile
@@ -271,11 +296,15 @@ function MemberSelfTile({
         compact={pip || compact}
       />
       <ParticipantSignalBadges handRaised={handRaised} reaction={myReaction} />
-      <MuteIndicator visible={selfMuted} compact={pip || compact} />
-      {(pip || showYouLabel) && (
-        <p className="absolute bottom-1 left-2 z-10 text-[10px] font-semibold text-gold-light/80">
-          You
-        </p>
+      {!panelLayout && (
+        <>
+          <MuteIndicator visible={selfMuted} compact={pip || compact} />
+          {(pip || showYouLabel) && (
+            <p className="absolute bottom-1 left-2 z-10 text-[10px] font-semibold text-gold-light/80">
+              You
+            </p>
+          )}
+        </>
       )}
     </div>
   );

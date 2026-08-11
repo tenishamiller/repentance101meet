@@ -31,7 +31,6 @@ type Props = {
   userName: string;
   avatarUrl?: string | null;
   hostMainTrack?: TrackReference;
-  hostCameraPipTrack?: TrackReference;
   hostSelfTile: HostSelfTile | null;
   remoteParticipants: RemoteParticipant[];
   participants: MeetingParticipant[];
@@ -56,7 +55,6 @@ export function LivestreamHostStage({
   userName,
   avatarUrl,
   hostMainTrack,
-  hostCameraPipTrack,
   hostSelfTile,
   remoteParticipants,
   participants,
@@ -99,6 +97,19 @@ export function LivestreamHostStage({
       </div>
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
+        {isScreenSharing && (
+          <LiveKitParticipantGallery
+            remoteParticipants={remoteParticipants}
+            participants={participants}
+            hostId={hostId}
+            hostSelfTile={hostSelfTile}
+            memberVideoEnabled={memberVideoEnabled}
+            memberMicEnabled={memberMicEnabled}
+            layout="sidebar"
+            side="left"
+          />
+        )}
+
         <div
           className={`relative min-h-0 min-w-0 flex-1 overflow-hidden ${
             showCameraOff ? "bg-burgundy-deep" : "bg-black"
@@ -113,19 +124,7 @@ export function LivestreamHostStage({
             waitingForVideo={waitingForVideo}
             videoClassName="h-full w-full object-contain"
           />
-          {isScreenSharing && hostCameraPipTrack && (
-            <div className="absolute bottom-3 right-3 z-10 h-24 w-32 overflow-hidden rounded-lg border border-gold/40 shadow-xl sm:h-28 sm:w-40">
-              <LiveKitVideoTile
-                trackRef={hostCameraPipTrack}
-                userId={userId}
-                name={userName}
-                avatarUrl={avatarUrl}
-                cameraOff={isCameraOff}
-                compact
-              />
-            </div>
-          )}
-          <MuteIndicator visible={isMuted} />
+          {!isScreenSharing && <MuteIndicator visible={isMuted} />}
           {!isLive && !error && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-burgundy-deep/90">
               <p className="font-serif text-gold-light">
@@ -140,15 +139,18 @@ export function LivestreamHostStage({
           />
         </div>
 
-        <LiveKitParticipantGallery
-          remoteParticipants={remoteParticipants}
-          participants={participants}
-          hostId={hostId}
-          hostSelfTile={hostSelfTile}
-          memberVideoEnabled={memberVideoEnabled}
-          memberMicEnabled={memberMicEnabled}
-          layout="sidebar"
-        />
+        {!isScreenSharing && (
+          <LiveKitParticipantGallery
+            remoteParticipants={remoteParticipants}
+            participants={participants}
+            hostId={hostId}
+            hostSelfTile={hostSelfTile}
+            memberVideoEnabled={memberVideoEnabled}
+            memberMicEnabled={memberMicEnabled}
+            layout="sidebar"
+            side="right"
+          />
+        )}
       </div>
     </>
   );

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import "@livekit/components-styles";
 import { LiveKitRoom, RoomAudioRenderer, useConnectionState } from "@livekit/components-react";
 import { ConnectionState, type MediaDeviceFailure } from "livekit-client";
+import { liveKitRoomOptions } from "@/lib/livekit-capture";
 
 type TokenResponse = {
   token: string;
@@ -110,6 +111,7 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
       connect
       audio
       video
+      options={liveKitRoomOptions}
       connectOptions={{ autoSubscribe: true }}
       onDisconnected={onDisconnected}
       onConnected={() => setRoomError("")}

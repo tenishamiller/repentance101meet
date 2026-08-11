@@ -1,8 +1,6 @@
 export const YOUTUBE_RTMP_URL = "rtmp://a.rtmp.youtube.com/live2";
 
-export const YOUTUBE_OAUTH_SCOPES = [
-  "https://www.googleapis.com/auth/youtube.force-ssl",
-].join(" ");
+export const YOUTUBE_OAUTH_SCOPES = "https://www.googleapis.com/auth/youtube.force-ssl";
 
 export type YouTubeBroadcastInfo = {
   broadcastId: string;
@@ -14,12 +12,9 @@ export type YouTubeBroadcastInfo = {
   status: string;
 };
 
+/** YouTube Studio — create a live stream and copy the stream key. */
 export function getYouTubeStudioUrl() {
   return "https://studio.youtube.com/channel/UC/livestreaming";
-}
-
-export function getYouTubeStreamKeyHelpUrl() {
-  return "https://support.google.com/youtube/answer/2907883";
 }
 
 export function loadStoredYouTubeStreamKey() {

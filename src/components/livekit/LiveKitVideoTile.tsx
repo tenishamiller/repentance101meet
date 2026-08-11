@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect } from "react";
 import { VideoTrack } from "@livekit/components-react";
 import type { TrackReference } from "@livekit/components-core";
 import {
   CameraOffOverlay,
   VideoLoadingOverlay,
 } from "@/components/livestream/CameraOffOverlay";
+import { applyLowLatencyRemoteVideo } from "@/lib/livekit-latency";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -18,6 +20,8 @@ type Props = {
   className?: string;
   videoClassName?: string;
   compact?: boolean;
+  /** Main-stage remote video (host feed for members) — lower playback delay. */
+  lowLatency?: boolean;
 };
 
 export function LiveKitVideoTile({
@@ -30,14 +34,31 @@ export function LiveKitVideoTile({
   className,
   videoClassName = "h-full w-full object-cover",
   compact = false,
+  lowLatency = false,
 }: Props) {
   const hasTrack = !!trackRef?.publication?.track;
   const showVideo = hasTrack && !cameraOff;
+  const resolvedVideoClassName =
+    compact && videoClassName === "h-full w-full object-cover"
+      ? "h-full w-full object-contain"
+      : videoClassName;
+
+  useEffect(() => {
+    if (!lowLatency || !trackRef?.publication) return;
+
+    applyLowLatencyRemoteVideo(trackRef);
+
+    const onSubscribed = () => applyLowLatencyRemoteVideo(trackRef);
+    trackRef.publication.on("subscribed", onSubscribed);
+    return () => {
+      trackRef.publication?.off("subscribed", onSubscribed);
+    };
+  }, [lowLatency, trackRef]);
 
   return (
     <div className={cn("relative h-full min-h-0 w-full overflow-hidden bg-black", className)}>
       {showVideo && trackRef ? (
-        <VideoTrack trackRef={trackRef} className={videoClassName} />
+        <VideoTrack trackRef={trackRef} className={resolvedVideoClassName} />
       ) : cameraOff ? (
         <CameraOffOverlay
           userId={userId}

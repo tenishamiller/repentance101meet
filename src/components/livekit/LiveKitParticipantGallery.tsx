@@ -4,10 +4,10 @@ import { useParticipantTracks } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import type { RemoteParticipant } from "livekit-client";
 import type { TrackReference } from "@livekit/components-core";
-import { Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { VideoOff } from "lucide-react";
 import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
-import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { ParticipantSignalBadges } from "@/components/livestream/LivestreamAudienceSignals";
+import { ParticipantPanelNameRow } from "@/components/livestream/ParticipantPanelNameRow";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,14 @@ type Props = {
   memberMicEnabled: boolean;
   compact?: boolean;
 };
+
+function displayName(name: string, dbParticipant?: MeetingParticipant) {
+  const prefix: string[] = [];
+  if (dbParticipant?.handRaised) prefix.push("✋");
+  if (dbParticipant?.reaction === "UP") prefix.push("👍");
+  if (dbParticipant?.reaction === "DOWN") prefix.push("👎");
+  return prefix.length > 0 ? `${prefix.join(" ")} ${name}` : name;
+}
 
 function MemberGalleryTile({
   participant,
@@ -57,36 +65,13 @@ function MemberGalleryTile({
           handRaised={dbParticipant?.handRaised}
           reaction={dbParticipant?.reaction}
         />
-        <MuteIndicator visible={!micOn} compact={compact} />
-        <div className="absolute bottom-1 right-1 flex gap-1">
-          {micOn ? (
-            <span className="rounded-full bg-black/60 p-1 text-gold">
-              <Mic className="h-3 w-3" />
-            </span>
-          ) : (
-            <span className="rounded-full bg-black/60 p-1 text-cream/60">
-              <MicOff className="h-3 w-3" />
-            </span>
-          )}
-          {cameraOn ? (
-            <span className="rounded-full bg-black/60 p-1 text-gold">
-              <Video className="h-3 w-3" />
-            </span>
-          ) : (
-            <span className="rounded-full bg-black/60 p-1 text-cream/60">
-              <VideoOff className="h-3 w-3" />
-            </span>
-          )}
-        </div>
+        {!cameraOn && (
+          <span className="absolute bottom-1 right-1 rounded-full bg-black/60 p-1 text-cream/60">
+            <VideoOff className="h-3 w-3" />
+          </span>
+        )}
       </div>
-      {!compact && (
-        <div className="truncate px-2 py-1.5 text-xs font-semibold text-gold-light">
-          {dbParticipant?.handRaised && <span className="mr-1">✋</span>}
-          {dbParticipant?.reaction === "UP" && <span className="mr-1">👍</span>}
-          {dbParticipant?.reaction === "DOWN" && <span className="mr-1">👎</span>}
-          {name}
-        </div>
-      )}
+      <ParticipantPanelNameRow name={displayName(name, dbParticipant)} muted={!micOn} />
     </div>
   );
 }
@@ -106,6 +91,7 @@ type GalleryProps = {
   memberVideoEnabled: boolean;
   memberMicEnabled: boolean;
   layout?: "sidebar" | "bottom";
+  side?: "left" | "right";
 };
 
 export function LiveKitParticipantGallery({
@@ -116,6 +102,7 @@ export function LiveKitParticipantGallery({
   memberVideoEnabled,
   memberMicEnabled,
   layout = "sidebar",
+  side = "right",
 }: GalleryProps) {
   const members = remoteParticipants.filter((p) => p.identity !== hostId);
   const dbById = new Map(participants.map((p) => [p.user.id, p]));
@@ -128,7 +115,12 @@ export function LiveKitParticipantGallery({
       </p>
     );
     return layout === "sidebar" ? (
-      <div className="flex w-44 shrink-0 flex-col justify-center border-l border-gold/20 bg-burgundy-dark/90 p-3 xl:w-52">
+      <div
+        className={cn(
+          "flex w-44 shrink-0 flex-col justify-center bg-burgundy-dark/90 p-3 xl:w-52",
+          side === "left" ? "border-r border-gold/20" : "border-l border-gold/20",
+        )}
+      >
         {empty}
       </div>
     ) : (
@@ -159,8 +151,8 @@ export function LiveKitParticipantGallery({
               cameraOff={hostSelfTile.cameraOff}
               compact={layout === "sidebar"}
             />
-            <MuteIndicator visible={!hostSelfTile.micOn} compact={layout === "sidebar"} />
           </div>
+          <ParticipantPanelNameRow name={hostSelfTile.name} muted={!hostSelfTile.micOn} />
         </div>
       )}
       {members.map((participant) => (
@@ -178,7 +170,12 @@ export function LiveKitParticipantGallery({
 
   if (layout === "sidebar") {
     return (
-      <div className="flex w-44 shrink-0 flex-col border-l border-gold/20 bg-burgundy-dark/90 xl:w-52">
+      <div
+        className={cn(
+          "flex w-44 shrink-0 flex-col bg-burgundy-dark/90 xl:w-52",
+          side === "left" ? "border-r border-gold/20" : "border-l border-gold/20",
+        )}
+      >
         <p className="shrink-0 border-b border-gold/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
           In room ({tileCount})
         </p>

@@ -93,14 +93,14 @@ export async function GET(_request: Request, { params }: RouteParams) {
 
   const roomKind = meeting.kind === "PRIVATE" ? "private" : "livestream";
   const roomName = liveKitRoomName(token, roomKind);
-  const memberCanPublish = meeting.memberVideoEnabled || meeting.memberMicEnabled;
 
   const accessToken = await createLiveKitAccessToken({
     roomName,
     identity: session.user.id,
     name: session.user.name,
     isHost,
-    memberCanPublish: isHost || memberCanPublish,
+    memberVideoEnabled: meeting.memberVideoEnabled,
+    memberMicEnabled: meeting.memberMicEnabled,
   });
 
   return Response.json({

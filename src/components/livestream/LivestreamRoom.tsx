@@ -237,7 +237,6 @@ function LivestreamRoomContent({
               userName={userName}
               avatarUrl={avatarUrl}
               hostMainTrack={hostMainTrack}
-              hostCameraPipTrack={hostCameraPipTrack}
               hostSelfTile={hostSelfTile}
               remoteParticipants={remoteParticipants}
               participants={participants}
@@ -251,7 +250,7 @@ function LivestreamRoomContent({
 
             <div className="z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark px-2 py-2.5 sm:px-4 sm:py-3">
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <YouTubeStreamPanel meetingTitle={meetingTitle} />
+                <YouTubeStreamPanel />
                 <button
                   type="button"
                   disabled={isSavingRecording}
@@ -279,6 +278,7 @@ function LivestreamRoomContent({
                 />
                 <button
                   type="button"
+                  title="Share a browser tab and enable “Share tab audio” to include video sound for members."
                   onClick={() => void toggleScreenShare()}
                   className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition sm:text-sm ${
                     isScreenSharing

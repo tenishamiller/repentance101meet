@@ -1,334 +1,187 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
-import { Check, Copy, ExternalLink, Radio, Video, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Copy, ExternalLink, Video, X } from "lucide-react";
 import {
-  getYouTubeStreamKeyHelpUrl,
+  YOUTUBE_RTMP_URL,
   getYouTubeStudioUrl,
   loadStoredYouTubeStreamKey,
   saveStoredYouTubeStreamKey,
-  type YouTubeBroadcastInfo,
 } from "@/lib/youtube-live";
 
-type Props = {
-  meetingTitle: string;
-  disabled?: boolean;
-};
+export function YouTubeStreamPanel() {
+  const [open, setOpen] = useState(false);
+  const [streamKey, setStreamKey] = useState("");
+  const [copied, setCopied] = useState<"url" | "key" | null>(null);
+  const [saved, setSaved] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
-type YouTubeStatus = {
-  connected: boolean;
-  oauthConfigured: boolean;
-  rtmpUrl: string;
-};
-
-export function YouTubeStreamPanel({ meetingTitle, disabled = false }: Props) {
-  const [status, setStatus] = useState<YouTubeStatus | null>(null);
-  const [broadcast, setBroadcast] = useState<YouTubeBroadcastInfo | null>(null);
-  const [manualKey, setManualKey] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [copied, setCopied] = useState<"key" | "url" | null>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  const refreshStatus = useCallback(async () => {
-    try {
-      const res = await fetch("/api/youtube/broadcast");
-      if (!res.ok) return;
-      const data = (await res.json()) as YouTubeStatus;
-      setStatus(data);
-    } catch {
-      /* ignore */
-    }
+  useEffect(() => {
+    setStreamKey(loadStoredYouTubeStreamKey());
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!expanded) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setExpanded(false);
+    if (!open) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [expanded]);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
-  useEffect(() => {
-    setManualKey(loadStoredYouTubeStreamKey());
-    void refreshStatus();
-
-    const params = new URLSearchParams(window.location.search);
-    const yt = params.get("youtube");
-    if (yt === "connected") {
-      setExpanded(true);
-      setError("");
-      params.delete("youtube");
-      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
-      window.history.replaceState({}, "", next);
-    } else if (yt === "error" || yt === "token-failed") {
-      setError("Could not connect YouTube. Try again or paste a stream key manually.");
-      setExpanded(true);
-      params.delete("youtube");
-      const next = `${window.location.pathname}${params.toString() ? `?${params}` : ""}`;
-      window.history.replaceState({}, "", next);
-    }
-  }, [refreshStatus]);
-
-  async function connectYouTube() {
-    const returnTo = window.location.pathname + window.location.search;
-    window.location.href = `/api/youtube/auth?returnTo=${encodeURIComponent(returnTo)}`;
+  function persistKey(value: string) {
+    setStreamKey(value);
+    saveStoredYouTubeStreamKey(value);
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1500);
   }
 
-  async function createBroadcast() {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/youtube/broadcast", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: meetingTitle }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(typeof data.error === "string" ? data.error : "Could not start YouTube broadcast");
-      }
-      setBroadcast(data.broadcast as YouTubeBroadcastInfo);
-      if (data.broadcast?.streamKey) {
-        saveStoredYouTubeStreamKey(data.broadcast.streamKey);
-        setManualKey(data.broadcast.streamKey);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not connect to YouTube");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function saveManualKey() {
-    saveStoredYouTubeStreamKey(manualKey);
-    setError("");
-  }
-
-  async function copyText(text: string, kind: "key" | "url") {
+  async function copyText(text: string, kind: "url" | "key") {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(kind);
       window.setTimeout(() => setCopied(null), 2000);
     } catch {
-      setError("Could not copy — select the text and copy manually.");
+      /* user can select manually */
     }
   }
 
-  const rtmpUrl = broadcast?.rtmpUrl ?? status?.rtmpUrl ?? "rtmp://a.rtmp.youtube.com/live2";
-  const streamKey = broadcast?.streamKey || manualKey;
-
-  const panel =
-    expanded && mounted
-      ? createPortal(
-          <>
-            <button
-              type="button"
-              aria-label="Close YouTube panel"
-              className="fixed inset-0 z-[200] bg-black/50"
-              onClick={() => setExpanded(false)}
-            />
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="youtube-panel-title"
-              className="fixed left-1/2 top-1/2 z-[201] flex max-h-[min(90dvh,calc(100dvh-1.5rem))] w-[min(22rem,calc(100vw-1.5rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-gold/30 bg-burgundy-dark shadow-2xl"
-              onPointerDown={(event) => event.stopPropagation()}
-            >
-              <div className="shrink-0 border-b border-gold/20 p-4 pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <p
-                    id="youtube-panel-title"
-                    className="flex items-center gap-2 font-serif text-sm font-semibold text-cream"
-                  >
-                    <Radio className="h-4 w-4 shrink-0 text-red-400" />
-                    Stream to YouTube
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(false)}
-                    className="shrink-0 rounded-md p-1 text-gold-light hover:bg-gold/10"
-                    aria-label="Close"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <p className="mt-3 text-xs leading-relaxed text-gold-light/75">
-                  Connect your channel, create a live broadcast, then use OBS with the stream key
-                  below. In OBS, use <strong className="text-cream">Window Capture</strong> on this
-                  teaching room so YouTube shows the same view (screen on the left, you and members
-                  on the right).
-                </p>
-              </div>
-
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-3">
-                {error && (
-                  <p className="mb-3 rounded-lg border border-red-400/40 bg-red-950/50 px-3 py-2 text-xs text-red-100">
-                    {error}
-                  </p>
-                )}
-
-                {!status?.oauthConfigured && (
-                  <p className="mb-3 rounded-lg border border-gold/20 bg-burgundy/60 px-3 py-2 text-xs text-gold-light/70">
-                    OAuth not configured — paste your stream key from{" "}
-                    <a
-                      href={getYouTubeStudioUrl()}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-semibold text-gold underline"
-                    >
-                      YouTube Studio
-                    </a>
-                    .
-                  </p>
-                )}
-
-                <div className="space-y-2 rounded-lg border border-gold/20 bg-burgundy/50 p-3">
-                  <label className="block text-[10px] font-semibold uppercase tracking-wide text-gold-light/60">
-                    RTMP URL
-                  </label>
-                  <div className="flex gap-1">
-                    <input
-                      readOnly
-                      value={rtmpUrl}
-                      className="min-w-0 flex-1 rounded border border-gold/20 bg-burgundy-deep px-2 py-1.5 text-xs text-cream"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void copyText(rtmpUrl, "url")}
-                      className="shrink-0 rounded border border-gold/30 p-1.5 text-gold-light hover:bg-gold/10"
-                      title="Copy RTMP URL"
-                    >
-                      {copied === "url" ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-
-                  <label className="block text-[10px] font-semibold uppercase tracking-wide text-gold-light/60">
-                    Stream key
-                  </label>
-                  <div className="flex gap-1">
-                    <input
-                      type="text"
-                      autoComplete="off"
-                      value={streamKey}
-                      onChange={(e) => setManualKey(e.target.value)}
-                      onBlur={saveManualKey}
-                      placeholder="Paste from YouTube Studio"
-                      className="min-w-0 flex-1 rounded border border-gold/20 bg-burgundy-deep px-2 py-1.5 text-xs text-cream placeholder:text-cream/30"
-                    />
-                    {streamKey && (
-                      <button
-                        type="button"
-                        onClick={() => void copyText(streamKey, "key")}
-                        className="shrink-0 rounded border border-gold/30 p-1.5 text-gold-light hover:bg-gold/10"
-                        title="Copy stream key"
-                      >
-                        {copied === "key" ? (
-                          <Check className="h-4 w-4" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {broadcast?.watchUrl && (
-                  <a
-                    href={broadcast.watchUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gold/40 px-3 py-2 text-xs font-semibold text-gold-light hover:bg-gold/10"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Open YouTube watch page
-                  </a>
-                )}
-
-                <a
-                  href={getYouTubeStreamKeyHelpUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 block text-center text-[11px] text-gold-light/60 underline hover:text-gold-light"
-                >
-                  How to find your stream key
-                </a>
-              </div>
-
-              <div className="shrink-0 space-y-2 border-t border-gold/20 bg-burgundy-dark p-4 pt-3">
-                {status?.oauthConfigured && (
-                  <button
-                    type="button"
-                    disabled={loading || status.connected}
-                    onClick={() => void connectYouTube()}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gold/40 bg-burgundy px-3 py-2.5 text-xs font-semibold text-cream hover:bg-burgundy/80 disabled:opacity-60"
-                  >
-                    {status.connected ? (
-                      <>
-                        <Check className="h-4 w-4 text-green-400" />
-                        YouTube account connected
-                      </>
-                    ) : (
-                      <>Connect YouTube account</>
-                    )}
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  disabled={loading || !status?.connected}
-                  onClick={() => void createBroadcast()}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-3 py-2.5 text-xs font-bold text-white hover:bg-red-500 disabled:opacity-60"
-                  title={
-                    !status?.connected
-                      ? "Connect your YouTube account first"
-                      : undefined
-                  }
-                >
-                  <Video className="h-4 w-4" />
-                  {loading ? "Creating…" : "Go live on YouTube"}
-                </button>
-
-                {!status?.connected && status?.oauthConfigured && (
-                  <p className="text-center text-[11px] text-gold-light/60">
-                    Connect your YouTube account above, then tap Go live on YouTube.
-                  </p>
-                )}
-              </div>
-            </div>
-          </>,
-          document.body,
-        )
-      : null;
-
   return (
-    <>
+    <div ref={rootRef} className="relative">
       <button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         className="inline-flex items-center gap-2 rounded-lg border border-red-400/50 bg-red-950/40 px-3 py-2 text-xs font-bold text-red-100 transition hover:bg-red-950/70 sm:text-sm"
       >
         <Video className="h-4 w-4" />
         YouTube
-        {status?.connected && (
-          <span className="rounded-full bg-green-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-green-200">
-            linked
-          </span>
-        )}
       </button>
-      {panel}
-    </>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Stream to YouTube"
+          className="absolute bottom-full left-1/2 z-50 mb-2 w-[min(20rem,calc(100vw-2rem))] -translate-x-1/2 rounded-xl border border-gold/30 bg-burgundy-dark p-4 shadow-2xl sm:left-0 sm:translate-x-0"
+        >
+          <div className="mb-3 flex items-start justify-between gap-2">
+            <div>
+              <p className="font-serif text-sm font-semibold text-cream">Stream to YouTube</p>
+              <p className="mt-1 text-xs text-gold-light/70">Use OBS — paste your key from YouTube Studio.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="shrink-0 rounded p-1 text-gold-light hover:bg-gold/10"
+              aria-label="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <ol className="mb-4 space-y-3 text-xs text-gold-light/85">
+            <li className="flex gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/20 text-[10px] font-bold text-gold">
+                1
+              </span>
+              <span>
+                In YouTube Studio, click <strong className="text-cream">Go live</strong> and copy your{" "}
+                <strong className="text-cream">stream key</strong>.
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/20 text-[10px] font-bold text-gold">
+                2
+              </span>
+              <span>Paste the key below, then copy both values into OBS → Settings → Stream.</span>
+            </li>
+            <li className="flex gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gold/20 text-[10px] font-bold text-gold">
+                3
+              </span>
+              <span>
+                In OBS, add <strong className="text-cream">Window Capture</strong> for this teaching tab and
+                click Start Streaming.
+              </span>
+            </li>
+          </ol>
+
+          <a
+            href={getYouTubeStudioUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-gold/40 bg-burgundy px-3 py-2.5 text-xs font-semibold text-gold-light hover:bg-burgundy/80"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Open YouTube Studio
+          </a>
+
+          <div className="space-y-3 rounded-lg border border-gold/20 bg-burgundy/50 p-3">
+            <div>
+              <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gold-light/60">
+                Server (RTMP URL)
+              </label>
+              <div className="flex gap-1">
+                <input
+                  readOnly
+                  value={YOUTUBE_RTMP_URL}
+                  className="min-w-0 flex-1 rounded border border-gold/20 bg-burgundy-deep px-2 py-1.5 text-xs text-cream"
+                />
+                <button
+                  type="button"
+                  onClick={() => void copyText(YOUTUBE_RTMP_URL, "url")}
+                  className="shrink-0 rounded border border-gold/30 px-2 py-1.5 text-gold-light hover:bg-gold/10"
+                  title="Copy server URL"
+                >
+                  {copied === "url" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="youtube-stream-key"
+                className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-gold-light/60"
+              >
+                Stream key
+              </label>
+              <div className="flex gap-1">
+                <input
+                  id="youtube-stream-key"
+                  type="password"
+                  autoComplete="off"
+                  value={streamKey}
+                  onChange={(event) => persistKey(event.target.value)}
+                  placeholder="Paste from YouTube Studio"
+                  className="min-w-0 flex-1 rounded border border-gold/20 bg-burgundy-deep px-2 py-1.5 text-xs text-cream placeholder:text-cream/30"
+                />
+                <button
+                  type="button"
+                  disabled={!streamKey}
+                  onClick={() => void copyText(streamKey, "key")}
+                  className="shrink-0 rounded border border-gold/30 px-2 py-1.5 text-gold-light hover:bg-gold/10 disabled:opacity-40"
+                  title="Copy stream key"
+                >
+                  {copied === "key" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+              {saved && (
+                <p className="mt-1 text-[10px] text-green-300/90">Saved on this device.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

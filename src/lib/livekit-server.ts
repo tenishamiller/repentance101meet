@@ -1,6 +1,6 @@
 import "server-only";
 
-import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
+import { AccessToken, RoomServiceClient, TrackSource } from "livekit-server-sdk";
 
 export type LiveKitConfig = {
   url: string;
@@ -43,8 +43,16 @@ type CreateTokenOptions = {
   identity: string;
   name: string;
   isHost: boolean;
-  memberCanPublish?: boolean;
+  memberVideoEnabled?: boolean;
+  memberMicEnabled?: boolean;
 };
+
+function memberPublishSources(memberVideoEnabled: boolean, memberMicEnabled: boolean) {
+  const sources: TrackSource[] = [];
+  if (memberVideoEnabled) sources.push(TrackSource.CAMERA);
+  if (memberMicEnabled) sources.push(TrackSource.MICROPHONE);
+  return sources;
+}
 
 export async function createLiveKitAccessToken(options: CreateTokenOptions) {
   const config = getLiveKitConfig();
@@ -52,22 +60,36 @@ export async function createLiveKitAccessToken(options: CreateTokenOptions) {
     throw new Error("LiveKit is not configured");
   }
 
-  const canPublish = options.isHost || (options.memberCanPublish ?? true);
-
   const token = new AccessToken(config.apiKey, config.apiSecret, {
     identity: options.identity,
     name: options.name,
     ttl: "6h",
   });
 
-  token.addGrant({
-    roomJoin: true,
-    room: options.roomName,
-    canPublish,
-    canSubscribe: true,
-    canPublishData: true,
-    roomAdmin: options.isHost,
-  });
+  if (options.isHost) {
+    token.addGrant({
+      roomJoin: true,
+      room: options.roomName,
+      canPublish: true,
+      canSubscribe: true,
+      canPublishData: true,
+      roomAdmin: true,
+    });
+  } else {
+    const sources = memberPublishSources(
+      options.memberVideoEnabled !== false,
+      options.memberMicEnabled !== false,
+    );
+    token.addGrant({
+      roomJoin: true,
+      room: options.roomName,
+      canPublish: sources.length > 0,
+      canPublishSources: sources.length > 0 ? sources : undefined,
+      canSubscribe: true,
+      canPublishData: true,
+      roomAdmin: false,
+    });
+  }
 
   return await token.toJwt();
 }
