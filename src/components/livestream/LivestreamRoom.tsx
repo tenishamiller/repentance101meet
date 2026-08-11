@@ -674,7 +674,6 @@ function LivestreamRoomContent({
       <div className="pointer-events-none fixed h-0 w-0 overflow-hidden opacity-0" aria-hidden>
         <LivestreamRoomAudio
           hostId={hostId}
-          isHost={isHost}
           memberMicEnabled={memberMicEnabled}
         />
       </div>

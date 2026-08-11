@@ -88,7 +88,7 @@ export function LivestreamHostStage({
       memberVideoEnabled={memberVideoEnabled}
       memberMicEnabled={memberMicEnabled}
       layout="sidebar"
-      side={isScreenSharing ? "left" : "right"}
+      side="right"
       hideHeader={isMobile}
       className={isMobile ? "h-full w-full max-w-none shrink border-0 bg-transparent xl:w-full" : undefined}
     />
@@ -190,9 +190,8 @@ export function LivestreamHostStage({
           />
         ) : (
           <>
-            {isScreenSharing && inRoomGallery}
             {videoStage}
-            {!isScreenSharing && inRoomGallery}
+            {inRoomGallery}
           </>
         )}
       </div>

@@ -54,7 +54,7 @@ type Props = {
   participants?: MeetingParticipant[];
 };
 
-/** Member stage — mobile swipe in-room panel; desktop always keeps in-room members on the left. */
+/** Member stage — mobile swipe in-room panel; desktop always keeps everyone on the right. */
 export function LivestreamMemberStage({
   meetingTitle,
   isLive,
@@ -131,23 +131,19 @@ export function LivestreamMemberStage({
     </div>
   ) : null;
 
-  const otherMembersGallery =
-    otherMemberCount > 0 ? (
-      <LiveKitParticipantGallery
-        remoteParticipants={remoteParticipants}
-        participants={participants}
-        hostId={hostId}
-        memberVideoEnabled={memberVideoEnabled}
-        memberMicEnabled={memberMicEnabled}
-        layout="sidebar"
-        hideHeader
-        className="h-auto w-full max-w-none shrink border-0 bg-transparent xl:w-full"
-      />
-    ) : (
-      <p className="text-center text-sm text-gold-light/60">
-        No other members in the room yet.
-      </p>
-    );
+  const otherMembersGallery = (
+    <LiveKitParticipantGallery
+      remoteParticipants={remoteParticipants}
+      participants={participants}
+      hostId={hostId}
+      memberVideoEnabled={memberVideoEnabled}
+      memberMicEnabled={memberMicEnabled}
+      layout="sidebar"
+      side="right"
+      hideHeader
+      className="h-auto w-full max-w-none shrink border-0 bg-transparent xl:w-full"
+    />
+  );
 
   const inRoomPanel = (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -197,13 +193,13 @@ export function LivestreamMemberStage({
         mobilePresentShare && "flex-col items-stretch justify-start",
       )}
     >
+      {hostMainVideo}
+
       {!isMobile && (
-        <div className="flex min-h-0 w-36 shrink-0 flex-col self-stretch overflow-hidden border-r border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
+        <div className="flex min-h-0 w-36 shrink-0 flex-col self-stretch overflow-hidden border-l border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
           {inRoomPanel}
         </div>
       )}
-
-      {hostMainVideo}
 
       {!isLive && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
@@ -281,9 +277,7 @@ function MemberSelfTile({
   selfMuted,
   handRaised,
   myReaction,
-  pip = false,
   compact = false,
-  showYouLabel = false,
   panelLayout = false,
 }: {
   trackRef?: TrackReference;
@@ -295,25 +289,11 @@ function MemberSelfTile({
   selfMuted: boolean;
   handRaised: boolean;
   myReaction: string | null;
-  pip?: boolean;
   compact?: boolean;
-  showYouLabel?: boolean;
   panelLayout?: boolean;
 }) {
   return (
-    <div
-      className={
-        panelLayout
-          ? PANEL_TILE_FRAME_CLASS
-          : pip
-            ? cn(
-                "overflow-hidden border-2 border-gold/50 bg-burgundy-deep shadow-2xl",
-                "h-32 w-36 rounded-xl sm:h-32 sm:w-48",
-                "md:h-36 md:w-36 md:rounded-full",
-              )
-            : "relative h-full min-h-0 w-full bg-burgundy-deep"
-      }
-    >
+    <div className={panelLayout ? PANEL_TILE_FRAME_CLASS : "relative h-full min-h-0 w-full bg-burgundy-deep"}>
       <LiveKitVideoTile
         trackRef={trackRef}
         userId={userId}
@@ -321,21 +301,11 @@ function MemberSelfTile({
         avatarUrl={avatarUrl}
         cameraOff={cameraOff}
         waitingForVideo={waitingForVideo}
-        compact={pip || compact}
+        compact={compact}
         panelLayout={panelLayout}
-        pipLayout={pip}
       />
       <ParticipantSignalBadges handRaised={handRaised} reaction={myReaction} />
-      {!panelLayout && (
-        <>
-          <MuteIndicator visible={selfMuted} compact={pip || compact} />
-          {(pip || showYouLabel) && (
-            <p className="absolute bottom-1 left-2 z-10 text-[10px] font-semibold text-gold-light/80">
-              You
-            </p>
-          )}
-        </>
-      )}
+      {!panelLayout && <MuteIndicator visible={selfMuted} compact={compact} />}
     </div>
   );
 }

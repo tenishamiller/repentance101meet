@@ -69,9 +69,6 @@ export function getLiveKitRoomOptions(persistInBackground = false): RoomOptions 
   };
 }
 
-/** @deprecated Use getLiveKitRoomOptions() */
-export const liveKitRoomOptions: RoomOptions = getLiveKitRoomOptions(false);
-
 /** Host camera — 720p24 for sharper teaching video; H.264 primary with VP8 fallback. */
 export const hostLivestreamCameraCapture: VideoCaptureOptions = {
   resolution: VideoPresets.h720.resolution,
