@@ -577,13 +577,21 @@ function LivestreamRoomContent({
                       <button
                         type="button"
                         onClick={() =>
-                          setPrivateMessageMember({
-                            id: p.user.id,
-                            name: p.user.name,
-                            avatarUrl: p.user.avatarUrl,
-                          })
+                          setPrivateMessageMember((current) =>
+                            current?.id === p.user.id
+                              ? null
+                              : {
+                                  id: p.user.id,
+                                  name: p.user.name,
+                                  avatarUrl: p.user.avatarUrl,
+                                },
+                          )
                         }
-                        className="text-xs font-semibold text-gold hover:text-gold-light"
+                        className={`text-xs font-semibold ${
+                          privateMessageMember?.id === p.user.id
+                            ? "text-gold-light"
+                            : "text-gold hover:text-gold-light"
+                        }`}
                       >
                         Message
                       </button>

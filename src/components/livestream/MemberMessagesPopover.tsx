@@ -17,7 +17,7 @@ export function MemberMessagesPopover({ userId }: Props) {
   const [sending, setSending] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const lastSeenAdminMessageRef = useRef<string | null>(null);
 
   const fetchMessages = useCallback(async () => {
@@ -52,18 +52,24 @@ export function MemberMessagesPopover({ userId }: Props) {
     }
   }, [messages, open]);
 
-  function handleOpen() {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-    setOpen(true);
-  }
+  useEffect(() => {
+    if (!open) return;
 
-  function scheduleClose() {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    closeTimerRef.current = setTimeout(() => setOpen(false), 280);
-  }
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      const root = rootRef.current;
+      if (!root || !(event.target instanceof Node)) return;
+      if (!root.contains(event.target)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("touchstart", handlePointerDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("touchstart", handlePointerDown);
+    };
+  }, [open]);
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
@@ -80,11 +86,7 @@ export function MemberMessagesPopover({ userId }: Props) {
   }
 
   return (
-    <div
-      className="relative"
-      onMouseEnter={handleOpen}
-      onMouseLeave={scheduleClose}
-    >
+    <div ref={rootRef} className="relative">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -101,9 +103,9 @@ export function MemberMessagesPopover({ userId }: Props) {
 
       {open && (
         <div
+          role="dialog"
+          aria-modal="false"
           className="absolute bottom-full right-0 z-50 mb-2 flex w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl sm:w-80"
-          onMouseEnter={handleOpen}
-          onMouseLeave={scheduleClose}
         >
           <div className="flex items-center justify-between border-b border-gold/20 px-4 py-3">
             <div>
