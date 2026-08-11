@@ -387,7 +387,10 @@ export function MeetingChat({
           </button>
         )}
       </div>
-      <form onSubmit={sendMessage} className="relative shrink-0 border-t border-gold/20 bg-burgundy-dark p-3">
+      <form
+        onSubmit={sendMessage}
+        className="relative shrink-0 border-t border-gold/20 bg-burgundy-dark p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-3"
+      >
         {uploadError && (
           <p className="mb-2 text-xs text-red-300">{uploadError}</p>
         )}
@@ -422,10 +425,10 @@ export function MeetingChat({
           id={`meeting-file-${meetingToken}`}
           onChange={handleFilesSelected}
         />
-        <div className="flex gap-2">
+        <div className="flex min-w-0 items-stretch gap-1.5 sm:gap-2">
           <label
             htmlFor={`meeting-file-${meetingToken}`}
-            className="flex cursor-pointer items-center rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-gold-light hover:bg-burgundy-deep"
+            className="flex shrink-0 cursor-pointer items-center rounded-lg border border-gold/30 bg-burgundy px-2.5 py-2 text-gold-light hover:bg-burgundy-deep sm:px-3"
             title={`Attach file (max ${MEETING_CHAT_MAX_FILE_LABEL})`}
           >
             <Paperclip className="h-4 w-4" />
@@ -433,7 +436,7 @@ export function MeetingChat({
           <button
             type="button"
             onClick={() => setShowEmoji((s) => !s)}
-            className="rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-gold-light hover:bg-burgundy-deep"
+            className="shrink-0 rounded-lg border border-gold/30 bg-burgundy px-2.5 py-2 text-gold-light hover:bg-burgundy-deep sm:px-3"
             title="Add emoji"
           >
             <Smile className="h-4 w-4" />
@@ -442,13 +445,13 @@ export function MeetingChat({
             type="text"
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Message, emoji, or attach a file..."
-            className="flex-1 rounded-lg border border-gold/30 bg-burgundy px-3 py-2 text-sm text-cream placeholder:text-gold-light/40 focus:outline-none focus:ring-2 focus:ring-gold/40"
+            placeholder="Message..."
+            className="min-w-0 flex-1 rounded-lg border border-gold/30 bg-burgundy px-2.5 py-2 text-sm text-cream placeholder:text-gold-light/40 focus:outline-none focus:ring-2 focus:ring-gold/40 sm:px-3"
           />
           <button
             type="submit"
             disabled={sending || !canSend}
-            className="rounded-lg bg-gold px-4 py-2 text-sm font-bold text-burgundy-deep disabled:opacity-60"
+            className="shrink-0 rounded-lg bg-gold px-3 py-2 text-sm font-bold text-burgundy-deep disabled:opacity-60 sm:px-4"
           >
             {sending ? "..." : "Send"}
           </button>

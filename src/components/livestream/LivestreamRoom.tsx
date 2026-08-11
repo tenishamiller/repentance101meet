@@ -227,7 +227,7 @@ function LivestreamRoomContent({
   }
 
   return (
-    <div className="flex h-mobile-immersive min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
       <div
         className={`flex min-h-0 min-w-0 flex-1 flex-col ${
           isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
@@ -462,7 +462,7 @@ function LivestreamRoomContent({
       </div>
 
       <div
-        className={`flex min-h-0 w-full flex-col border-t border-gold/20 lg:h-auto lg:w-[28rem] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[32rem] ${
+        className={`flex min-h-0 w-full flex-col overflow-hidden border-t border-gold/20 lg:h-auto lg:w-[28rem] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[32rem] ${
           isMobile
             ? mobileTab === "video"
               ? "hidden lg:flex"

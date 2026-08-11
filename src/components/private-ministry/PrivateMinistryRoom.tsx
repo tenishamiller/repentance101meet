@@ -219,7 +219,7 @@ function PrivateMinistryRoomContent({
           }}
         />
       )}
-      <div className="flex h-mobile-immersive min-h-0 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
+      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
         <div
           className={`flex min-h-0 min-w-0 flex-1 flex-col ${
             isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
