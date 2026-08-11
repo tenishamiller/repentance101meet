@@ -254,7 +254,7 @@ export function MeetingChat({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-burgundy-dark">
+    <div className="flex min-h-0 flex-1 flex-col bg-burgundy-dark">
       <div className="shrink-0 border-b border-gold/20 px-4 py-3">
         <h3 className="font-serif font-semibold text-cream">Meeting Chat</h3>
       </div>

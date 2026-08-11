@@ -19,9 +19,11 @@ export function AppChrome({ children, footer }: Props) {
     <>
       <main
         className={cn(
-          "flex-1",
+          "flex flex-1 flex-col",
           showBottomNav && "mobile-main-pad md:pb-0",
-          immersive && "mobile-immersive-main",
+          immersive
+            ? "h-[100dvh] min-h-0 overflow-hidden mobile-immersive-main"
+            : undefined,
         )}
       >
         {children}

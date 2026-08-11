@@ -500,7 +500,7 @@ function LivestreamRoomContent({
           isMobile
             ? mobileTab === "video"
               ? "hidden lg:flex"
-              : "min-h-0 flex-1 border-t-0"
+              : "h-0 min-h-0 flex-1 border-t-0"
             : "max-lg:max-h-[38vh] max-lg:shrink-0"
         }`}
       >
@@ -621,7 +621,7 @@ function LivestreamRoomContent({
         )}
 
         {(!isMobile || mobileTab === "chat") && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
             <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
           </div>
         )}
