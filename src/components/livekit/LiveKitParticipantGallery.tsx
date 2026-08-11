@@ -10,6 +10,7 @@ import { ParticipantSignalBadges } from "@/components/livestream/LivestreamAudie
 import { ParticipantPanelNameRow } from "@/components/livestream/ParticipantPanelNameRow";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
 import { avatarUrlFromLiveKitMetadata } from "@/lib/avatar-url";
+import { PANEL_TILE_CARD_CLASS, PANEL_TILE_FRAME_CLASS } from "@/lib/panel-tile";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -65,11 +66,11 @@ function MemberGalleryTile({
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-col overflow-hidden rounded-xl border border-gold/30 bg-burgundy-dark",
+        PANEL_TILE_CARD_CLASS,
         compact ? "w-full" : "w-44 sm:w-48",
       )}
     >
-      <div className={cn("relative bg-black", compact ? "aspect-video" : "aspect-[4/3]")}>
+      <div className={PANEL_TILE_FRAME_CLASS}>
         <LiveKitVideoTile
           trackRef={cameraTrack}
           userId={participant.identity}
@@ -151,16 +152,11 @@ export function LiveKitParticipantGallery({
       {hostSelfTile && (
         <div
           className={cn(
-            "flex shrink-0 flex-col overflow-hidden rounded-xl border border-gold/30 bg-burgundy-dark",
+            PANEL_TILE_CARD_CLASS,
             layout === "sidebar" ? "w-full" : "w-44 sm:w-48",
           )}
         >
-          <div
-            className={cn(
-              "relative bg-black",
-              layout === "sidebar" ? "aspect-video" : "aspect-[4/3]",
-            )}
-          >
+          <div className={PANEL_TILE_FRAME_CLASS}>
             <LiveKitVideoTile
               trackRef={hostSelfTile.trackRef}
               userId={hostSelfTile.participantIdentity}

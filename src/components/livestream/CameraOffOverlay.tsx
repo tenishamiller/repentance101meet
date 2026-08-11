@@ -10,7 +10,7 @@ type Props = {
   avatarUrl?: string | null;
   size?: AvatarSize;
   compact?: boolean;
-  /** Sidebar tile — smaller avatar, no name, fit inside aspect-video box. */
+  /** Sidebar tile — short Zoom-style box; avatar scaled to fit without cropping the head. */
   panelLayout?: boolean;
   /** When false, only the avatar is shown (name row handles the label). */
   showName?: boolean;
@@ -34,7 +34,7 @@ export function CameraOffOverlay({
     <div
       className={cn(
         "absolute inset-0 z-[1] flex flex-col items-center justify-center bg-burgundy-deep",
-        panelLayout ? "p-2" : "px-4",
+        panelLayout ? "px-2 py-1" : "px-4",
         className,
       )}
     >
@@ -47,7 +47,12 @@ export function CameraOffOverlay({
         loadProfileWhenEmpty
         onDark
         imageFit="contain"
-        className="max-h-full max-w-full shrink-0 ring-gold/50"
+        className={cn(
+          "shrink-0 ring-gold/50",
+          panelLayout
+            ? "aspect-square h-auto w-auto max-h-[68%] max-w-[68%] min-h-0"
+            : "max-h-full max-w-full",
+        )}
       />
       {showLabel && (
         <>

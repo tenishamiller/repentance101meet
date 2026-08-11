@@ -10,6 +10,7 @@ import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
 import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { ParticipantPanelNameRow } from "@/components/livestream/ParticipantPanelNameRow";
 import type { MemberVideoLayout } from "@/lib/video-layout";
+import { PANEL_TILE_CARD_CLASS, PANEL_TILE_FRAME_CLASS } from "@/lib/panel-tile";
 
 type HostProfile = {
   userId: string;
@@ -124,8 +125,8 @@ export function LivestreamMemberStage({
                 In room
               </p>
               <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-2 p-2">
-                <div className="flex shrink-0 flex-col overflow-hidden rounded-lg border border-gold/30 bg-burgundy-dark">
-                  <div className="relative aspect-video bg-black">
+                <div className={PANEL_TILE_CARD_CLASS}>
+                  <div className={PANEL_TILE_FRAME_CLASS}>
                     <LiveKitVideoTile
                       trackRef={hostCameraPipTrack}
                       userId={hostProfile.userId}
@@ -140,7 +141,7 @@ export function LivestreamMemberStage({
                   <ParticipantPanelNameRow name={hostProfile.name} muted={isRemoteMuted} />
                 </div>
 
-                <div className="flex shrink-0 flex-col overflow-hidden rounded-lg border border-gold/30 bg-burgundy-dark">
+                <div className={PANEL_TILE_CARD_CLASS}>
                   <MemberSelfTile
                     trackRef={localCameraTrack}
                     userId={userId}
@@ -285,7 +286,7 @@ function MemberSelfTile({
     <div
       className={
         panelLayout
-          ? "relative aspect-video bg-black"
+          ? PANEL_TILE_FRAME_CLASS
           : pip
             ? "h-24 w-36 overflow-hidden rounded-xl border-2 border-gold/50 bg-burgundy-deep shadow-2xl sm:h-32 sm:w-48 md:h-36 md:w-52"
             : "relative h-full min-h-0 w-full bg-burgundy-deep"

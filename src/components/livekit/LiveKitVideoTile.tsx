@@ -41,8 +41,9 @@ export function LiveKitVideoTile({
 }: Props) {
   const hasTrack = !!trackRef?.publication?.track;
   const showVideo = hasTrack && !cameraOff;
-  const resolvedVideoClassName =
-    compact && videoClassName === "h-full w-full object-cover"
+  const resolvedVideoClassName = panelLayout
+    ? "h-full w-full object-cover object-center"
+    : compact && videoClassName === "h-full w-full object-cover"
       ? "h-full w-full object-contain"
       : videoClassName;
   const videoKey = trackRef
