@@ -19,48 +19,60 @@ export const liveKitRoomOptions: RoomOptions = {
   adaptiveStream: { pixelDensity: 1, pauseVideoInBackground: false },
   dynacast: true,
   webAudioMix: true,
+  videoCaptureDefaults: {
+    resolution: VideoPresets.h360.resolution,
+    frameRate: 30,
+  },
   publishDefaults: {
     simulcast: true,
+    backupCodec: false,
+    videoCodec: "vp8",
     degradationPreference: "maintain-framerate",
     screenShareEncoding: ScreenSharePresets.h720fps15.encoding,
-    videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
+    videoSimulcastLayers: [VideoPresets.h180],
   },
 };
 
-/** Host camera — balanced quality with faster encode/decode than full 720p30. */
+/** Host camera — 360p30 for faster encode/decode and smoother motion than 540p24. */
 export const hostLivestreamCameraCapture: VideoCaptureOptions = {
-  resolution: VideoPresets.h540.resolution,
-  frameRate: 24,
+  resolution: VideoPresets.h360.resolution,
+  frameRate: 30,
 };
 
 export const hostLivestreamCameraPublish: TrackPublishOptions = {
-  videoEncoding: VideoPresets.h540.encoding,
-  degradationPreference: "maintain-framerate",
-  simulcast: true,
-  videoSimulcastLayers: [VideoPresets.h180, VideoPresets.h360],
-};
-
-/** Member camera when host is not presenting (pip / split layout). */
-export const memberLivestreamCameraCapture: VideoCaptureOptions = {
-  resolution: VideoPresets.h360.resolution,
-  frameRate: 24,
-};
-
-export const memberLivestreamCameraPublish: TrackPublishOptions = {
-  videoEncoding: VideoPresets.h360.encoding,
+  videoEncoding: {
+    maxBitrate: 600_000,
+    maxFramerate: 30,
+  },
   degradationPreference: "maintain-framerate",
   simulcast: true,
   videoSimulcastLayers: [VideoPresets.h180],
 };
 
-/** Lower bandwidth while host screen share is primary — smoother motion in small tiles. */
+/** Member camera when host is not presenting (pip / split layout). */
+export const memberLivestreamCameraCapture: VideoCaptureOptions = {
+  resolution: VideoPresets.h360.resolution,
+  frameRate: 30,
+};
+
+export const memberLivestreamCameraPublish: TrackPublishOptions = {
+  videoEncoding: {
+    maxBitrate: 450_000,
+    maxFramerate: 30,
+  },
+  degradationPreference: "maintain-framerate",
+  simulcast: true,
+  videoSimulcastLayers: [VideoPresets.h180],
+};
+
+/** Sidebar tiles while host screen share is primary — still 360p for smoother motion. */
 export const memberPresentingCameraCapture: VideoCaptureOptions = {
-  resolution: VideoPresets.h180.resolution,
-  frameRate: 20,
+  resolution: VideoPresets.h360.resolution,
+  frameRate: 24,
 };
 
 export const memberPresentingCameraPublish: TrackPublishOptions = {
-  videoEncoding: VideoPresets.h180.encoding,
+  videoEncoding: VideoPresets.h360.encoding,
   degradationPreference: "maintain-framerate",
   simulcast: false,
 };

@@ -60,6 +60,7 @@ function MemberGalleryTile({
           avatarUrl={avatarUrl}
           cameraOff={!cameraOn}
           compact={compact}
+          panelLayout={compact}
         />
         <ParticipantSignalBadges
           handRaised={dbParticipant?.handRaised}
@@ -150,6 +151,7 @@ export function LiveKitParticipantGallery({
               avatarUrl={hostSelfTile.avatarUrl}
               cameraOff={hostSelfTile.cameraOff}
               compact={layout === "sidebar"}
+              panelLayout={layout === "sidebar"}
             />
           </div>
           <ParticipantPanelNameRow name={hostSelfTile.name} muted={!hostSelfTile.micOn} />

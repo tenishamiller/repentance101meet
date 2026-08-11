@@ -7,7 +7,8 @@ import {
   CameraOffOverlay,
   VideoLoadingOverlay,
 } from "@/components/livestream/CameraOffOverlay";
-import { applyLowLatencyRemoteVideo } from "@/lib/livekit-latency";
+import { RemoteTrackPublication, Track } from "livekit-client";
+import { applyLowLatencyRemoteVideoPublication } from "@/lib/livekit-latency";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -20,6 +21,8 @@ type Props = {
   className?: string;
   videoClassName?: string;
   compact?: boolean;
+  /** Sidebar tile: avatar in video area, name on the row below. */
+  panelLayout?: boolean;
   /** Main-stage remote video (host feed for members) — lower playback delay. */
   lowLatency?: boolean;
 };
@@ -34,26 +37,31 @@ export function LiveKitVideoTile({
   className,
   videoClassName = "h-full w-full object-cover",
   compact = false,
+  panelLayout = false,
   lowLatency = false,
 }: Props) {
   const hasTrack = !!trackRef?.publication?.track;
   const showVideo = hasTrack && !cameraOff;
+  const isRemoteCamera =
+    trackRef?.publication instanceof RemoteTrackPublication &&
+    trackRef.publication.source === Track.Source.Camera;
+  const tuneForLowLatency = lowLatency || isRemoteCamera;
   const resolvedVideoClassName =
     compact && videoClassName === "h-full w-full object-cover"
       ? "h-full w-full object-contain"
       : videoClassName;
 
   useEffect(() => {
-    if (!lowLatency || !trackRef?.publication) return;
+    if (!tuneForLowLatency || !trackRef?.publication) return;
 
-    applyLowLatencyRemoteVideo(trackRef);
+    applyLowLatencyRemoteVideoPublication(trackRef.publication);
 
-    const onSubscribed = () => applyLowLatencyRemoteVideo(trackRef);
+    const onSubscribed = () => applyLowLatencyRemoteVideoPublication(trackRef.publication);
     trackRef.publication.on("subscribed", onSubscribed);
     return () => {
       trackRef.publication?.off("subscribed", onSubscribed);
     };
-  }, [lowLatency, trackRef]);
+  }, [tuneForLowLatency, trackRef]);
 
   return (
     <div className={cn("relative h-full min-h-0 w-full overflow-hidden bg-black", className)}>
@@ -64,7 +72,8 @@ export function LiveKitVideoTile({
           userId={userId}
           name={name}
           avatarUrl={avatarUrl ?? null}
-          compact={compact}
+          compact={compact || panelLayout}
+          showName={!panelLayout}
         />
       ) : waitingForVideo || !hasTrack ? (
         <VideoLoadingOverlay label={waitingForVideo ? "Starting camera…" : "Waiting for video…"} />
@@ -73,7 +82,8 @@ export function LiveKitVideoTile({
           userId={userId}
           name={name}
           avatarUrl={avatarUrl ?? null}
-          compact={compact}
+          compact={compact || panelLayout}
+          showName={!panelLayout}
         />
       )}
     </div>

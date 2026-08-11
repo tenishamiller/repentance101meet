@@ -5,6 +5,7 @@ import "@livekit/components-styles";
 import { LiveKitRoom, RoomAudioRenderer, useConnectionState } from "@livekit/components-react";
 import { ConnectionState, type MediaDeviceFailure } from "livekit-client";
 import { liveKitRoomOptions } from "@/lib/livekit-capture";
+import { LiveKitRemoteVideoTuning } from "@/components/livekit/LiveKitRemoteVideoTuning";
 
 type TokenResponse = {
   token: string;
@@ -127,6 +128,7 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
       className="flex min-h-0 flex-1 flex-col"
     >
       <RoomConnectionMonitor roomError={roomError} onRoomError={setRoomError} />
+      <LiveKitRemoteVideoTuning />
       {children}
       <RoomAudioRenderer />
     </LiveKitRoom>

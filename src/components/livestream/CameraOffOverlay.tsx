@@ -10,6 +10,8 @@ type Props = {
   avatarUrl?: string | null;
   size?: AvatarSize;
   compact?: boolean;
+  /** When false, only the avatar is shown (name row handles the label). */
+  showName?: boolean;
   className?: string;
 };
 
@@ -17,10 +19,14 @@ export function CameraOffOverlay({
   userId,
   name,
   avatarUrl,
-  size = "2xl",
+  size,
   compact = false,
+  showName,
   className,
 }: Props) {
+  const resolvedSize = size ?? (compact ? "xl" : "2xl");
+  const showLabel = showName ?? !compact;
+
   return (
     <div
       className={cn(
@@ -32,19 +38,23 @@ export function CameraOffOverlay({
         userId={userId}
         name={name}
         avatarUrl={avatarUrl}
-        size={compact ? "lg" : size}
+        size={resolvedSize}
         interactive={false}
         className="ring-gold/50"
       />
-      <p
-        className={cn(
-          "mt-3 text-center font-serif font-semibold text-cream",
-          compact ? "text-sm" : "text-lg sm:text-xl",
-        )}
-      >
-        {name}
-      </p>
-      {!compact && <p className="mt-1 text-sm text-gold-light/70">Camera off</p>}
+      {showLabel && (
+        <>
+          <p
+            className={cn(
+              "mt-3 text-center font-serif font-semibold text-cream",
+              compact ? "text-sm" : "text-lg sm:text-xl",
+            )}
+          >
+            {name}
+          </p>
+          {!compact && <p className="mt-1 text-sm text-gold-light/70">Camera off</p>}
+        </>
+      )}
     </div>
   );
 }

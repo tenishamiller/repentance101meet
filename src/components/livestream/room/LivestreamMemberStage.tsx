@@ -130,6 +130,7 @@ export function LivestreamMemberStage({
                       cameraOff={isRemoteCameraOff}
                       waitingForVideo={waitingForHostVideo}
                       compact
+                      panelLayout
                     />
                   </div>
                   <ParticipantPanelNameRow name={hostProfile.name} muted={isRemoteMuted} />
@@ -294,6 +295,7 @@ function MemberSelfTile({
         cameraOff={cameraOff}
         waitingForVideo={waitingForVideo}
         compact={pip || compact}
+        panelLayout={panelLayout}
       />
       <ParticipantSignalBadges handRaised={handRaised} reaction={myReaction} />
       {!panelLayout && (
