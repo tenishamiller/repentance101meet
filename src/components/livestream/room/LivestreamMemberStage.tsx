@@ -89,7 +89,7 @@ export function LivestreamMemberStage({
   ].filter(Boolean);
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-burgundy/30 bg-burgundy px-3 py-2 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
@@ -250,7 +250,7 @@ export function LivestreamMemberStage({
           thumbsDown={thumbsDown}
         />
       </div>
-    </>
+    </div>
   );
 }
 

@@ -340,35 +340,48 @@ function LivestreamRoomContent({
           </>
         ) : (
           <>
-            <LivestreamMemberStage
-              meetingTitle={meetingTitle}
-              isLive={isLive}
-              isConnecting={isConnecting}
-              isMuted={isMuted}
-              isCameraOff={isCameraOff}
-              isRemoteCameraOff={isRemoteCameraOff}
-              isRemoteMuted={isRemoteMuted}
-              isRemoteScreenSharing={isRemoteScreenSharing}
-              memberVideoEnabled={memberVideoEnabled}
-              memberMicEnabled={memberMicEnabled}
-              memberVideoLayout={memberVideoLayout}
-              hostProfile={hostProfile}
-              userId={userId}
-              userName={userName}
-              avatarUrl={avatarUrl}
-              hostMainTrack={hostMainTrack}
-              hostCameraPipTrack={hostCameraPipTrack}
-              localCameraTrack={localCameraTrack}
-              waitingForHostVideo={waitingForHostVideo}
-              waitingForSelfVideo={waitingForSelfVideo}
-              raisedHands={raisedHands}
-              thumbsUp={thumbsUp}
-              thumbsDown={thumbsDown}
-              handRaised={handRaised}
-              myReaction={myReaction}
-            />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <LivestreamMemberStage
+                meetingTitle={meetingTitle}
+                isLive={isLive}
+                isConnecting={isConnecting}
+                isMuted={isMuted}
+                isCameraOff={isCameraOff}
+                isRemoteCameraOff={isRemoteCameraOff}
+                isRemoteMuted={isRemoteMuted}
+                isRemoteScreenSharing={isRemoteScreenSharing}
+                memberVideoEnabled={memberVideoEnabled}
+                memberMicEnabled={memberMicEnabled}
+                memberVideoLayout={memberVideoLayout}
+                hostProfile={hostProfile}
+                userId={userId}
+                userName={userName}
+                avatarUrl={avatarUrl}
+                hostMainTrack={hostMainTrack}
+                hostCameraPipTrack={hostCameraPipTrack}
+                localCameraTrack={localCameraTrack}
+                waitingForHostVideo={waitingForHostVideo}
+                waitingForSelfVideo={waitingForSelfVideo}
+                raisedHands={raisedHands}
+                thumbsUp={thumbsUp}
+                thumbsDown={thumbsDown}
+                handRaised={handRaised}
+                myReaction={myReaction}
+              />
+            </div>
 
-            <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-gold/20 bg-burgundy-dark px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+            <div
+              className={`shrink-0 border-t border-gold/20 bg-burgundy-dark ${
+                isMobile
+                  ? "overflow-x-auto px-2 py-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  : "px-3 py-2.5 sm:px-4 sm:py-3"
+              }`}
+            >
+              <div
+                className={`flex items-center justify-center gap-2 ${
+                  isMobile ? "min-w-max flex-nowrap px-1" : "flex-wrap sm:gap-3"
+                }`}
+              >
               <VideoLayoutSelect
                 mode="member"
                 value={memberVideoLayout}
@@ -448,6 +461,7 @@ function LivestreamRoomContent({
               >
                 Leave
               </button>
+              </div>
             </div>
           </>
         )}

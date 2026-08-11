@@ -124,7 +124,7 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
         );
       }}
       data-lk-theme="default"
-      className="flex min-h-0 flex-1 flex-col"
+      className="flex h-full min-h-0 flex-1 flex-col"
     >
       <RoomConnectionMonitor roomError={roomError} onRoomError={setRoomError} />
       {children}

@@ -84,7 +84,8 @@ export function MeetingPageClient({ token }: Props) {
   }
 
   return (
-    <LivestreamRoom
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+      <LivestreamRoom
       meetingToken={token}
       meetingTitle={data.meeting.title}
       userId={data.user.id}
@@ -93,5 +94,6 @@ export function MeetingPageClient({ token }: Props) {
       isHost={data.isHost}
       hostId={data.meeting.createdById}
     />
+    </div>
   );
 }
