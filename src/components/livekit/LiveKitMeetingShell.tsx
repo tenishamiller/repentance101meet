@@ -92,6 +92,25 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
     }
   }, [meetingToken]);
 
+  /** Refresh JWT after host media-policy change without unmounting the room UI. */
+  const refreshToken = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/meetings/${meetingToken}/livekit-token`);
+      const data = await res.json();
+      if (!res.ok || !data.serverUrl || !data.token) return;
+      setCredentials({
+        token: data.token,
+        serverUrl: data.serverUrl,
+        roomName: data.roomName,
+        isHost: data.isHost === true,
+        memberVideoEnabled: data.memberVideoEnabled !== false,
+        memberMicEnabled: data.memberMicEnabled !== false,
+      });
+    } catch {
+      /* member keeps watching; publish retry happens on next policy sync */
+    }
+  }, [meetingToken]);
+
   useEffect(() => {
     void loadToken();
   }, [loadToken]);
@@ -102,9 +121,9 @@ export function LiveKitMeetingShell({ meetingToken, children, onDisconnected }: 
       isHost: credentials.isHost,
       memberVideoEnabled: credentials.memberVideoEnabled,
       memberMicEnabled: credentials.memberMicEnabled,
-      reloadToken: loadToken,
+      reloadToken: refreshToken,
     };
-  }, [credentials, loadToken]);
+  }, [credentials, refreshToken]);
 
   if (loading) {
     return (
