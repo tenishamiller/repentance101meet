@@ -501,7 +501,9 @@ function LivestreamRoomContent({
       </div>
 
       <div
-        className={`flex min-h-0 w-full flex-col overflow-hidden border-t border-gold/20 lg:h-full lg:min-h-0 lg:w-[28rem] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[32rem] ${
+        className={`flex min-h-0 w-full flex-col overflow-hidden border-t border-gold/20 lg:h-full lg:min-h-0 lg:shrink-0 lg:border-l lg:border-t-0 ${
+          isHost ? "lg:w-[28rem] xl:w-[32rem]" : "lg:w-[36rem] xl:w-[40rem]"
+        } ${
           isMobile
             ? mobileTab === "video"
               ? "hidden lg:flex"
