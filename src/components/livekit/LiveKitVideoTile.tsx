@@ -71,8 +71,7 @@ export function LiveKitVideoTile({
           userId={userId}
           name={name}
           avatarUrl={avatarUrl ?? null}
-          compact={compact && !panelLayout}
-          panelLayout={panelLayout}
+          compact={compact || panelLayout}
           showName={!panelLayout}
         />
       ) : waitingForVideo || !hasTrack ? (
@@ -82,8 +81,7 @@ export function LiveKitVideoTile({
           userId={userId}
           name={name}
           avatarUrl={avatarUrl ?? null}
-          compact={compact && !panelLayout}
-          panelLayout={panelLayout}
+          compact={compact || panelLayout}
           showName={!panelLayout}
         />
       )}

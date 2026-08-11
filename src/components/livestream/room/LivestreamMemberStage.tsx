@@ -288,7 +288,7 @@ function MemberSelfTile({
         panelLayout
           ? PANEL_TILE_FRAME_CLASS
           : pip
-            ? "h-24 w-36 overflow-hidden rounded-xl border-2 border-gold/50 bg-burgundy-deep shadow-2xl sm:h-32 sm:w-48 md:h-36 md:w-52"
+            ? "h-32 w-36 overflow-hidden rounded-xl border-2 border-gold/50 bg-burgundy-deep shadow-2xl sm:h-32 sm:w-48 md:h-36 md:w-52"
             : "relative h-full min-h-0 w-full bg-burgundy-deep"
       }
     >

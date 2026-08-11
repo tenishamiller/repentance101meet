@@ -10,8 +10,6 @@ type Props = {
   avatarUrl?: string | null;
   size?: AvatarSize;
   compact?: boolean;
-  /** Sidebar tile — short Zoom-style box; avatar scaled to fit without cropping the head. */
-  panelLayout?: boolean;
   /** When false, only the avatar is shown (name row handles the label). */
   showName?: boolean;
   className?: string;
@@ -23,18 +21,16 @@ export function CameraOffOverlay({
   avatarUrl,
   size,
   compact = false,
-  panelLayout = false,
   showName,
   className,
 }: Props) {
-  const resolvedSize = size ?? (panelLayout ? "lg" : compact ? "xl" : "2xl");
-  const showLabel = showName ?? (!compact && !panelLayout);
+  const resolvedSize = size ?? (compact ? "xl" : "2xl");
+  const showLabel = showName ?? !compact;
 
   return (
     <div
       className={cn(
-        "absolute inset-0 z-[1] flex flex-col items-center justify-center bg-burgundy-deep",
-        panelLayout ? "px-2 py-1" : "px-4",
+        "absolute inset-0 z-[1] flex flex-col items-center justify-center bg-burgundy-deep px-4",
         className,
       )}
     >
@@ -46,13 +42,7 @@ export function CameraOffOverlay({
         interactive={false}
         loadProfileWhenEmpty
         onDark
-        imageFit="contain"
-        className={cn(
-          "shrink-0 ring-gold/50",
-          panelLayout
-            ? "aspect-square h-auto w-auto max-h-[68%] max-w-[68%] min-h-0"
-            : "max-h-full max-w-full",
-        )}
+        className="ring-gold/50"
       />
       {showLabel && (
         <>
