@@ -17,7 +17,6 @@ import {
   VideoOff,
 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
-import { ShowMoreList } from "@/components/ShowMoreList";
 import { useMeetingPresence } from "@/hooks/useMeetingPresence";
 import { useLiveKitStage } from "@/hooks/useLiveKitStage";
 import { useAppPath } from "@/hooks/useAppBase";
@@ -229,7 +228,7 @@ function LivestreamRoomContent({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-burgundy-deep lg:h-[calc(100vh-80px)] lg:flex-row">
       <div
-        className={`flex min-h-0 min-w-0 flex-1 flex-col ${
+        className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
           isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
         }`}
       >
@@ -462,112 +461,120 @@ function LivestreamRoomContent({
       </div>
 
       <div
-        className={`flex min-h-0 w-full flex-col overflow-hidden border-t border-gold/20 lg:h-auto lg:w-[28rem] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[32rem] ${
+        className={`flex min-h-0 w-full flex-col overflow-hidden border-t border-gold/20 lg:h-full lg:min-h-0 lg:w-[28rem] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[32rem] ${
           isMobile
             ? mobileTab === "video"
               ? "hidden lg:flex"
               : "min-h-0 flex-1 border-t-0"
-            : "max-lg:h-[38vh]"
+            : "max-lg:max-h-[38vh] max-lg:shrink-0"
         }`}
       >
         {isHost && (!isMobile || mobileTab === "people") && (
-          <div className="shrink-0 border-b border-gold/20 bg-burgundy p-3 sm:p-4">
-            {(thumbsUp > 0 || thumbsDown > 0) && (
-              <div className="mb-2 flex gap-2 text-sm">
-                {thumbsUp > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gold/20 px-2.5 py-1 font-semibold text-gold-light">
-                    <ThumbsUp className="h-3.5 w-3.5" />
-                    {thumbsUp}
-                  </span>
-                )}
-                {thumbsDown > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-burgundy-dark px-2.5 py-1 font-semibold text-cream/80">
-                    <ThumbsDown className="h-3.5 w-3.5" />
-                    {thumbsDown}
-                  </span>
-                )}
-              </div>
-            )}
-            <h3 className="mb-2 flex items-center gap-2 font-serif text-sm font-semibold text-gold-light">
-              <Users className="h-4 w-4 text-gold" />
-              Viewers ({viewerCount})
-            </h3>
-            <ShowMoreList
-              items={viewers}
-              initialCount={8}
-              step={8}
-              maxHeightClass="max-h-48"
-              listClassName="space-y-1.5"
-              moreLabel="viewers"
-              getKey={(p) => p.user.id}
-              emptyMessage={
-                <p className="text-sm text-gold-light/60">Waiting for viewers to join...</p>
-              }
-              renderItem={(p) => (
-                <div className="flex items-center justify-between rounded-lg border border-gold/10 bg-burgundy-dark px-2.5 py-1.5">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <UserAvatar
-                      userId={p.user.id}
-                      name={p.user.name}
-                      avatarUrl={p.user.avatarUrl}
-                      size="md"
-                    />
-                    <span className="truncate text-sm text-cream">{p.user.name}</span>
-                    {p.handRaised && <span title="Hand raised">✋</span>}
-                    {(!memberMicEnabled || viewerMicOnById.get(p.user.id) === false) && (
-                      <MicOff className="h-3.5 w-3.5 shrink-0 text-gold-light/70" aria-label="Muted" />
-                    )}
-                    {p.reaction === "UP" && (
-                      <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-gold" aria-label="Thumbs up" />
-                    )}
-                    {p.reaction === "DOWN" && (
-                      <ThumbsDown
-                        className="h-3.5 w-3.5 shrink-0 text-cream/70"
-                        aria-label="Thumbs down"
-                      />
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPrivateMessageMember({
-                          id: p.user.id,
-                          name: p.user.name,
-                          avatarUrl: p.user.avatarUrl,
-                        })
-                      }
-                      className="text-xs font-semibold text-gold hover:text-gold-light"
-                    >
-                      Message
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void kickViewer(p.user.id)}
-                      className="text-xs text-gold-light/70 hover:text-gold"
-                    >
-                      Remove
-                    </button>
-                  </div>
+          <section
+            className={`flex min-h-0 flex-col overflow-hidden border-b border-gold/20 bg-burgundy ${
+              isMobile && mobileTab === "people"
+                ? "min-h-0 flex-1"
+                : "max-h-[min(320px,42%)] shrink-0 lg:max-h-[min(360px,45%)]"
+            }`}
+          >
+            <div className="shrink-0 px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
+              {(thumbsUp > 0 || thumbsDown > 0) && (
+                <div className="mb-2 flex gap-2 text-sm">
+                  {thumbsUp > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-gold/20 px-2.5 py-1 font-semibold text-gold-light">
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                      {thumbsUp}
+                    </span>
+                  )}
+                  {thumbsDown > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-burgundy-dark px-2.5 py-1 font-semibold text-cream/80">
+                      <ThumbsDown className="h-3.5 w-3.5" />
+                      {thumbsDown}
+                    </span>
+                  )}
                 </div>
               )}
-            />
+              <h3 className="flex items-center gap-2 font-serif text-sm font-semibold text-gold-light">
+                <Users className="h-4 w-4 text-gold" />
+                Viewers ({viewerCount})
+              </h3>
+            </div>
+            <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
+              {viewers.length === 0 ? (
+                <p className="text-sm text-gold-light/60">Waiting for viewers to join...</p>
+              ) : (
+                viewers.map((p) => (
+                  <div
+                    key={p.user.id}
+                    className="flex items-center justify-between rounded-lg border border-gold/10 bg-burgundy-dark px-2.5 py-1.5"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <UserAvatar
+                        userId={p.user.id}
+                        name={p.user.name}
+                        avatarUrl={p.user.avatarUrl}
+                        size="md"
+                      />
+                      <span className="truncate text-sm text-cream">{p.user.name}</span>
+                      {p.handRaised && <span title="Hand raised">✋</span>}
+                      {(!memberMicEnabled || viewerMicOnById.get(p.user.id) === false) && (
+                        <MicOff
+                          className="h-3.5 w-3.5 shrink-0 text-gold-light/70"
+                          aria-label="Muted"
+                        />
+                      )}
+                      {p.reaction === "UP" && (
+                        <ThumbsUp className="h-3.5 w-3.5 shrink-0 text-gold" aria-label="Thumbs up" />
+                      )}
+                      {p.reaction === "DOWN" && (
+                        <ThumbsDown
+                          className="h-3.5 w-3.5 shrink-0 text-cream/70"
+                          aria-label="Thumbs down"
+                        />
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPrivateMessageMember({
+                            id: p.user.id,
+                            name: p.user.name,
+                            avatarUrl: p.user.avatarUrl,
+                          })
+                        }
+                        className="text-xs font-semibold text-gold hover:text-gold-light"
+                      >
+                        Message
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void kickViewer(p.user.id)}
+                        className="text-xs text-gold-light/70 hover:text-gold"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
 
-            {raisedHands.length > 0 && (
-              <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 p-2.5">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gold">Raised Hands</p>
-                <ul className="mt-1 space-y-0.5">
-                  {raisedHands.map((p) => (
-                    <li key={p.userId} className="text-sm text-cream">
-                      ✋ {p.name}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              {raisedHands.length > 0 && (
+                <div className="mt-2 rounded-lg border border-gold/40 bg-gold/10 p-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gold">Raised Hands</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {raisedHands.map((p) => (
+                      <li key={p.userId} className="text-sm text-cream">
+                        ✋ {p.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-            <BlockedUsersPanel meetingToken={meetingToken} />
-          </div>
+              <BlockedUsersPanel meetingToken={meetingToken} />
+            </div>
+          </section>
         )}
 
         {isHost && privateMessageMember && (!isMobile || mobileTab === "people") && (
@@ -579,7 +586,7 @@ function LivestreamRoomContent({
         )}
 
         {(!isMobile || mobileTab === "chat") && (
-          <div className="min-h-0 flex-1">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
           </div>
         )}

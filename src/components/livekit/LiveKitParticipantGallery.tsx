@@ -136,7 +136,7 @@ export function LiveKitParticipantGallery({
     return layout === "sidebar" ? (
       <div
         className={cn(
-          "flex w-44 shrink-0 flex-col justify-center bg-burgundy-dark/90 p-3 xl:w-52",
+          "flex min-h-0 w-44 shrink-0 flex-col self-stretch overflow-hidden bg-burgundy-dark/90 xl:w-52",
           side === "left" ? "border-r border-gold/20" : "border-l border-gold/20",
         )}
       >
@@ -187,24 +187,28 @@ export function LiveKitParticipantGallery({
     return (
       <div
         className={cn(
-          "flex w-44 shrink-0 flex-col bg-burgundy-dark/90 xl:w-52",
+          "flex min-h-0 w-44 shrink-0 flex-col self-stretch overflow-hidden bg-burgundy-dark/90 xl:w-52",
           side === "left" ? "border-r border-gold/20" : "border-l border-gold/20",
         )}
       >
         <p className="shrink-0 border-b border-gold/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
           In room ({tileCount})
         </p>
-        <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-2 p-2">{tiles}</div>
+        <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
+          {tiles}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="shrink-0 border-t border-gold/20 bg-burgundy-dark/90 px-3 py-3">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
+    <div className="flex max-h-48 shrink-0 flex-col overflow-hidden border-t border-gold/20 bg-burgundy-dark/90">
+      <p className="shrink-0 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
         In room ({tileCount})
       </p>
-      <div className="chat-scroll flex gap-3 pb-1">{tiles}</div>
+      <div className="chat-scroll chat-scroll-dark flex gap-3 overflow-x-auto px-3 pb-3">
+        {tiles}
+      </div>
     </div>
   );
 }

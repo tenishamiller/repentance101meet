@@ -70,7 +70,7 @@ export function LivestreamHostStage({
   const waitingForVideo = isLive && !showCameraOff && !hasHostVideo && !isScreenSharing;
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-gold/30 bg-burgundy px-3 py-2 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
@@ -152,6 +152,6 @@ export function LivestreamHostStage({
           />
         )}
       </div>
-    </>
+    </div>
   );
 }
