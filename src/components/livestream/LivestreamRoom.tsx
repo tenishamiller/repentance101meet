@@ -547,7 +547,7 @@ function LivestreamRoomContent({
                 Viewers ({viewerCount})
               </h3>
             </div>
-            <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
+            <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-y-auto overscroll-y-contain space-y-1.5 px-3 pb-3 sm:px-4 sm:pb-4">
               {viewers.length === 0 ? (
                 <p className="text-sm text-gold-light/60">Waiting for viewers to join...</p>
               ) : (
@@ -639,11 +639,13 @@ function LivestreamRoomContent({
         )}
 
         {isHost && privateMessageMember && (!isMobile || mobileTab === "people") && (
-          <HostPrivateMessagePanel
-            member={privateMessageMember}
-            hostId={userId}
-            onClose={() => setPrivateMessageMember(null)}
-          />
+          <div className="shrink-0 border-b border-gold/20 bg-burgundy-dark lg:max-h-[min(240px,30%)] lg:min-h-0 lg:overflow-hidden">
+            <HostPrivateMessagePanel
+              member={privateMessageMember}
+              hostId={userId}
+              onClose={() => setPrivateMessageMember(null)}
+            />
+          </div>
         )}
 
         {(!isMobile || mobileTab === "chat") && (
