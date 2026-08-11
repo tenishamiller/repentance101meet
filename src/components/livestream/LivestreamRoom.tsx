@@ -501,9 +501,7 @@ function LivestreamRoomContent({
       </div>
 
       <div
-        className={`flex min-h-0 w-full flex-col border-t border-gold/20 lg:h-full lg:min-h-0 lg:w-[28rem] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[32rem] ${
-          !isHost && !isMobile ? "lg:overflow-visible" : "overflow-hidden"
-        } ${
+        className={`flex min-h-0 w-full flex-col overflow-hidden border-t border-gold/20 lg:h-full lg:min-h-0 lg:w-[28rem] lg:shrink-0 lg:border-l lg:border-t-0 xl:w-[32rem] ${
           isMobile
             ? mobileTab === "video"
               ? "hidden lg:flex"
@@ -649,11 +647,7 @@ function LivestreamRoomContent({
         )}
 
         {(!isMobile || mobileTab === "chat") && (
-          <div
-            className={`flex min-h-0 flex-1 basis-0 flex-col ${
-              !isHost && !isMobile ? "lg:overflow-visible overflow-hidden" : "overflow-hidden"
-            }`}
-          >
+          <div className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden">
             <MeetingChat
               meetingToken={meetingToken}
               userId={userId}

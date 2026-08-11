@@ -54,7 +54,7 @@ type Props = {
   participants?: MeetingParticipant[];
 };
 
-/** Member stage — mobile in-room gallery; desktop corner PiP when host is not presenting. */
+/** Member stage — mobile swipe in-room panel; desktop always keeps in-room members on the left. */
 export function LivestreamMemberStage({
   meetingTitle,
   isLive,
@@ -87,200 +87,123 @@ export function LivestreamMemberStage({
   participants = [],
 }: Props) {
   const present = isRemoteScreenSharing;
-  const desktopPresentSidebar = present && !isMobile;
   const mobilePresentShare = isMobile && present;
-  const desktopCornerPip = !isMobile && !present;
   const selfMuted = isMuted || !memberMicEnabled;
   const selfCameraOff = isCameraOff;
   const otherMemberCount = participants.filter(
     (p) => p.user.id !== hostId && p.user.id !== userId,
   ).length;
 
-  const inRoomSecondary = (
+  const selfTileCard = (
+    <div className={PANEL_TILE_CARD_CLASS}>
+      <MemberSelfTile
+        trackRef={localCameraTrack}
+        userId={userId}
+        userName={userName}
+        avatarUrl={avatarUrl}
+        cameraOff={selfCameraOff}
+        waitingForVideo={waitingForSelfVideo}
+        selfMuted={selfMuted}
+        handRaised={handRaised}
+        myReaction={myReaction}
+        compact
+        panelLayout
+      />
+      <ParticipantPanelNameRow name="You" muted={selfMuted} />
+    </div>
+  );
+
+  const hostPipCard = present ? (
+    <div className={PANEL_TILE_CARD_CLASS}>
+      <div className={PANEL_TILE_FRAME_CLASS}>
+        <LiveKitVideoTile
+          trackRef={hostCameraPipTrack}
+          userId={hostProfile.userId}
+          name={hostProfile.name}
+          avatarUrl={hostProfile.avatarUrl}
+          cameraOff={isRemoteCameraOff}
+          waitingForVideo={waitingForHostVideo}
+          compact
+          panelLayout
+        />
+      </div>
+      <ParticipantPanelNameRow name={hostProfile.name} muted={isRemoteMuted} />
+    </div>
+  ) : null;
+
+  const otherMembersGallery =
+    otherMemberCount > 0 ? (
+      <LiveKitParticipantGallery
+        remoteParticipants={remoteParticipants}
+        participants={participants}
+        hostId={hostId}
+        memberVideoEnabled={memberVideoEnabled}
+        memberMicEnabled={memberMicEnabled}
+        layout="sidebar"
+        hideHeader
+        className="h-auto w-full max-w-none shrink border-0 bg-transparent xl:w-full"
+      />
+    ) : (
+      <p className="text-center text-sm text-gold-light/60">
+        No other members in the room yet.
+      </p>
+    );
+
+  const inRoomPanel = (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <p className="shrink-0 border-b border-gold/10 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
+      <p className="shrink-0 border-b border-gold/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80 sm:px-4 sm:py-3">
         In room
       </p>
-      <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-y-auto p-3">
-        <div className="mb-3 space-y-2">
-          {present && (
-            <div className={PANEL_TILE_CARD_CLASS}>
-              <div className={PANEL_TILE_FRAME_CLASS}>
-                <LiveKitVideoTile
-                  trackRef={hostCameraPipTrack}
-                  userId={hostProfile.userId}
-                  name={hostProfile.name}
-                  avatarUrl={hostProfile.avatarUrl}
-                  cameraOff={isRemoteCameraOff}
-                  waitingForVideo={waitingForHostVideo}
-                  compact
-                  panelLayout
-                />
-              </div>
-              <ParticipantPanelNameRow name={hostProfile.name} muted={isRemoteMuted} />
-            </div>
-          )}
-          <div className={PANEL_TILE_CARD_CLASS}>
-            <MemberSelfTile
-              trackRef={localCameraTrack}
-              userId={userId}
-              userName={userName}
-              avatarUrl={avatarUrl}
-              cameraOff={selfCameraOff}
-              waitingForVideo={waitingForSelfVideo}
-              selfMuted={selfMuted}
-              handRaised={handRaised}
-              myReaction={myReaction}
-              compact
-              panelLayout
-            />
-            <ParticipantPanelNameRow name="You" muted={selfMuted} />
-          </div>
-        </div>
-        {otherMemberCount > 0 ? (
-          <LiveKitParticipantGallery
-            remoteParticipants={remoteParticipants}
-            participants={participants}
-            hostId={hostId}
-            memberVideoEnabled={memberVideoEnabled}
-            memberMicEnabled={memberMicEnabled}
-            layout="sidebar"
-            hideHeader
-            className="h-auto w-full max-w-none shrink border-0 bg-transparent xl:w-full"
-          />
-        ) : (
-          <p className="text-center text-sm text-gold-light/60">
-            No other members in the room yet.
-          </p>
-        )}
+      <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain p-2 sm:p-3">
+        {hostPipCard}
+        {selfTileCard}
+        {otherMembersGallery}
       </div>
+    </div>
+  );
+
+  const hostMainVideo = (
+    <div
+      className={cn(
+        "relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black",
+        mobilePresentShare && "mobile-livestream-screen-share mx-auto w-full shrink-0",
+      )}
+    >
+      <LiveKitVideoTile
+        trackRef={hostMainTrack}
+        userId={hostProfile.userId}
+        name={hostProfile.name}
+        avatarUrl={hostProfile.avatarUrl}
+        cameraOff={present ? false : isRemoteCameraOff}
+        waitingForVideo={waitingForHostVideo}
+        videoClassName="h-full w-full object-contain"
+        lowLatency
+        className={mobilePresentShare ? "absolute inset-0 h-full w-full" : "h-full w-full"}
+      />
+      {!present && <MuteIndicator visible={isRemoteMuted} />}
+      {!present && (
+        <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
+          {hostProfile.name}
+        </p>
+      )}
     </div>
   );
 
   const videoPrimary = (
     <div
       className={cn(
-        "relative min-h-0 w-full flex-1 overflow-hidden bg-black",
-        desktopPresentSidebar && "flex flex-row",
-        mobilePresentShare && "flex flex-col items-stretch justify-start",
+        "relative flex min-h-0 w-full flex-1 overflow-hidden bg-black",
+        !isMobile && "min-h-0 flex-row",
+        mobilePresentShare && "flex-col items-stretch justify-start",
       )}
     >
-      {desktopPresentSidebar ? (
-        <>
-          <div className="flex min-h-0 w-36 shrink-0 flex-col self-stretch overflow-hidden border-r border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
-            <p className="shrink-0 border-b border-gold/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
-              In room
-            </p>
-            <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
-              <div className={PANEL_TILE_CARD_CLASS}>
-                <div className={PANEL_TILE_FRAME_CLASS}>
-                  <LiveKitVideoTile
-                    trackRef={hostCameraPipTrack}
-                    userId={hostProfile.userId}
-                    name={hostProfile.name}
-                    avatarUrl={hostProfile.avatarUrl}
-                    cameraOff={isRemoteCameraOff}
-                    waitingForVideo={waitingForHostVideo}
-                    compact
-                    panelLayout
-                  />
-                </div>
-                <ParticipantPanelNameRow name={hostProfile.name} muted={isRemoteMuted} />
-              </div>
-              <div className={PANEL_TILE_CARD_CLASS}>
-                <MemberSelfTile
-                  trackRef={localCameraTrack}
-                  userId={userId}
-                  userName={userName}
-                  avatarUrl={avatarUrl}
-                  cameraOff={selfCameraOff}
-                  waitingForVideo={waitingForSelfVideo}
-                  selfMuted={selfMuted}
-                  handRaised={handRaised}
-                  myReaction={myReaction}
-                  compact
-                  panelLayout
-                />
-                <ParticipantPanelNameRow name="You" muted={selfMuted} />
-              </div>
-            </div>
-          </div>
-          <div className="relative min-h-0 min-w-0 flex-1 bg-black">
-            <LiveKitVideoTile
-              trackRef={hostMainTrack}
-              userId={hostProfile.userId}
-              name={hostProfile.name}
-              avatarUrl={hostProfile.avatarUrl}
-              waitingForVideo={waitingForHostVideo}
-              videoClassName="h-full w-full object-contain"
-              lowLatency
-            />
-          </div>
-        </>
-      ) : mobilePresentShare ? (
-        <div className="mobile-livestream-screen-share relative mx-auto w-full shrink-0 overflow-hidden bg-black">
-          <LiveKitVideoTile
-            trackRef={hostMainTrack}
-            userId={hostProfile.userId}
-            name={hostProfile.name}
-            avatarUrl={hostProfile.avatarUrl}
-            waitingForVideo={waitingForHostVideo}
-            videoClassName="h-full w-full object-contain"
-            lowLatency
-            className="absolute inset-0 h-full w-full"
-          />
-        </div>
-      ) : desktopCornerPip ? (
-        <div className="relative h-full min-h-0 w-full">
-          <div className="absolute inset-0 overflow-hidden bg-black">
-            <LiveKitVideoTile
-              trackRef={hostMainTrack}
-              userId={hostProfile.userId}
-              name={hostProfile.name}
-              avatarUrl={hostProfile.avatarUrl}
-              cameraOff={isRemoteCameraOff}
-              waitingForVideo={waitingForHostVideo}
-              videoClassName="h-full w-full object-contain"
-              lowLatency
-            />
-            <MuteIndicator visible={isRemoteMuted} />
-            <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
-              {hostProfile.name}
-            </p>
-          </div>
-          <div className="pointer-events-none absolute bottom-3 right-3 z-10 sm:bottom-4 sm:right-4">
-            <MemberSelfTile
-              trackRef={localCameraTrack}
-              userId={userId}
-              userName={userName}
-              avatarUrl={avatarUrl}
-              cameraOff={selfCameraOff}
-              waitingForVideo={waitingForSelfVideo}
-              selfMuted={selfMuted}
-              handRaised={handRaised}
-              myReaction={myReaction}
-              pip
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="relative h-full min-h-0 w-full overflow-hidden bg-black">
-          <LiveKitVideoTile
-            trackRef={hostMainTrack}
-            userId={hostProfile.userId}
-            name={hostProfile.name}
-            avatarUrl={hostProfile.avatarUrl}
-            cameraOff={isRemoteCameraOff}
-            waitingForVideo={waitingForHostVideo}
-            videoClassName="h-full w-full object-contain"
-            lowLatency
-          />
-          <MuteIndicator visible={isRemoteMuted} />
-          <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
-            {hostProfile.name}
-          </p>
+      {!isMobile && (
+        <div className="flex min-h-0 w-36 shrink-0 flex-col self-stretch overflow-hidden border-r border-gold/20 bg-burgundy-dark sm:w-44 xl:w-52">
+          {inRoomPanel}
         </div>
       )}
+
+      {hostMainVideo}
 
       {!isLive && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
@@ -310,8 +233,7 @@ export function LivestreamMemberStage({
     !memberMicEnabled ? "mics off by host" : null,
   ].filter(Boolean);
 
-  const swipeBadge =
-    otherMemberCount + (isMobile ? (present ? 2 : 1) : present ? 2 : 0);
+  const swipeBadge = otherMemberCount + (present ? 2 : 1);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -338,7 +260,7 @@ export function LivestreamMemberStage({
       {isMobile ? (
         <MobileSwipePanels
           primary={videoPrimary}
-          secondary={inRoomSecondary}
+          secondary={inRoomPanel}
           secondaryLabel="In room"
           badge={swipeBadge}
         />
