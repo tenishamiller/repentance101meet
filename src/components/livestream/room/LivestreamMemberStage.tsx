@@ -160,9 +160,11 @@ export function LivestreamMemberStage({
 
   const videoPrimary = (
     <div
-      className={`relative flex min-h-0 flex-1 overflow-hidden bg-black ${
-        present && !isMobile ? "flex-row" : splitView ? "grid min-h-0 grid-cols-2 grid-rows-1" : ""
-      }`}
+      className={cn(
+        "relative min-h-0 w-full flex-1 overflow-hidden bg-black",
+        present && !isMobile && "flex flex-row",
+        !present && splitView && "grid min-h-0 grid-cols-2 grid-rows-1",
+      )}
     >
       {present && !isMobile ? (
         <>
@@ -216,13 +218,9 @@ export function LivestreamMemberStage({
             />
           </div>
         </>
-      ) : (
+      ) : splitView ? (
         <>
-          <div
-            className={`relative min-h-0 min-w-0 overflow-hidden ${
-              splitView ? "border-r border-gold/20 bg-black" : "absolute inset-0 bg-black"
-            }`}
-          >
+          <div className="relative min-h-0 min-w-0 overflow-hidden border-r border-gold/20 bg-black">
             <LiveKitVideoTile
               trackRef={hostMainTrack}
               userId={hostProfile.userId}
@@ -234,45 +232,55 @@ export function LivestreamMemberStage({
               lowLatency
             />
             <MuteIndicator visible={isRemoteMuted} />
-            {!present && (
-              <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
-                {hostProfile.name}
-              </p>
-            )}
           </div>
-
-          {splitView ? (
-            <div className="relative min-h-0 min-w-0 overflow-hidden">
-              <MemberSelfTile
-                trackRef={localCameraTrack}
-                userId={userId}
-                userName={userName}
-                avatarUrl={avatarUrl}
-                cameraOff={selfCameraOff}
-                waitingForVideo={waitingForSelfVideo}
-                selfMuted={selfMuted}
-                handRaised={handRaised}
-                myReaction={myReaction}
-                showYouLabel
-              />
-            </div>
-          ) : (
-            <div className="pointer-events-none absolute bottom-3 right-3 z-10 sm:bottom-4 sm:right-4">
-              <MemberSelfTile
-                trackRef={localCameraTrack}
-                userId={userId}
-                userName={userName}
-                avatarUrl={avatarUrl}
-                cameraOff={selfCameraOff}
-                waitingForVideo={waitingForSelfVideo}
-                selfMuted={selfMuted}
-                handRaised={handRaised}
-                myReaction={myReaction}
-                pip
-              />
-            </div>
-          )}
+          <div className="relative min-h-0 min-w-0 overflow-hidden">
+            <MemberSelfTile
+              trackRef={localCameraTrack}
+              userId={userId}
+              userName={userName}
+              avatarUrl={avatarUrl}
+              cameraOff={selfCameraOff}
+              waitingForVideo={waitingForSelfVideo}
+              selfMuted={selfMuted}
+              handRaised={handRaised}
+              myReaction={myReaction}
+              showYouLabel
+            />
+          </div>
         </>
+      ) : (
+        <div className="relative h-full min-h-0 w-full">
+          <div className="absolute inset-0 overflow-hidden bg-black">
+            <LiveKitVideoTile
+              trackRef={hostMainTrack}
+              userId={hostProfile.userId}
+              name={hostProfile.name}
+              avatarUrl={hostProfile.avatarUrl}
+              cameraOff={isRemoteCameraOff}
+              waitingForVideo={waitingForHostVideo}
+              videoClassName="h-full w-full object-contain"
+              lowLatency
+            />
+            <MuteIndicator visible={isRemoteMuted} />
+            <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
+              {hostProfile.name}
+            </p>
+          </div>
+          <div className="pointer-events-none absolute bottom-3 right-3 z-10 sm:bottom-4 sm:right-4">
+            <MemberSelfTile
+              trackRef={localCameraTrack}
+              userId={userId}
+              userName={userName}
+              avatarUrl={avatarUrl}
+              cameraOff={selfCameraOff}
+              waitingForVideo={waitingForSelfVideo}
+              selfMuted={selfMuted}
+              handRaised={handRaised}
+              myReaction={myReaction}
+              pip
+            />
+          </div>
+        </div>
       )}
 
       {!isLive && (

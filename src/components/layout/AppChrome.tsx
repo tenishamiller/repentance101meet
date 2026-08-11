@@ -22,7 +22,7 @@ export function AppChrome({ children, footer }: Props) {
           "flex flex-1 flex-col",
           showBottomNav && "mobile-main-pad md:pb-0",
           immersive
-            ? "h-[100dvh] min-h-0 overflow-hidden mobile-immersive-main"
+            ? "flex min-h-0 flex-1 flex-col overflow-hidden h-[calc(100svh-4.5rem)] max-h-[calc(100svh-4.5rem)] sm:h-[calc(100svh-5rem)] sm:max-h-[calc(100svh-5rem)] mobile-immersive-main"
             : undefined,
         )}
       >
