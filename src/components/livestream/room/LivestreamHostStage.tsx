@@ -4,6 +4,7 @@ import { MonitorUp } from "lucide-react";
 import type { TrackReference } from "@livekit/components-core";
 import { LivestreamAudienceSignals } from "@/components/livestream/LivestreamAudienceSignals";
 import { MuteIndicator } from "@/components/livestream/MuteIndicator";
+import { MobileSwipePanels } from "@/components/layout/MobileSwipePanels";
 import { LiveKitParticipantGallery } from "@/components/livekit/LiveKitParticipantGallery";
 import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
@@ -40,6 +41,7 @@ type Props = {
   raisedHands: { userId: string; name: string }[];
   thumbsUp: number;
   thumbsDown: number;
+  isMobile?: boolean;
 };
 
 export function LivestreamHostStage({
@@ -64,10 +66,58 @@ export function LivestreamHostStage({
   raisedHands,
   thumbsUp,
   thumbsDown,
+  isMobile = false,
 }: Props) {
   const hasHostVideo = !!hostMainTrack?.publication?.track;
   const showCameraOff = isLive && isCameraOff && !isScreenSharing;
   const waitingForVideo = isLive && !showCameraOff && !hasHostVideo && !isScreenSharing;
+  const memberCount = remoteParticipants.filter((p) => p.identity !== hostId).length;
+  const inRoomCount = memberCount + (isScreenSharing && hostSelfTile ? 1 : 0);
+
+  const inRoomGallery = (
+    <LiveKitParticipantGallery
+      remoteParticipants={remoteParticipants}
+      participants={participants}
+      hostId={hostId}
+      hostSelfTile={hostSelfTile}
+      memberVideoEnabled={memberVideoEnabled}
+      memberMicEnabled={memberMicEnabled}
+      layout="sidebar"
+      side={isScreenSharing ? "left" : "right"}
+      className={isMobile ? "h-full w-full max-w-none shrink border-0 xl:w-full" : undefined}
+    />
+  );
+
+  const videoStage = (
+    <div
+      className={`relative min-h-0 min-w-0 flex-1 overflow-hidden ${
+        showCameraOff ? "bg-burgundy-deep" : "bg-black"
+      }`}
+    >
+      <LiveKitVideoTile
+        trackRef={hostMainTrack}
+        userId={userId}
+        name={userName}
+        avatarUrl={avatarUrl}
+        cameraOff={showCameraOff}
+        waitingForVideo={waitingForVideo}
+        videoClassName="h-full w-full object-contain"
+      />
+      {!isScreenSharing && <MuteIndicator visible={isMuted} />}
+      {!isLive && !error && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-burgundy-deep/90">
+          <p className="font-serif text-gold-light">
+            {isConnecting ? "Connecting video…" : "Waiting for video connection…"}
+          </p>
+        </div>
+      )}
+      <LivestreamAudienceSignals
+        raisedHands={raisedHands}
+        thumbsUp={thumbsUp}
+        thumbsDown={thumbsDown}
+      />
+    </div>
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -97,59 +147,19 @@ export function LivestreamHostStage({
       </div>
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">
-        {isScreenSharing && (
-          <LiveKitParticipantGallery
-            remoteParticipants={remoteParticipants}
-            participants={participants}
-            hostId={hostId}
-            hostSelfTile={hostSelfTile}
-            memberVideoEnabled={memberVideoEnabled}
-            memberMicEnabled={memberMicEnabled}
-            layout="sidebar"
-            side="left"
+        {isMobile ? (
+          <MobileSwipePanels
+            primary={videoStage}
+            secondary={inRoomGallery}
+            secondaryLabel="In room"
+            badge={inRoomCount}
           />
-        )}
-
-        <div
-          className={`relative min-h-0 min-w-0 flex-1 overflow-hidden ${
-            showCameraOff ? "bg-burgundy-deep" : "bg-black"
-          }`}
-        >
-          <LiveKitVideoTile
-            trackRef={hostMainTrack}
-            userId={userId}
-            name={userName}
-            avatarUrl={avatarUrl}
-            cameraOff={showCameraOff}
-            waitingForVideo={waitingForVideo}
-            videoClassName="h-full w-full object-contain"
-          />
-          {!isScreenSharing && <MuteIndicator visible={isMuted} />}
-          {!isLive && !error && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-burgundy-deep/90">
-              <p className="font-serif text-gold-light">
-                {isConnecting ? "Connecting video…" : "Waiting for video connection…"}
-              </p>
-            </div>
-          )}
-          <LivestreamAudienceSignals
-            raisedHands={raisedHands}
-            thumbsUp={thumbsUp}
-            thumbsDown={thumbsDown}
-          />
-        </div>
-
-        {!isScreenSharing && (
-          <LiveKitParticipantGallery
-            remoteParticipants={remoteParticipants}
-            participants={participants}
-            hostId={hostId}
-            hostSelfTile={hostSelfTile}
-            memberVideoEnabled={memberVideoEnabled}
-            memberMicEnabled={memberMicEnabled}
-            layout="sidebar"
-            side="right"
-          />
+        ) : (
+          <>
+            {isScreenSharing && inRoomGallery}
+            {videoStage}
+            {!isScreenSharing && inRoomGallery}
+          </>
         )}
       </div>
     </div>

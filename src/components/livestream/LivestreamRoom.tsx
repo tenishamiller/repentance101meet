@@ -267,6 +267,7 @@ function LivestreamRoomContent({
               raisedHands={raisedHands}
               thumbsUp={thumbsUp}
               thumbsDown={thumbsDown}
+              isMobile={isMobile}
             />
 
             <div
@@ -389,6 +390,10 @@ function LivestreamRoomContent({
                 thumbsDown={thumbsDown}
                 handRaised={handRaised}
                 myReaction={myReaction}
+                isMobile={isMobile}
+                hostId={hostId}
+                remoteParticipants={remoteParticipants}
+                participants={participants}
               />
             </div>
 

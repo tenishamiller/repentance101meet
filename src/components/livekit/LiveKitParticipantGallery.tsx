@@ -111,6 +111,8 @@ type GalleryProps = {
   memberMicEnabled: boolean;
   layout?: "sidebar" | "bottom";
   side?: "left" | "right";
+  className?: string;
+  hideHeader?: boolean;
 };
 
 export function LiveKitParticipantGallery({
@@ -122,6 +124,8 @@ export function LiveKitParticipantGallery({
   memberMicEnabled,
   layout = "sidebar",
   side = "right",
+  className,
+  hideHeader = false,
 }: GalleryProps) {
   const members = remoteParticipants.filter((p) => p.identity !== hostId);
   const dbById = new Map(participants.map((p) => [p.user.id, p]));
@@ -138,6 +142,7 @@ export function LiveKitParticipantGallery({
         className={cn(
           "flex min-h-0 w-44 shrink-0 flex-col self-stretch overflow-hidden bg-burgundy-dark/90 xl:w-52",
           side === "left" ? "border-r border-gold/20" : "border-l border-gold/20",
+          className,
         )}
       >
         {empty}
@@ -189,11 +194,14 @@ export function LiveKitParticipantGallery({
         className={cn(
           "flex min-h-0 w-44 shrink-0 flex-col self-stretch overflow-hidden bg-burgundy-dark/90 xl:w-52",
           side === "left" ? "border-r border-gold/20" : "border-l border-gold/20",
+          className,
         )}
       >
-        <p className="shrink-0 border-b border-gold/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
-          In room ({tileCount})
-        </p>
+        {!hideHeader && (
+          <p className="shrink-0 border-b border-gold/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gold-light/80">
+            In room ({tileCount})
+          </p>
+        )}
         <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
           {tiles}
         </div>
