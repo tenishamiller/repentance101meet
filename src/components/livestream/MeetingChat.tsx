@@ -258,15 +258,15 @@ export function MeetingChat({
   }
 
   return (
-    <div className="grid h-full min-h-0 w-full grid-rows-[auto_minmax(0,1fr)_auto] bg-burgundy-dark">
-      <div className="border-b border-gold/20 px-4 py-3">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-burgundy-dark">
+      <div className="shrink-0 border-b border-gold/20 px-4 py-3">
         <h3 className="font-serif font-semibold text-cream">Meeting Chat</h3>
       </div>
-      <div className="relative min-h-0 overflow-hidden">
+      <div className="relative min-h-0 flex-1 overflow-hidden">
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="chat-scroll chat-scroll-dark absolute inset-0 overflow-y-auto p-4"
+          className="chat-scroll chat-scroll-dark h-full overflow-y-auto overscroll-y-contain p-4"
         >
         {messages.length === 0 && (
           <p className="text-center text-sm text-gold-light/60">

@@ -514,12 +514,12 @@ function LivestreamRoomContent({
       </div>
 
       <div
-        className={`flex min-h-0 flex-col overflow-hidden border-t border-gold/20 bg-burgundy-dark lg:h-full lg:min-h-0 lg:shrink-0 lg:border-l lg:border-t-0 ${
+        className={`flex min-h-0 flex-col overflow-hidden border-t border-gold/20 bg-burgundy-dark lg:h-full lg:min-h-0 lg:shrink-0 lg:border-l lg:border-t-0 lg:w-[28rem] xl:w-[32rem] ${
           isMobile
             ? mobileTab === "video"
-              ? "hidden lg:flex lg:w-[28rem] xl:w-[32rem]"
-              : "min-h-0 flex-1 basis-0 border-t-0 w-full"
-            : "h-full w-full lg:w-[28rem] xl:w-[32rem]"
+              ? "hidden lg:flex"
+              : "min-h-0 flex-1 basis-0 w-full border-t-0"
+            : ""
         }`}
       >
         {isHost && (!isMobile || mobileTab === "people") && (
@@ -527,7 +527,7 @@ function LivestreamRoomContent({
             className={`flex min-h-0 flex-col overflow-hidden border-b border-gold/20 bg-burgundy ${
               isMobile && mobileTab === "people"
                 ? "min-h-0 flex-1"
-                : "max-h-[min(320px,42%)] shrink-0 lg:max-h-[min(360px,45%)]"
+                : "max-h-[min(280px,38vh)] shrink-0 lg:max-h-[min(320px,40vh)]"
             }`}
           >
             <div className="shrink-0 px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
@@ -650,7 +650,7 @@ function LivestreamRoomContent({
         )}
 
         {isHost && privateMessageMember && (!isMobile || mobileTab === "people") && (
-          <div className="shrink-0 border-b border-gold/20 bg-burgundy-dark lg:max-h-[min(240px,30%)] lg:min-h-0 lg:overflow-hidden">
+          <div className="max-h-[min(220px,28vh)] min-h-0 shrink-0 overflow-hidden border-b border-gold/20 bg-burgundy-dark">
             <HostPrivateMessagePanel
               member={privateMessageMember}
               hostId={userId}
@@ -660,7 +660,7 @@ function LivestreamRoomContent({
         )}
 
         {(!isMobile || mobileTab === "chat") && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden">
             <MeetingChat
               meetingToken={meetingToken}
               userId={userId}
