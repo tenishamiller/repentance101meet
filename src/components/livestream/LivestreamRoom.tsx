@@ -32,6 +32,7 @@ import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
 import { YouTubeStreamPanel } from "@/components/livestream/YouTubeStreamPanel";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { HostPrivateMessagePanel } from "@/components/livestream/HostPrivateMessagePanel";
+import { LivestreamViewersPanel } from "@/components/livestream/LivestreamViewersPanel";
 import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPopover";
 import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
 import { LivestreamRoomAudio } from "@/components/livekit/LivestreamRoomAudio";
@@ -513,25 +514,16 @@ function LivestreamRoomContent({
         )}
       </div>
 
+      {/* Mobile sidebar */}
       <aside
-        className={`min-h-0 overflow-hidden overscroll-none border-t border-gold/20 bg-burgundy-dark lg:h-full lg:min-h-0 lg:shrink-0 lg:border-l lg:border-t-0 lg:w-[28rem] xl:w-[32rem] ${
-          isMobile
-            ? mobileTab === "video"
-              ? "hidden lg:grid"
-              : "flex min-h-0 flex-1 basis-0 flex-col w-full border-t-0"
-            : isHost
-              ? privateMessageMember
-                ? "grid h-full grid-rows-[minmax(0,28vh)_minmax(0,auto)_minmax(0,1fr)]"
-                : "grid h-full grid-rows-[minmax(0,32vh)_minmax(0,1fr)]"
-              : "grid h-full grid-rows-[minmax(0,1fr)]"
+        className={`lg:hidden min-h-0 overflow-hidden border-t border-gold/20 bg-burgundy-dark ${
+          mobileTab === "video"
+            ? "hidden"
+            : "flex min-h-0 flex-1 basis-0 flex-col w-full border-t-0"
         }`}
       >
-        {isHost && (!isMobile || mobileTab === "people") && (
-          <section
-            className={`flex min-h-0 flex-col overflow-hidden border-b border-gold/20 bg-burgundy ${
-              isMobile && mobileTab === "people" ? "min-h-0 flex-1" : "min-h-0 lg:h-full"
-            }`}
-          >
+        {isHost && mobileTab === "people" && (
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden border-b border-gold/20 bg-burgundy">
             <div className="shrink-0 px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
               {(thumbsUp > 0 || thumbsDown > 0 || clapCount > 0) && (
                 <div className="mb-2 flex gap-2 text-sm">
@@ -676,6 +668,49 @@ function LivestreamRoomContent({
             />
           </div>
         )}
+      </aside>
+
+      {/* Desktop sidebar — flex column so chat composer stays pinned at the bottom */}
+      <aside className="hidden h-full min-h-0 w-[28rem] shrink-0 flex-col overflow-hidden border-l border-gold/20 bg-burgundy-dark lg:flex xl:w-[32rem]">
+        {isHost && (
+          <>
+            <LivestreamViewersPanel
+              className="max-h-[34vh] shrink-0"
+              meetingToken={meetingToken}
+              viewerCount={viewerCount}
+              viewers={viewers}
+              raisedHands={raisedHands}
+              thumbsUp={thumbsUp}
+              thumbsDown={thumbsDown}
+              clapCount={clapCount}
+              memberMicEnabled={memberMicEnabled}
+              viewerMicOnById={viewerMicOnById}
+              privateMessageMemberId={privateMessageMember?.id ?? null}
+              onTogglePrivateMessage={(member) =>
+                setPrivateMessageMember((current) =>
+                  current?.id === member.id ? null : member,
+                )
+              }
+              onKickViewer={(viewerId) => void kickViewer(viewerId)}
+            />
+            {privateMessageMember && (
+              <div className="max-h-[min(220px,28vh)] min-h-0 shrink-0 overflow-hidden border-b border-gold/20 bg-burgundy-dark">
+                <HostPrivateMessagePanel
+                  member={privateMessageMember}
+                  hostId={userId}
+                  onClose={() => setPrivateMessageMember(null)}
+                />
+              </div>
+            )}
+          </>
+        )}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <MeetingChat
+            meetingToken={meetingToken}
+            userId={userId}
+            isAdmin={isHost}
+          />
+        </div>
       </aside>
 
       {isMobile && (
