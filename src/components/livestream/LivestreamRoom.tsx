@@ -324,7 +324,7 @@ function LivestreamRoomContent({
                 className={
                   isMobile
                     ? MOBILE_CONTROL_ROW
-                    : "flex flex-wrap items-center justify-center gap-x-3 gap-y-2"
+                    : "flex flex-wrap items-center justify-center gap-x-5 gap-y-2.5 lg:gap-x-7"
                 }
               >
                 {/* You — host self media */}
@@ -348,10 +348,10 @@ function LivestreamRoomContent({
                   />
                 </div>
 
-                {!isMobile && <span className="hidden h-7 w-px bg-gold/25 lg:block" aria-hidden />}
+                {!isMobile && <span className="hidden h-8 w-px shrink-0 bg-gold/30 sm:block" aria-hidden />}
 
-                {/* Audience — member camera/mic policy */}
-                <div className="flex items-center gap-2">
+                {/* Audience — member camera/mic policy (compact so it stays clear of Share) */}
+                <div className="flex items-center gap-1.5">
                   {!isMobile && (
                     <span className="hidden text-[10px] font-bold uppercase tracking-wide text-gold/70 xl:inline">
                       Members
@@ -360,24 +360,34 @@ function LivestreamRoomContent({
                   <HostPolicyToggle
                     active={memberVideoEnabled}
                     onClick={toggleMemberVideo}
-                    enabledLabel="Member Cameras On"
-                    disabledLabel="Member Cameras Off"
+                    enabledLabel="Cams On"
+                    disabledLabel="Cams Off"
+                    title={
+                      memberVideoEnabled
+                        ? "Member cameras on — click to turn off"
+                        : "Member cameras off — click to turn on"
+                    }
                     enabledIcon={Video}
                     disabledIcon={VideoOff}
                   />
                   <HostPolicyToggle
                     active={memberMicEnabled}
                     onClick={toggleMemberMic}
-                    enabledLabel="Member Mics On"
-                    disabledLabel="Member Mics Off"
+                    enabledLabel="Mics On"
+                    disabledLabel="Mics Off"
+                    title={
+                      memberMicEnabled
+                        ? "Member mics on — click to mute all members"
+                        : "Member mics off — click to unmute all members"
+                    }
                     enabledIcon={Mic}
                     disabledIcon={MicOff}
                   />
                 </div>
 
-                {!isMobile && <span className="hidden h-7 w-px bg-gold/25 lg:block" aria-hidden />}
+                {!isMobile && <span className="hidden h-8 w-px shrink-0 bg-gold/30 sm:block" aria-hidden />}
 
-                {/* Devices + share */}
+                {/* Devices */}
                 <div className="flex items-center gap-2">
                   <CameraDeviceSelect
                     devices={videoInputDevices}
@@ -395,31 +405,37 @@ function LivestreamRoomContent({
                     onRefresh={() => void refreshMediaInputDevices()}
                     refreshing={isRefreshingDevices}
                   />
+                </div>
+
+                {!isMobile && <span className="hidden h-8 w-px shrink-0 bg-gold/30 sm:block" aria-hidden />}
+
+                {/* Screen share — own group, clear of member mic controls */}
+                <div className="flex items-center">
                   <button
                     type="button"
                     title="Share a window, screen, or browser tab. For tab audio, pick a Chrome tab and check “Share tab audio”."
                     onClick={() => void toggleScreenShare()}
-                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition sm:text-sm ${
+                    className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition sm:px-4 sm:text-sm ${
                       isScreenSharing
-                        ? "border-gold bg-gold text-burgundy-deep"
+                        ? "border-gold bg-gold text-burgundy-deep shadow-md"
                         : "border-gold/50 bg-burgundy text-gold-light hover:border-gold"
                     }`}
                   >
                     {isScreenSharing ? (
                       <>
-                        <MonitorOff className="h-4 w-4" />
+                        <MonitorOff className="h-4 w-4 shrink-0" />
                         Stop Share
                       </>
                     ) : (
                       <>
-                        <MonitorUp className="h-4 w-4" />
+                        <MonitorUp className="h-4 w-4 shrink-0" />
                         Share Screen
                       </>
                     )}
                   </button>
                 </div>
 
-                {!isMobile && <span className="hidden h-7 w-px bg-gold/25 lg:block" aria-hidden />}
+                {!isMobile && <span className="hidden h-8 w-px shrink-0 bg-gold/30 sm:block" aria-hidden />}
 
                 {/* Broadcast */}
                 <div className="flex items-center gap-2">
@@ -819,6 +835,7 @@ function HostPolicyToggle({
   onClick,
   enabledLabel,
   disabledLabel,
+  title,
   enabledIcon: EnabledIcon,
   disabledIcon: DisabledIcon,
 }: {
@@ -826,6 +843,7 @@ function HostPolicyToggle({
   onClick: () => void;
   enabledLabel: string;
   disabledLabel: string;
+  title?: string;
   enabledIcon: React.ComponentType<{ className?: string }>;
   disabledIcon: React.ComponentType<{ className?: string }>;
 }) {
@@ -835,14 +853,14 @@ function HostPolicyToggle({
     <button
       type="button"
       onClick={onClick}
-      title={label}
-      className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition sm:text-sm ${
+      title={title ?? label}
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold leading-none transition sm:px-2.5 sm:text-xs ${
         active
           ? "border-gold/50 bg-burgundy-dark text-gold-light hover:border-gold"
           : "border-gold bg-gold/20 text-cream"
       }`}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-3.5 w-3.5 shrink-0" />
       <span className="hidden sm:inline">{label}</span>
     </button>
   );
