@@ -130,7 +130,7 @@ export function LivestreamViewersPanel({
                       avatarUrl: p.user.avatarUrl,
                     })
                   }
-                  className={`rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${
+                  className={`min-w-[5.5rem] rounded-md px-3.5 py-1.5 text-center text-sm font-semibold transition ${
                     privateMessageMemberId === p.user.id
                       ? "bg-gold text-burgundy-deep"
                       : "border border-gold/40 bg-burgundy text-gold hover:border-gold hover:bg-burgundy-deep hover:text-gold-light"
