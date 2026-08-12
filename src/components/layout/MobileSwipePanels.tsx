@@ -63,7 +63,7 @@ export function MobileSwipePanels({
 
       {page === 0 && (
         <div
-          className="pointer-events-none absolute right-0 top-1/2 z-20 -translate-y-1/2"
+          className="pointer-events-none absolute bottom-14 right-0 z-20"
           aria-hidden
         >
           <div className="flex items-center gap-0.5 rounded-l-lg border border-r-0 border-gold/30 bg-burgundy-dark/90 py-2 pl-1 pr-2.5 text-[10px] font-semibold uppercase tracking-wide text-gold-light/80 shadow-lg backdrop-blur">
