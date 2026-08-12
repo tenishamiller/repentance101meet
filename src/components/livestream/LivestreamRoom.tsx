@@ -96,7 +96,6 @@ function LivestreamRoomContent({
 
   const {
     participants,
-    viewerCount,
     handRaised,
     thumbsUp,
     thumbsDown,
@@ -181,17 +180,47 @@ function LivestreamRoomContent({
 
   const error = [presenceError, mediaError].filter(Boolean).join(" ");
 
+  /** Only members currently connected in LiveKit — drops from Viewers as soon as they disconnect. */
+  const connectedMemberIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const participant of remoteParticipants) {
+      if (participant.identity !== hostId) {
+        ids.add(participant.identity);
+      }
+    }
+    return ids;
+  }, [hostId, remoteParticipants]);
+
   const raisedHands = useMemo(
     () =>
       participants
-        .filter((p) => p.handRaised && p.user.id !== hostId)
+        .filter(
+          (p) =>
+            p.handRaised &&
+            p.user.id !== hostId &&
+            connectedMemberIds.has(p.user.id),
+        )
         .map((p) => ({ userId: p.user.id, name: p.user.name })),
-    [participants, hostId],
+    [participants, hostId, connectedMemberIds],
   );
   const viewers = useMemo(
-    () => participants.filter((p) => p.user.id !== hostId),
-    [participants, hostId],
+    () =>
+      participants.filter(
+        (p) => p.user.id !== hostId && connectedMemberIds.has(p.user.id),
+      ),
+    [participants, hostId, connectedMemberIds],
   );
+  const viewerCount = viewers.length;
+
+  useEffect(() => {
+    if (
+      privateMessageMember &&
+      !connectedMemberIds.has(privateMessageMember.id)
+    ) {
+      setPrivateMessageMember(null);
+    }
+  }, [connectedMemberIds, privateMessageMember]);
+
   const viewerMicOnById = useMemo(() => {
     const map = new Map<string, boolean>();
     for (const participant of remoteMemberParticipants) {
