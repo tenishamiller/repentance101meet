@@ -102,6 +102,7 @@ function LivestreamRoomContent({
     thumbsDown,
     clapCount,
     myReaction,
+    memberVideoEnabled,
     memberMicEnabled,
     meetingEnded,
     wasRemoved,
@@ -109,6 +110,7 @@ function LivestreamRoomContent({
     error: presenceError,
     toggleHand,
     sendReaction,
+    toggleMemberVideo,
     toggleMemberMic,
     kickViewer,
     leaveMeeting,
@@ -118,7 +120,7 @@ function LivestreamRoomContent({
     userId,
     isHost,
     hostId,
-    initialMemberVideoEnabled: true,
+    initialMemberVideoEnabled: liveKitMeeting?.memberVideoEnabled ?? true,
     initialMemberMicEnabled: liveKitMeeting?.memberMicEnabled ?? true,
     onMediaPolicyChange: liveKitMeeting?.reloadToken,
   });
@@ -170,7 +172,7 @@ function LivestreamRoomContent({
     hostId,
     userId,
     isHost,
-    memberVideoEnabled: true,
+    memberVideoEnabled,
     memberMicEnabled,
     initialMemberCameraOn: joinCameraOn,
     initialMemberMicOn: joinMicOn,
@@ -274,7 +276,7 @@ function LivestreamRoomContent({
               remoteParticipants={remoteParticipants}
               participants={participants}
               hostId={hostId}
-              memberVideoEnabled={true}
+              memberVideoEnabled={memberVideoEnabled}
               memberMicEnabled={memberMicEnabled}
               raisedHands={raisedHands}
               thumbsUp={thumbsUp}
@@ -293,77 +295,116 @@ function LivestreamRoomContent({
                 className={
                   isMobile
                     ? MOBILE_CONTROL_ROW
-                    : "flex flex-wrap items-center justify-center gap-2"
+                    : "flex flex-wrap items-center justify-center gap-x-3 gap-y-2"
                 }
               >
-                <YouTubeStreamPanel />
-                <button
-                  type="button"
-                  disabled={isSavingRecording}
-                  onClick={() => void endBroadcast()}
-                  className="inline-flex items-center gap-2 rounded-lg border-2 border-gold/60 bg-burgundy-dark px-3 py-2 text-xs font-bold text-cream transition hover:bg-burgundy disabled:opacity-60 sm:text-sm"
-                >
-                  <Square className="h-4 w-4 fill-current" />
-                  {isSavingRecording ? "Ending..." : "End Livestream"}
-                </button>
-                <CameraDeviceSelect
-                  devices={videoInputDevices}
-                  selectedDeviceId={selectedVideoDeviceId}
-                  onChange={(deviceId) => void switchVideoDevice(deviceId)}
-                  onRefresh={() => void refreshMediaInputDevices()}
-                  onFlip={() => void switchFacingMode()}
-                  showFlip={isMobile}
-                  refreshing={isRefreshingDevices}
-                />
-                <AudioDeviceSelect
-                  devices={audioInputDevices}
-                  selectedDeviceId={selectedAudioDeviceId}
-                  onChange={(deviceId) => void switchAudioDevice(deviceId)}
-                  onRefresh={() => void refreshMediaInputDevices()}
-                  refreshing={isRefreshingDevices}
-                />
-                <button
-                  type="button"
-                  title="Share a window, screen, or browser tab. For tab audio, pick a Chrome tab and check “Share tab audio”."
-                  onClick={() => void toggleScreenShare()}
-                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition sm:text-sm ${
-                    isScreenSharing
-                      ? "border-gold bg-gold text-burgundy-deep"
-                      : "border-gold/50 bg-burgundy text-gold-light hover:border-gold"
-                  }`}
-                >
-                  {isScreenSharing ? (
-                    <>
-                      <MonitorOff className="h-4 w-4" />
-                      Stop Share
-                    </>
-                  ) : (
-                    <>
-                      <MonitorUp className="h-4 w-4" />
-                      Share Screen
-                    </>
+                {/* You — host self media */}
+                <div className="flex items-center gap-2">
+                  {!isMobile && (
+                    <span className="hidden text-[10px] font-bold uppercase tracking-wide text-gold/70 xl:inline">
+                      You
+                    </span>
                   )}
-                </button>
-                <HostPolicyToggle
-                  active={memberMicEnabled}
-                  onClick={toggleMemberMic}
-                  enabledLabel="Member Mics On"
-                  disabledLabel="Member Mics Off"
-                  enabledIcon={Mic}
-                  disabledIcon={MicOff}
-                />
-                <ControlButton
-                  onClick={toggleMute}
-                  active={!isMuted}
-                  label={isMuted ? "Unmute" : "Mute"}
-                  icon={isMuted ? MicOff : Mic}
-                />
-                <ControlButton
-                  onClick={toggleCamera}
-                  active={!isCameraOff}
-                  label={isCameraOff ? "Camera On" : "Camera Off"}
-                  icon={isCameraOff ? VideoOff : Video}
-                />
+                  <ControlButton
+                    onClick={toggleMute}
+                    active={!isMuted}
+                    label={isMuted ? "Unmute" : "Mute"}
+                    icon={isMuted ? MicOff : Mic}
+                  />
+                  <ControlButton
+                    onClick={toggleCamera}
+                    active={!isCameraOff}
+                    label={isCameraOff ? "Camera On" : "Camera Off"}
+                    icon={isCameraOff ? VideoOff : Video}
+                  />
+                </div>
+
+                {!isMobile && <span className="hidden h-7 w-px bg-gold/25 lg:block" aria-hidden />}
+
+                {/* Audience — member camera/mic policy */}
+                <div className="flex items-center gap-2">
+                  {!isMobile && (
+                    <span className="hidden text-[10px] font-bold uppercase tracking-wide text-gold/70 xl:inline">
+                      Members
+                    </span>
+                  )}
+                  <HostPolicyToggle
+                    active={memberVideoEnabled}
+                    onClick={toggleMemberVideo}
+                    enabledLabel="Member Cameras On"
+                    disabledLabel="Member Cameras Off"
+                    enabledIcon={Video}
+                    disabledIcon={VideoOff}
+                  />
+                  <HostPolicyToggle
+                    active={memberMicEnabled}
+                    onClick={toggleMemberMic}
+                    enabledLabel="Member Mics On"
+                    disabledLabel="Member Mics Off"
+                    enabledIcon={Mic}
+                    disabledIcon={MicOff}
+                  />
+                </div>
+
+                {!isMobile && <span className="hidden h-7 w-px bg-gold/25 lg:block" aria-hidden />}
+
+                {/* Devices + share */}
+                <div className="flex items-center gap-2">
+                  <CameraDeviceSelect
+                    devices={videoInputDevices}
+                    selectedDeviceId={selectedVideoDeviceId}
+                    onChange={(deviceId) => void switchVideoDevice(deviceId)}
+                    onRefresh={() => void refreshMediaInputDevices()}
+                    onFlip={() => void switchFacingMode()}
+                    showFlip={isMobile}
+                    refreshing={isRefreshingDevices}
+                  />
+                  <AudioDeviceSelect
+                    devices={audioInputDevices}
+                    selectedDeviceId={selectedAudioDeviceId}
+                    onChange={(deviceId) => void switchAudioDevice(deviceId)}
+                    onRefresh={() => void refreshMediaInputDevices()}
+                    refreshing={isRefreshingDevices}
+                  />
+                  <button
+                    type="button"
+                    title="Share a window, screen, or browser tab. For tab audio, pick a Chrome tab and check “Share tab audio”."
+                    onClick={() => void toggleScreenShare()}
+                    className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition sm:text-sm ${
+                      isScreenSharing
+                        ? "border-gold bg-gold text-burgundy-deep"
+                        : "border-gold/50 bg-burgundy text-gold-light hover:border-gold"
+                    }`}
+                  >
+                    {isScreenSharing ? (
+                      <>
+                        <MonitorOff className="h-4 w-4" />
+                        Stop Share
+                      </>
+                    ) : (
+                      <>
+                        <MonitorUp className="h-4 w-4" />
+                        Share Screen
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {!isMobile && <span className="hidden h-7 w-px bg-gold/25 lg:block" aria-hidden />}
+
+                {/* Broadcast */}
+                <div className="flex items-center gap-2">
+                  <YouTubeStreamPanel />
+                  <button
+                    type="button"
+                    disabled={isSavingRecording}
+                    onClick={() => void endBroadcast()}
+                    className="inline-flex items-center gap-2 rounded-lg border-2 border-gold/60 bg-burgundy-dark px-3 py-2 text-xs font-bold text-cream transition hover:bg-burgundy disabled:opacity-60 sm:text-sm"
+                  >
+                    <Square className="h-4 w-4 fill-current" />
+                    {isSavingRecording ? "Ending..." : "End Livestream"}
+                  </button>
+                </div>
               </div>
             </div>
           </>
@@ -379,7 +420,7 @@ function LivestreamRoomContent({
                 isRemoteCameraOff={isRemoteCameraOff}
                 isRemoteMuted={isRemoteMuted}
                 isRemoteScreenSharing={isRemoteScreenSharing}
-                memberVideoEnabled={true}
+                memberVideoEnabled={memberVideoEnabled}
                 memberMicEnabled={memberMicEnabled}
                 hostProfile={hostProfile}
                 userId={userId}
@@ -434,14 +475,28 @@ function LivestreamRoomContent({
               <ControlButton
                 onClick={toggleMute}
                 active={!isMuted}
-                label={isMuted ? "Unmute" : "Mute"}
-                icon={isMuted ? MicOff : Mic}
+                disabled={!memberMicEnabled}
+                label={
+                  !memberMicEnabled
+                    ? "Host muted mics"
+                    : isMuted
+                      ? "Unmute"
+                      : "Mute"
+                }
+                icon={isMuted || !memberMicEnabled ? MicOff : Mic}
               />
               <ControlButton
                 onClick={toggleCamera}
                 active={!isCameraOff}
-                label={isCameraOff ? "Camera On" : "Camera Off"}
-                icon={isCameraOff ? VideoOff : Video}
+                disabled={!memberVideoEnabled}
+                label={
+                  !memberVideoEnabled
+                    ? "Host disabled cameras"
+                    : isCameraOff
+                      ? "Camera On"
+                      : "Camera Off"
+                }
+                icon={isCameraOff || !memberVideoEnabled ? VideoOff : Video}
               />
               <button
                 type="button"
@@ -769,18 +824,21 @@ function ControlButton({
   active,
   label,
   icon: Icon,
+  disabled = false,
 }: {
   onClick: () => void;
   active: boolean;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       title={label}
-      className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
+      className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
         active
           ? "border-gold/30 bg-burgundy text-cream hover:bg-burgundy-dark"
           : "border-gold/50 bg-gold/15 text-gold-light hover:bg-gold/25"

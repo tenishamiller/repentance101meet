@@ -218,6 +218,7 @@ export function useMeetingPresence({
       setMemberVideoEnabled(data.memberVideoEnabled !== false);
       setMemberMicEnabled(data.memberMicEnabled !== false);
       setError("");
+      onMediaPolicyChangeRef.current?.();
     },
     [isHost, meetingToken],
   );

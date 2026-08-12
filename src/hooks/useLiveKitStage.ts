@@ -58,6 +58,7 @@ export function useLiveKitStage({
   hostId,
   userId,
   isHost,
+  memberVideoEnabled,
   memberMicEnabled,
   initialMemberCameraOn = false,
   initialMemberMicOn = false,
@@ -156,12 +157,16 @@ export function useLiveKitStage({
           ? hostCameraFromRoom
           : undefined;
 
-  const canUseMic = isHost || mode === "private" || mode === "livestream";
-  const canUseCamera = isHost || mode === "private" || mode === "livestream";
+  const canUseMic =
+    isHost || mode === "private" || (mode === "livestream" && memberMicEnabled);
+  const canUseCamera =
+    isHost || mode === "private" || (mode === "livestream" && memberVideoEnabled);
 
   const isMuted = !isMicrophoneEnabled || !canUseMic;
   const isCameraOff =
-    cameraOffByUser || !canUseCamera || (!isCameraEnabled && !localCameraPublication?.track);
+    cameraOffByUser ||
+    !canUseCamera ||
+    (!isCameraEnabled && !localCameraPublication?.track);
 
   const remoteParticipant = mode === "private" ? privatePeer : hostParticipant;
   const isRemoteMuted = remoteParticipant ? !remoteParticipant.isMicrophoneEnabled : false;
@@ -188,6 +193,7 @@ export function useLiveKitStage({
     isLive &&
     !isHost &&
     mode === "livestream" &&
+    memberVideoEnabled &&
     initialMemberCameraOn &&
     !cameraOffByUser &&
     !hasLocalVideoTrack;
@@ -244,6 +250,15 @@ export function useLiveKitStage({
   }, [isHost, localParticipant, memberMicEnabled, mode]);
 
   useEffect(() => {
+    if (isHost || mode !== "livestream") return;
+    if (!memberVideoEnabled) {
+      cameraOffByUserRef.current = true;
+      setCameraOffByUser(true);
+      void enableMemberCamera(false);
+    }
+  }, [enableMemberCamera, isHost, memberVideoEnabled, mode]);
+
+  useEffect(() => {
     if (connectionState !== ConnectionState.Connected) return;
 
     void (async () => {
@@ -260,14 +275,14 @@ export function useLiveKitStage({
           return;
         }
 
-        if (initialMemberCameraOn) {
+        if (memberVideoEnabled && initialMemberCameraOn) {
           await enableMemberCamera(true);
           cameraOffByUserRef.current = false;
           setCameraOffByUser(false);
         } else {
           cameraOffByUserRef.current = true;
           setCameraOffByUser(true);
-          await localParticipant.setCameraEnabled(false);
+          await enableMemberCamera(false);
         }
 
         if (memberMicEnabled && initialMemberMicOn) {
@@ -288,12 +303,13 @@ export function useLiveKitStage({
     isHost,
     localParticipant,
     memberMicEnabled,
+    memberVideoEnabled,
     mode,
   ]);
 
   useEffect(() => {
     if (isHost || mode !== "livestream" || connectionState !== ConnectionState.Connected) return;
-    if (cameraOffByUserRef.current) {
+    if (!memberVideoEnabled || cameraOffByUserRef.current) {
       void enableMemberCamera(false);
       return;
     }
@@ -303,6 +319,7 @@ export function useLiveKitStage({
     enableMemberCamera,
     isHost,
     isRemoteScreenSharing,
+    memberVideoEnabled,
     mode,
   ]);
 
@@ -359,6 +376,7 @@ export function useLiveKitStage({
 
   const toggleCamera = useCallback(async () => {
     if (!canUseCamera) return;
+    if (!isHost && mode === "livestream" && !memberVideoEnabled) return;
     const nextOff = !cameraOffByUserRef.current;
     cameraOffByUserRef.current = nextOff;
     setCameraOffByUser(nextOff);
@@ -371,7 +389,15 @@ export function useLiveKitStage({
       return;
     }
     await localParticipant.setCameraEnabled(!nextOff);
-  }, [canUseCamera, enableHostCamera, enableMemberCamera, isHost, localParticipant, mode]);
+  }, [
+    canUseCamera,
+    enableHostCamera,
+    enableMemberCamera,
+    isHost,
+    localParticipant,
+    memberVideoEnabled,
+    mode,
+  ]);
 
   const toggleScreenShare = useCallback(async () => {
     if (!isHost) return;
