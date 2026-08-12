@@ -120,7 +120,7 @@ export function LivestreamViewersPanel({
                   />
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() =>
@@ -130,10 +130,10 @@ export function LivestreamViewersPanel({
                       avatarUrl: p.user.avatarUrl,
                     })
                   }
-                  className={`text-xs font-semibold ${
+                  className={`rounded-md px-2.5 py-1.5 text-sm font-semibold transition ${
                     privateMessageMemberId === p.user.id
-                      ? "text-gold-light"
-                      : "text-gold hover:text-gold-light"
+                      ? "bg-gold text-burgundy-deep"
+                      : "border border-gold/40 bg-burgundy text-gold hover:border-gold hover:bg-burgundy-deep hover:text-gold-light"
                   }`}
                 >
                   Message
@@ -141,7 +141,7 @@ export function LivestreamViewersPanel({
                 <button
                   type="button"
                   onClick={() => onKickViewer(p.user.id)}
-                  className="text-xs text-gold-light/70 hover:text-gold"
+                  className="rounded-md px-2 py-1.5 text-xs text-gold-light/70 hover:bg-burgundy hover:text-gold"
                 >
                   Remove
                 </button>

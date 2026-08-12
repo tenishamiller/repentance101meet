@@ -743,7 +743,7 @@ function LivestreamRoomContent({
               onKickViewer={(viewerId) => void kickViewer(viewerId)}
             />
             {privateMessageMember && (
-              <div className="h-36 shrink-0 overflow-hidden border-b border-gold/20 bg-burgundy-dark">
+              <div className="h-64 shrink-0 overflow-hidden border-b border-gold/20 bg-burgundy-dark xl:h-72">
                 <HostPrivateMessagePanel
                   member={privateMessageMember}
                   hostId={userId}

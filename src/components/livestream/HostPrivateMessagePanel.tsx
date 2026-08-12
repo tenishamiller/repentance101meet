@@ -40,7 +40,7 @@ export function HostPrivateMessagePanel({ member, hostId, onClose }: Props) {
 
   useEffect(() => {
     const node = scrollRef.current;
-    if (node) scrollContainerToBottom(node);
+    if (node) scrollContainerToBottom(node, "auto");
   }, [messages]);
 
   async function sendMessage(event: React.FormEvent) {
@@ -58,8 +58,8 @@ export function HostPrivateMessagePanel({ member, hostId, onClose }: Props) {
   }
 
   return (
-    <div className="flex max-h-[min(42vh,20rem)] min-h-0 shrink-0 flex-col border-b border-gold/30 bg-burgundy">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gold/20 px-3 py-2.5">
+    <div className="flex h-full min-h-0 flex-col bg-burgundy">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gold/20 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <UserAvatar
             userId={member.id}
@@ -69,9 +69,11 @@ export function HostPrivateMessagePanel({ member, hostId, onClose }: Props) {
           />
           <div className="min-w-0">
             <p className="truncate font-serif text-sm font-semibold text-cream">
-              Private message to {member.name}
+              Message {member.name}
             </p>
-            <p className="text-[11px] text-gold-light/65">Only they can see this — not the room chat</p>
+            <p className="truncate text-[11px] text-gold-light/65">
+              Private — not shown in Meeting Chat
+            </p>
           </div>
         </div>
         <button
@@ -84,26 +86,29 @@ export function HostPrivateMessagePanel({ member, hostId, onClose }: Props) {
         </button>
       </div>
 
-      <div ref={scrollRef} className="chat-scroll chat-scroll-dark min-h-0 flex-1 px-3 py-3">
+      <div
+        ref={scrollRef}
+        className="livestream-panel-scroll chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-2"
+      >
         {messages.length === 0 ? (
-          <p className="py-4 text-center text-sm text-gold-light/55">
+          <p className="py-3 text-center text-sm text-gold-light/55">
             Send a private note to {member.name.split(" ")[0]} while you&apos;re live.
           </p>
         ) : (
-          <ul className="space-y-2.5">
-            {messages.slice(-20).map((msg) => {
-              const isHost = msg.sender.id === hostId;
+          <ul className="space-y-2">
+            {messages.slice(-30).map((msg) => {
+              const isHostMsg = msg.sender.id === hostId;
               return (
                 <li
                   key={msg.id}
                   className={`rounded-xl border px-3 py-2 text-sm ${
-                    isHost
+                    isHostMsg
                       ? "ml-4 border-gold/30 bg-gold/15 text-cream"
                       : "mr-4 border-gold/15 bg-burgundy-dark text-gold-light/90"
                   }`}
                 >
                   <p className="text-[10px] font-semibold text-gold-light/55">
-                    {isHost ? "You" : msg.sender.name}
+                    {isHostMsg ? "You" : msg.sender.name}
                   </p>
                   <p className="mt-1 whitespace-pre-wrap break-words">{msg.content}</p>
                   <p className="mt-1 text-[10px] text-gold-light/40">
@@ -118,19 +123,19 @@ export function HostPrivateMessagePanel({ member, hostId, onClose }: Props) {
 
       <form
         onSubmit={(event) => void sendMessage(event)}
-        className="flex shrink-0 gap-2 border-t border-gold/20 p-3"
+        className="flex shrink-0 items-stretch gap-2 border-t border-gold/20 p-2.5"
       >
         <input
           type="text"
           value={content}
           onChange={(event) => setContent(event.target.value)}
-          placeholder={`Message ${member.name.split(" ")[0]} privately...`}
-          className="flex-1 rounded-lg border border-gold/30 bg-burgundy-dark px-3 py-2 text-sm text-cream placeholder:text-gold-light/40 focus:outline-none focus:ring-2 focus:ring-gold/40"
+          placeholder={`Message ${member.name.split(" ")[0]}...`}
+          className="min-w-0 flex-1 rounded-lg border border-gold/30 bg-burgundy-dark px-3 py-2 text-sm text-cream placeholder:text-gold-light/40 focus:outline-none focus:ring-2 focus:ring-gold/40"
         />
         <button
           type="submit"
           disabled={sending || !content.trim()}
-          className="rounded-lg bg-gold px-3 py-2 text-burgundy-deep disabled:opacity-50"
+          className="shrink-0 rounded-lg bg-gold px-3 py-2 text-burgundy-deep disabled:opacity-50"
           aria-label="Send private message"
         >
           <SendHorizontal className="h-4 w-4" />
