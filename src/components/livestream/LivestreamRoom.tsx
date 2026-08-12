@@ -474,7 +474,7 @@ function LivestreamRoomContent({
             </div>
 
             <div
-              className={`shrink-0 border-t border-gold/20 bg-burgundy-dark ${
+              className={`relative z-30 shrink-0 border-t border-gold/20 bg-burgundy-dark ${
                 isMobile ? MOBILE_CONTROL_BAR : "px-3 py-2.5 sm:px-4 sm:py-3"
               }`}
             >

@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MessageCircle, SendHorizontal, X } from "lucide-react";
 import { scrollContainerToBottom } from "@/lib/chat-scroll";
 import { formatRequestDateTime } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { MembershipMessageData } from "@/components/messages/MembershipMessageBubble";
 
 type Props = {
@@ -11,14 +13,21 @@ type Props = {
 };
 
 export function MemberMessagesPopover({ userId }: Props) {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [messages, setMessages] = useState<MembershipMessageData[]>([]);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const lastSeenAdminMessageRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const fetchMessages = useCallback(async () => {
     const res = await fetch("/api/messages");
@@ -56,11 +65,11 @@ export function MemberMessagesPopover({ userId }: Props) {
     if (!open) return;
 
     function handlePointerDown(event: MouseEvent | TouchEvent) {
+      if (!(event.target instanceof Node)) return;
       const root = rootRef.current;
-      if (!root || !(event.target instanceof Node)) return;
-      if (!root.contains(event.target)) {
-        setOpen(false);
-      }
+      const panel = panelRef.current;
+      if (root?.contains(event.target) || panel?.contains(event.target)) return;
+      setOpen(false);
     }
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -85,8 +94,89 @@ export function MemberMessagesPopover({ userId }: Props) {
     void fetchMessages();
   }
 
+  const panel = (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="false"
+      className={
+        isMobile
+          ? "fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-[100] flex max-h-[min(70dvh,28rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl"
+          : "absolute bottom-full right-0 z-50 mb-2 flex w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl sm:w-80"
+      }
+    >
+      <div className="flex shrink-0 items-center justify-between border-b border-gold/20 px-4 py-3">
+        <div>
+          <p className="font-serif text-sm font-bold text-burgundy">Messages from Norman</p>
+          <p className="text-xs text-burgundy/55">Reply without leaving the livestream</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="rounded-lg p-1.5 text-burgundy/50 hover:bg-burgundy/5 hover:text-burgundy"
+          aria-label="Close messages"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div ref={scrollRef} className="chat-scroll min-h-[8rem] flex-1 overflow-y-auto px-3 py-3">
+        {messages.length === 0 ? (
+          <p className="py-6 text-center text-sm text-burgundy/50">
+            No messages yet. Norman may reach out here about membership or ministry.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {messages.slice(-12).map((msg) => {
+              const isOwn = msg.sender.id === userId;
+              return (
+                <li
+                  key={msg.id}
+                  className={`rounded-xl border px-3 py-2 text-sm ${
+                    isOwn
+                      ? "ml-6 border-gold/20 bg-gold/10 text-burgundy"
+                      : "mr-6 border-gold/25 bg-white text-burgundy/90"
+                  }`}
+                >
+                  <p className="text-[11px] font-semibold text-burgundy/55">
+                    {isOwn ? "You" : msg.sender.name}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap break-words">{msg.content}</p>
+                  <p className="mt-1 text-[10px] text-burgundy/40">
+                    {formatRequestDateTime(msg.createdAt)}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      <form
+        onSubmit={(e) => void sendMessage(e)}
+        className="flex shrink-0 gap-2 border-t border-gold/20 bg-cream-dark p-3"
+      >
+        <input
+          type="text"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Type a reply..."
+          className="min-w-0 flex-1 rounded-lg border border-gold/30 bg-white px-3 py-2 text-sm text-burgundy placeholder:text-burgundy/40 focus:outline-none focus:ring-2 focus:ring-gold/40"
+        />
+        <button
+          type="submit"
+          disabled={sending || !content.trim()}
+          className="shrink-0 rounded-lg bg-burgundy px-3 py-2 text-cream disabled:opacity-50"
+          aria-label="Send message"
+        >
+          <SendHorizontal className="h-4 w-4" />
+        </button>
+      </form>
+    </div>
+  );
+
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative z-30">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -101,81 +191,10 @@ export function MemberMessagesPopover({ userId }: Props) {
         )}
       </button>
 
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="false"
-          className="absolute bottom-full right-0 z-50 mb-2 flex w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl sm:w-80"
-        >
-          <div className="flex items-center justify-between border-b border-gold/20 px-4 py-3">
-            <div>
-              <p className="font-serif text-sm font-bold text-burgundy">Messages from Norman</p>
-              <p className="text-xs text-burgundy/55">Reply without leaving the livestream</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded-lg p-1.5 text-burgundy/50 hover:bg-burgundy/5 hover:text-burgundy"
-              aria-label="Close messages"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div ref={scrollRef} className="chat-scroll max-h-64 min-h-[8rem] px-3 py-3">
-            {messages.length === 0 ? (
-              <p className="py-6 text-center text-sm text-burgundy/50">
-                No messages yet. Norman may reach out here about membership or ministry.
-              </p>
-            ) : (
-              <ul className="space-y-3">
-                {messages.slice(-12).map((msg) => {
-                  const isOwn = msg.sender.id === userId;
-                  return (
-                    <li
-                      key={msg.id}
-                      className={`rounded-xl border px-3 py-2 text-sm ${
-                        isOwn
-                          ? "ml-6 border-gold/20 bg-gold/10 text-burgundy"
-                          : "mr-6 border-gold/25 bg-white text-burgundy/90"
-                      }`}
-                    >
-                      <p className="text-[11px] font-semibold text-burgundy/55">
-                        {isOwn ? "You" : msg.sender.name}
-                      </p>
-                      <p className="mt-1 whitespace-pre-wrap break-words">{msg.content}</p>
-                      <p className="mt-1 text-[10px] text-burgundy/40">
-                        {formatRequestDateTime(msg.createdAt)}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          <form
-            onSubmit={(e) => void sendMessage(e)}
-            className="flex gap-2 border-t border-gold/20 bg-cream-dark p-3"
-          >
-            <input
-              type="text"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Type a reply..."
-              className="flex-1 rounded-lg border border-gold/30 bg-white px-3 py-2 text-sm text-burgundy placeholder:text-burgundy/40 focus:outline-none focus:ring-2 focus:ring-gold/40"
-            />
-            <button
-              type="submit"
-              disabled={sending || !content.trim()}
-              className="rounded-lg bg-burgundy px-3 py-2 text-cream disabled:opacity-50"
-              aria-label="Send message"
-            >
-              <SendHorizontal className="h-4 w-4" />
-            </button>
-          </form>
-        </div>
-      )}
+      {open &&
+        (isMobile && mounted
+          ? createPortal(panel, document.body)
+          : panel)}
     </div>
   );
 }
