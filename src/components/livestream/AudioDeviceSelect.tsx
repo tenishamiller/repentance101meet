@@ -23,7 +23,7 @@ export function AudioDeviceSelect({
   const selectValue =
     selectedDeviceId && devices.some((device) => device.deviceId === selectedDeviceId)
       ? selectedDeviceId
-      : devices[0]?.deviceId ?? "";
+      : selectedDeviceId || "";
 
   return (
     <div className="inline-flex items-center gap-1 rounded-lg border border-gold/40 bg-burgundy px-2 py-1.5 text-xs text-gold-light sm:text-sm">
