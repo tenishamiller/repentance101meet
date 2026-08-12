@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Mic, Share2, Trash2, Undo2, Video } from "lucide-react";
+import { Mic, Share2, Trash2, Video } from "lucide-react";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
-import { DeleteCountdown } from "@/components/admin/DeleteCountdown";
 import { ListPagination } from "@/components/admin/ListPagination";
 import { formatDate } from "@/lib/utils";
 import { isMeetingPendingDeletion } from "@/lib/meeting-deletion-shared";
@@ -46,29 +45,11 @@ export function AdminLivestreamPanel({
     const endingNote =
       meeting.status === "LIVE" ? " This will also end the live broadcast for everyone." : "";
     return window.confirm(
-      `Delete "${meeting.title}"?${endingNote}\n\nYou can undo within 15 minutes. After that, deletion is permanent.`,
+      `Delete "${meeting.title}" permanently?${endingNote}\n\nThis cannot be undone.`,
     );
   }
 
-  function renderDeleteControls(meeting: Meeting, compact = false) {
-    if (isMeetingPendingDeletion(meeting) && meeting.purgeAt) {
-      return (
-        <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "justify-end"}`}>
-          <span className="rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-            Deletes in <DeleteCountdown purgeAt={meeting.purgeAt} />
-          </span>
-          <button
-            type="button"
-            onClick={() => onMeetingAction(meeting.id, "undo-delete")}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gold/50 bg-cream px-3 py-2 text-sm font-semibold text-burgundy hover:bg-gold/10"
-          >
-            <Undo2 className="h-4 w-4" />
-            Undo
-          </button>
-        </div>
-      );
-    }
-
+  function renderDeleteControls(meeting: Meeting) {
     return (
       <button
         type="button"

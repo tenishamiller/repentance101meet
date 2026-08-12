@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getAppUrl } from "@/lib/app-url";
 import {
-  meetingPurgeAt,
+  permanentlyDeleteMeeting,
   purgeExpiredMeetings,
   visibleMeetingFilter,
 } from "@/lib/meeting-deletion";
@@ -120,11 +120,10 @@ export async function PATCH(request: NextRequest) {
 
   if (action === "delete") {
     if (meeting.deletedAt) {
-      return Response.json({ error: "Already scheduled for deletion" }, { status: 400 });
+      // Finish any leftover soft-delete immediately
+      await permanentlyDeleteMeeting(meeting.id, meeting.recordingUrl);
+      return Response.json({ success: true, deleted: true });
     }
-
-    const now = new Date();
-    const purgeAt = meetingPurgeAt(now);
 
     if (meeting.status === "LIVE") {
       await prisma.meetingSignal.create({
@@ -136,19 +135,14 @@ export async function PATCH(request: NextRequest) {
           payload: {},
         },
       });
+      await prisma.meeting.update({
+        where: { id: meetingId },
+        data: { status: "ENDED", endedAt: new Date() },
+      });
     }
 
-    const updated = await prisma.meeting.update({
-      where: { id: meetingId },
-      data: {
-        status: "ENDED",
-        endedAt: meeting.endedAt ?? now,
-        deletedAt: now,
-        purgeAt,
-      },
-    });
-
-    return Response.json({ meeting: updated, purgeAt: purgeAt.toISOString() });
+    await permanentlyDeleteMeeting(meeting.id, meeting.recordingUrl);
+    return Response.json({ success: true, deleted: true });
   }
 
   if (action === "undo-delete") {

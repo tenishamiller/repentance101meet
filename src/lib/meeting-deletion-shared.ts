@@ -1,4 +1,5 @@
-export const MEETING_DELETE_GRACE_MS = 15 * 60 * 1000;
+/** Soft-delete grace kept at 0 so any leftover pending deletes purge immediately. */
+export const MEETING_DELETE_GRACE_MS = 0;
 
 export function meetingDeleteRemainingMs(purgeAt: Date | string) {
   return Math.max(0, new Date(purgeAt).getTime() - Date.now());
