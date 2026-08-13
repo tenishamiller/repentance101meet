@@ -5,7 +5,8 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { formatDate } from "@/lib/utils";
 import { MEETING_CHAT_MAX_FILE_LABEL } from "@/lib/chat-attachments";
 import { meetingChatReplyPreview } from "@/lib/meeting-chat-reply";
-import { useMeetingChat } from "@/hooks/useMeetingChat";import { MessageAttachments } from "@/components/livestream/MessageAttachments";
+import { useMeetingChat } from "@/hooks/useMeetingChat";
+import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { EmojiPicker } from "@/components/livestream/EmojiPicker";
 
 export function MeetingChat({

@@ -50,7 +50,15 @@ export async function GET(request: Request, { params }: RouteParams) {
     where: {
       meetingId: meeting.id,
       ...(canModerate ? {} : { deletedAt: null }),
-      ...(sinceValid ? { createdAt: { gt: sinceDate } } : {}),
+      ...(sinceValid
+        ? {
+            OR: [
+              { createdAt: { gt: sinceDate } },
+              { editedAt: { gt: sinceDate } },
+              { deletedAt: { gt: sinceDate } },
+            ],
+          }
+        : {}),
     },
     include: messageInclude,
     orderBy: { createdAt: "asc" },

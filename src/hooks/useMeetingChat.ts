@@ -53,6 +53,19 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
 
   const canSend = content.trim().length > 0 || pendingFiles.length > 0;
 
+  function mergeMessages(
+    prev: MeetingChatMessage[],
+    incoming: MeetingChatMessage[],
+  ): MeetingChatMessage[] {
+    const byId = new Map(prev.map((m) => [m.id, m]));
+    for (const msg of incoming) {
+      byId.set(msg.id, msg);
+    }
+    return [...byId.values()].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+  }
+
   const fetchMessages = useCallback(async () => {
     const since = lastMessageAtRef.current;
     const url = since
@@ -65,15 +78,7 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
     const incoming = data.messages as MeetingChatMessage[];
 
     if (since && incoming.length > 0) {
-      setMessages((prev) => {
-        const byId = new Map(prev.map((m) => [m.id, m]));
-        for (const msg of incoming) {
-          byId.set(msg.id, msg);
-        }
-        return [...byId.values()].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        );
-      });
+      setMessages((prev) => mergeMessages(prev, incoming));
     } else if (!since) {
       setMessages(incoming);
     }
@@ -192,13 +197,7 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
       if (!res.ok) return;
       const data = (await res.json()) as { message?: MeetingChatMessage };
       if (!data.message) return;
-      setMessages((prev) => {
-        const byId = new Map(prev.map((m) => [m.id, m]));
-        byId.set(data.message!.id, data.message!);
-        return [...byId.values()].sort(
-          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        );
-      });
+      setMessages((prev) => mergeMessages(prev, [data.message!]));
       lastMessageAtRef.current = data.message.createdAt;
     });
 
@@ -234,19 +233,29 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
   }
 
   async function hideMessage(messageId: string) {
-    await fetch(`/api/meetings/${meetingToken}/chat/${messageId}`, {
+    const res = await fetch(`/api/meetings/${meetingToken}/chat/${messageId}`, {
       method: "DELETE",
     });
-    fetchMessages();
+    if (res.ok) {
+      const data = (await res.json()) as { message?: MeetingChatMessage };
+      if (data.message) {
+        setMessages((prev) => mergeMessages(prev, [data.message!]));
+      }
+    }
   }
 
   async function restoreMessage(messageId: string) {
-    await fetch(`/api/meetings/${meetingToken}/chat/${messageId}`, {
+    const res = await fetch(`/api/meetings/${meetingToken}/chat/${messageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "restore" }),
     });
-    fetchMessages();
+    if (res.ok) {
+      const data = (await res.json()) as { message?: MeetingChatMessage };
+      if (data.message) {
+        setMessages((prev) => mergeMessages(prev, [data.message!]));
+      }
+    }
   }
 
   async function deleteOwnMessage(messageId: string) {
@@ -260,16 +269,22 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
   }
 
   async function saveEdit(messageId: string) {
+    const trimmed = editContent.trim();
+    if (!trimmed) return;
+
     const res = await fetch(`/api/meetings/${meetingToken}/chat/${messageId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: editContent }),
+      body: JSON.stringify({ content: trimmed }),
     });
-    if (res.ok) {
-      setEditingId(null);
-      setEditContent("");
-      fetchMessages();
+    if (!res.ok) return;
+
+    const data = (await res.json()) as { message?: MeetingChatMessage };
+    if (data.message) {
+      setMessages((prev) => mergeMessages(prev, [data.message!]));
     }
+    setEditingId(null);
+    setEditContent("");
   }
 
   function startReply(message: MeetingChatMessage) {
