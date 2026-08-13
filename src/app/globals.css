@@ -267,13 +267,14 @@ body {
   min-height: 0;
 }
 
-/** Livestream mobile: cap shared desktop/screen video (host + members). */
+/** Livestream mobile: shared screen uses most of the viewport; in-room tiles stay on swipe. */
 @media (max-width: 1023px) {
   .mobile-livestream-screen-share {
     width: 100%;
-    max-height: min(38dvh, calc(100vw * 9 / 16));
+    flex: 1 1 auto;
+    min-height: min(52dvh, calc(100vw * 9 / 16));
+    max-height: min(62dvh, calc(100vw * 9 / 16));
     aspect-ratio: 16 / 9;
-    flex-shrink: 0;
   }
 }
 

@@ -141,6 +141,7 @@ function LivestreamRoomContent({
   const {
     isLive,
     isConnecting,
+    showConnectionOverlay,
     isMuted,
     isCameraOff,
     isRemoteCameraOff,
@@ -293,6 +294,7 @@ function LivestreamRoomContent({
               viewerCount={viewerCount}
               isLive={isLive}
               isConnecting={isConnecting}
+              showConnectionOverlay={showConnectionOverlay}
               isScreenSharing={isScreenSharing}
               isCameraOff={isCameraOff}
               isMuted={isMuted}
@@ -316,7 +318,7 @@ function LivestreamRoomContent({
             </div>
 
             <div
-              className={`z-20 shrink-0 border-t border-gold/30 bg-burgundy-dark ${
+              className={`relative z-40 shrink-0 border-t border-gold/30 bg-burgundy-dark ${
                 isMobile ? MOBILE_CONTROL_BAR : "px-3 py-2.5 sm:px-4 sm:py-3"
               }`}
             >
@@ -460,6 +462,7 @@ function LivestreamRoomContent({
                 meetingTitle={meetingTitle}
                 isLive={isLive}
                 isConnecting={isConnecting}
+                showConnectionOverlay={showConnectionOverlay}
                 isMuted={isMuted}
                 isCameraOff={isCameraOff}
                 isRemoteCameraOff={isRemoteCameraOff}

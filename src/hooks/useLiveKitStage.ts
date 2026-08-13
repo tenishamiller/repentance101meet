@@ -109,7 +109,13 @@ export function useLiveKitStage({
   const reconcilingDevicesRef = useRef(false);
 
   const isLive = connectionState === ConnectionState.Connected;
-  const isConnecting = connectionState === ConnectionState.Connecting;
+  const isConnecting =
+    connectionState === ConnectionState.Connecting ||
+    connectionState === ConnectionState.Reconnecting;
+  const showConnectionOverlay =
+    connectionState === ConnectionState.Connecting ||
+    connectionState === ConnectionState.Reconnecting ||
+    connectionState === ConnectionState.Disconnected;
 
   const publishedTracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], {
     onlySubscribed: false,
@@ -151,11 +157,12 @@ export function useLiveKitStage({
 
   const hasLocalScreenTrack = !!localScreenTrack?.publication?.track;
   const isScreenSharing =
-    isHost && mode === "livestream" && isScreenShareEnabled && hasLocalScreenTrack;
+    isHost && mode === "livestream" && isScreenShareEnabled;
   const isRemoteScreenSharing =
     mode === "livestream" &&
     !isHost &&
-    !!hostScreenFromRoom?.publication?.track;
+    (!!hostScreenFromRoom?.publication?.track ||
+      (!!hostParticipant && hostParticipant.isScreenShareEnabled));
 
   const hostMainTrack =
     mode === "private"
@@ -364,12 +371,15 @@ export function useLiveKitStage({
       void enableMemberCamera(false);
       return;
     }
+    if (!isCameraEnabled && !localCameraPublication?.track) return;
     void enableMemberCamera(true);
   }, [
     connectionState,
     enableMemberCamera,
+    isCameraEnabled,
     isHost,
     isRemoteScreenSharing,
+    localCameraPublication?.track,
     memberVideoEnabled,
     mode,
   ]);
@@ -601,7 +611,11 @@ export function useLiveKitStage({
       return;
     }
 
-    const publishOptions = { degradationPreference: "maintain-resolution" as const };
+    const publishOptions: { degradationPreference: "maintain-framerate" | "maintain-resolution" } = {
+      degradationPreference: isMobileLiveKitClient()
+        ? "maintain-framerate"
+        : "maintain-resolution",
+    };
 
     for (const options of screenShareCaptureAttempts) {
       try {
@@ -660,6 +674,7 @@ export function useLiveKitStage({
   return {
     isLive,
     isConnecting,
+    showConnectionOverlay,
     isMuted,
     isCameraOff,
     isRemoteMuted,

@@ -25,6 +25,7 @@ type Props = {
   viewerCount: number;
   isLive: boolean;
   isConnecting?: boolean;
+  showConnectionOverlay?: boolean;
   isScreenSharing: boolean;
   isCameraOff: boolean;
   isMuted: boolean;
@@ -51,6 +52,7 @@ export function LivestreamHostStage({
   viewerCount,
   isLive,
   isConnecting = false,
+  showConnectionOverlay = false,
   isScreenSharing,
   isCameraOff,
   isMuted,
@@ -73,7 +75,8 @@ export function LivestreamHostStage({
 }: Props) {
   const hasHostVideo = !!hostMainTrack?.publication?.track;
   const showCameraOff = isLive && isCameraOff && !isScreenSharing;
-  const waitingForVideo = isLive && !showCameraOff && !hasHostVideo && !isScreenSharing;
+  const waitingForVideo =
+    isLive && !showConnectionOverlay && !showCameraOff && !hasHostVideo;
   const memberCount = remoteParticipants.filter((p) => p.identity !== hostId).length;
   const mobilePresenting = isMobile && isScreenSharing;
   const inRoomCount = memberCount + (mobilePresenting && hostSelfTile ? 1 : 0);
@@ -124,7 +127,6 @@ export function LivestreamHostStage({
         )}
       >
         <LiveKitVideoTile
-          key={isScreenSharing ? "host-screen" : "host-camera"}
           trackRef={hostMainTrack}
           userId={userId}
           name={userName}
@@ -136,10 +138,10 @@ export function LivestreamHostStage({
         />
       </div>
       {!isScreenSharing && <MuteIndicator visible={isMuted} />}
-      {!isLive && !error && (
+      {showConnectionOverlay && !error && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-burgundy-deep/90">
           <p className="font-serif text-gold-light">
-            {isConnecting ? "Connecting video…" : "Waiting for video connection…"}
+            {isConnecting ? "Connecting to livestream…" : "Reconnecting video…"}
           </p>
         </div>
       )}

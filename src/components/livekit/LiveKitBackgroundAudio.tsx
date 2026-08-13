@@ -72,7 +72,7 @@ export function LiveKitBackgroundAudio({ meetingTitle }: Props) {
   if (!needsResume) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-20 z-[60] flex justify-center px-4 lg:bottom-6">
+    <div className="pointer-events-none fixed inset-x-0 top-[calc(4.5rem+env(safe-area-inset-top,0px))] z-[80] flex justify-center px-4 lg:top-auto lg:bottom-6">
       <button
         type="button"
         onClick={() => {
@@ -82,7 +82,7 @@ export function LiveKitBackgroundAudio({ meetingTitle }: Props) {
         }}
         className="pointer-events-auto rounded-full border border-gold/50 bg-burgundy-dark/95 px-4 py-2.5 text-sm font-semibold text-cream shadow-lg backdrop-blur"
       >
-        Tap to resume livestream audio
+        Tap to connect livestream audio
       </button>
     </div>
   );

@@ -26,6 +26,7 @@ type Props = {
   meetingTitle: string;
   isLive: boolean;
   isConnecting?: boolean;
+  showConnectionOverlay?: boolean;
   isMuted: boolean;
   isCameraOff: boolean;
   isRemoteCameraOff: boolean;
@@ -59,6 +60,7 @@ export function LivestreamMemberStage({
   meetingTitle,
   isLive,
   isConnecting = false,
+  showConnectionOverlay = false,
   isMuted,
   isCameraOff,
   isRemoteCameraOff,
@@ -88,6 +90,7 @@ export function LivestreamMemberStage({
 }: Props) {
   const present = isRemoteScreenSharing;
   const mobilePresentShare = isMobile && present;
+  const mobilePrimaryKey = present ? "presenting" : "solo";
   const selfMuted = isMuted || !memberMicEnabled;
   const selfCameraOff = isCameraOff;
   const otherMemberCount = participants.filter(
@@ -182,6 +185,11 @@ export function LivestreamMemberStage({
           {hostProfile.name}
         </p>
       )}
+      {present && isLive && (
+        <p className="pointer-events-none absolute left-3 top-3 z-10 rounded-lg border border-gold/40 bg-burgundy-dark/85 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
+          Host is presenting
+        </p>
+      )}
     </div>
   );
 
@@ -201,14 +209,20 @@ export function LivestreamMemberStage({
         </div>
       )}
 
-      {!isLive && (
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-burgundy-deep">
+      {showConnectionOverlay && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-burgundy-deep/95">
           <Radio className="h-10 w-10 animate-pulse text-gold" />
           <p className="font-serif text-lg font-semibold text-cream">
-            {isConnecting ? "Connecting to live stream..." : "Waiting for host video"}
+            {isConnecting ? "Connecting to livestream…" : "Reconnecting to livestream…"}
           </p>
-          <p className="text-sm text-gold-light/70">
-            {isConnecting ? "Joining the video room" : "The host has not started video yet"}
+          <p className="text-sm text-gold-light/70">Stay on this page — video will resume automatically</p>
+        </div>
+      )}
+
+      {!showConnectionOverlay && isLive && waitingForHostVideo && !present && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-burgundy-deep/40">
+          <p className="rounded-xl border border-gold/30 bg-burgundy-dark/90 px-4 py-2 font-serif text-sm text-gold-light">
+            Waiting for host video…
           </p>
         </div>
       )}
@@ -223,7 +237,7 @@ export function LivestreamMemberStage({
   );
 
   const statusParts = [
-    isLive ? "Live meeting" : "Connecting",
+    showConnectionOverlay ? "Connecting" : isLive ? "Live meeting" : "Offline",
     selfMuted ? "muted" : null,
     selfCameraOff ? "camera off" : null,
     !memberMicEnabled ? "mics off by host" : null,
@@ -259,6 +273,7 @@ export function LivestreamMemberStage({
           secondary={inRoomPanel}
           secondaryLabel="In room"
           badge={swipeBadge}
+          snapPrimaryKey={mobilePrimaryKey}
         />
       ) : (
         videoPrimary

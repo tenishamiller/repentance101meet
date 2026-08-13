@@ -49,7 +49,11 @@ export function getLiveKitRoomOptions(persistInBackground = false): RoomOptions 
   const mobileClient = isMobileLiveKitClient();
 
   return {
-    adaptiveStream: { pixelDensity: 1, pauseVideoInBackground: true },
+    adaptiveStream: {
+      pixelDensity: 1,
+      // Keep video alive when listeners background the tab during livestream.
+      pauseVideoInBackground: !persistInBackground,
+    },
     dynacast: true,
     // WebAudio is suspended in background on iOS; HTML audio elements keep playing.
     webAudioMix: mobileClient ? false : true,
@@ -63,7 +67,10 @@ export function getLiveKitRoomOptions(persistInBackground = false): RoomOptions 
       backupCodec: false,
       videoCodec: "vp8",
       degradationPreference: "maintain-framerate",
-      screenShareEncoding: ScreenSharePresets.h720fps15.encoding,
+      screenShareEncoding: {
+        ...ScreenSharePresets.h720fps15.encoding,
+        maxFramerate: mobileClient ? 15 : 24,
+      },
       videoSimulcastLayers: [VideoPresets.h180],
     },
   };

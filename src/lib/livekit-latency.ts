@@ -6,16 +6,29 @@ import {
   type TrackPublication,
 } from "livekit-client";
 
-/** Main-stage remote camera: highest simulcast layer + minimal browser buffering. */
+const MAIN_STAGE_SOURCES = new Set<Track.Source>([
+  Track.Source.Camera,
+  Track.Source.ScreenShare,
+]);
+
+function asMainStageRemote(
+  publication?: TrackPublication,
+): RemoteTrackPublication | undefined {
+  if (!(publication instanceof RemoteTrackPublication)) return undefined;
+  if (!MAIN_STAGE_SOURCES.has(publication.source)) return undefined;
+  return publication;
+}
+
+/** Main-stage remote video (host camera or screen share): high quality + minimal buffering. */
 export function applyMainStageLowLatency(publication?: TrackPublication) {
-  if (!(publication instanceof RemoteTrackPublication)) return;
-  if (publication.source !== Track.Source.Camera) return;
+  const remote = asMainStageRemote(publication);
+  if (!remote) return;
 
-  publication.setVideoQuality(VideoQuality.HIGH);
+  remote.setVideoQuality(VideoQuality.HIGH);
 
-  const track = publication.track;
-  if (track && !track.isLocal) {
-    track.setPlayoutDelay(0);
+  const track = remote.track;
+  if (track && !track.isLocal && "setPlayoutDelay" in track) {
+    (track as { setPlayoutDelay: (seconds: number) => void }).setPlayoutDelay(0);
   }
 }
 
