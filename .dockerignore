@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.vercel
+.env
+.env.*
+!.env.example
+docker-compose.yml
+livekit.yaml
+coverage
+*.md
+AGENTS.md
+CLAUDE.md
+.agents
+.claude
+src/generated/prisma
