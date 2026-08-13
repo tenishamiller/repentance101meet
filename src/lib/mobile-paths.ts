@@ -12,6 +12,7 @@ const DESKTOP_TO_MOBILE: Record<string, string> = {
   "/admin": "/m/admin",
   "/personal-ministry": "/m/personal-ministry",
   "/giving": "/m/giving",
+  "/missed-it": "/m/missed-it",
 };
 
 const SKIP_MOBILE_REDIRECT_PREFIXES = [

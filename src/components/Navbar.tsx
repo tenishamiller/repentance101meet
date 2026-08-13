@@ -16,6 +16,7 @@ export async function Navbar() {
         <nav className="hidden items-center gap-1 text-sm font-medium md:flex">
           {[
             { href: "/livestream", label: "Live Meeting", highlight: true },
+            { href: "/missed-it", label: "In case you missed it" },
             { href: "/giving", label: "Give" },
             { href: "/channels/guidelines", label: "Guidelines" },
           ].map((item) => (

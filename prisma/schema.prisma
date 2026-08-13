@@ -331,3 +331,27 @@ model MeetingMessage {
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model MissedItDay {
+  id        String   @id @default(cuid())
+  weekStart DateTime @db.Date
+  weekday   Int
+  topic     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  links     MissedItLink[]
+
+  @@unique([weekStart, weekday])
+  @@index([weekStart])
+}
+
+model MissedItLink {
+  id        String      @id @default(cuid())
+  dayId     String
+  title     String
+  url       String
+  sortOrder Int         @default(0)
+  day       MissedItDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@index([dayId, sortOrder])
+}

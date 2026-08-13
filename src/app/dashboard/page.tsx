@@ -79,6 +79,24 @@ export default async function DashboardPage() {
         </Link>
 
         <Link
+          href="/missed-it"
+          className="card-brand flex flex-col items-center justify-between gap-4 rounded-2xl border-2 border-gold/40 p-6 sm:flex-row"
+        >
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-gold-muted">
+              In case you missed it
+            </p>
+            <p className="mt-1 font-serif text-xl font-bold text-burgundy">
+              This week&apos;s topics
+            </p>
+            <p className="mt-1 text-sm text-burgundy/70">
+              Monday through Friday — what was taught, with links for each day
+            </p>
+          </div>
+          <span className="btn-outline-gold shrink-0">Open planner →</span>
+        </Link>
+
+        <Link
           href="/personal-ministry"
           className="card-brand flex flex-col items-center justify-between gap-4 rounded-2xl border-2 border-gold/40 p-6 sm:flex-row"
         >

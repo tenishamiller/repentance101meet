@@ -369,44 +369,6 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     void fetchInbox();
   }
 
-  async function peerAction(path: string, extra: Record<string, unknown> = {}) {
-    if (!peerId) return;
-    setActionLoading(true);
-    setActionError("");
-    const res = await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: peerId, ...extra }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setActionError(typeof data.error === "string" ? data.error : "Could not update.");
-      setActionLoading(false);
-      return;
-    }
-    setActionLoading(false);
-    void fetchInbox();
-  }
-
-  async function peerAction(path: string, extra: Record<string, unknown> = {}) {
-    if (!peerId) return;
-    setActionLoading(true);
-    setActionError("");
-    const res = await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: peerId, ...extra }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setActionError(typeof data.error === "string" ? data.error : "Could not update.");
-      setActionLoading(false);
-      return;
-    }
-    setActionLoading(false);
-    void fetchInbox();
-  }
-
   const shellClass = embedded
     ? "flex min-h-[min(70vh,720px)] flex-col"
     : inMobileShell

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, Calendar, Check } from "lucide-react";
+import { BookOpen, Calendar, Check, NotebookPen } from "lucide-react";
+import Link from "next/link";
 import { LivestreamScheduleEditor } from "@/components/LivestreamScheduleEditor";
 import type { ChannelSummary } from "./types";
 
@@ -117,6 +118,19 @@ export function AdminContentPanel({ channels, onRefresh }: Props) {
 
   return (
     <div className="space-y-8 animate-fade-up">
+      <section className="card-brand p-6">
+        <h2 className="mb-1 flex items-center gap-2 font-serif text-xl font-semibold text-burgundy">
+          <NotebookPen className="h-5 w-5 text-gold-muted" />
+          In case you missed it
+        </h2>
+        <p className="mb-4 text-sm text-burgundy/60">
+          Post Monday–Friday topics and up to five links per day. Members see it
+          as a weekly planner.
+        </p>
+        <Link href="/missed-it" className="btn-primary inline-flex !px-4 !py-2 text-sm">
+          Open weekly planner
+        </Link>
+      </section>
       <section className="card-brand p-6">
         <h2 className="mb-1 flex items-center gap-2 font-serif text-xl font-semibold text-burgundy">
           <BookOpen className="h-5 w-5 text-gold-muted" />
