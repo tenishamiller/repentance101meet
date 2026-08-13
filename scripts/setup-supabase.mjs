@@ -170,9 +170,6 @@ LIVEKIT_API_KEY=""
 LIVEKIT_API_SECRET=""
 LIVEKIT_URL=""
 NEXT_PUBLIC_LIVEKIT_URL=""
-
-# Stripe — gifts on /giving (restricted key preferred)
-STRIPE_SECRET_KEY=""
 `;
 
 writeFileSync(join(root, ".env"), envContent);

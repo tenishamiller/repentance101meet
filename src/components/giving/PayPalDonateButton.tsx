@@ -7,7 +7,6 @@ import {
   GIVING_PAYPAL_EMAIL,
   formatGivingAmount,
   givingItemName,
-  type GivingFrequency,
 } from "@/lib/giving";
 
 type DonateParams = {
@@ -36,11 +35,10 @@ declare global {
 
 type Props = {
   dollars: number;
-  frequency: GivingFrequency;
   disabled?: boolean;
 };
 
-export function PayPalDonateButton({ dollars, frequency, disabled = false }: Props) {
+export function PayPalDonateButton({ dollars, disabled = false }: Props) {
   const router = useRouter();
   const reactId = useId();
   const containerId = `paypal-donate-${reactId.replace(/:/g, "")}`;
@@ -51,23 +49,22 @@ export function PayPalDonateButton({ dollars, frequency, disabled = false }: Pro
   const amountKey = valid ? formatGivingAmount(dollars) : "";
 
   useEffect(() => {
-    if (!sdkReady || !valid || disabled || frequency !== "once") return;
+    if (!sdkReady || !valid || disabled) return;
     if (!window.PayPal?.Donation?.Button) return;
 
     const mountId = `${containerId}-mount`;
     const mount = document.getElementById(mountId);
     if (!mount) return;
 
-    const renderKey = `${amountKey}:${frequency}`;
-    if (renderedRef.current === renderKey) return;
-    renderedRef.current = renderKey;
+    if (renderedRef.current === amountKey) return;
+    renderedRef.current = amountKey;
     mount.innerHTML = "";
 
     window.PayPal.Donation.Button({
       business: GIVING_PAYPAL_EMAIL,
       amount: amountKey,
       currency_code: "USD",
-      item_name: givingItemName(frequency),
+      item_name: givingItemName(),
       image: {
         src: "https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif",
         title: "PayPal — The safer, easier way to pay online!",
@@ -77,19 +74,11 @@ export function PayPalDonateButton({ dollars, frequency, disabled = false }: Pro
         router.push("/giving/thank-you?provider=paypal");
       },
     }).render(`#${mountId}`);
-  }, [amountKey, containerId, disabled, frequency, router, sdkReady, valid]);
+  }, [amountKey, containerId, disabled, router, sdkReady, valid]);
 
   useEffect(() => {
     renderedRef.current = "";
-  }, [amountKey, disabled, frequency]);
-
-  if (frequency !== "once") {
-    return (
-      <p className="rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-sm text-burgundy/80">
-        Monthly giving uses secure card checkout below. PayPal is available for one-time gifts.
-      </p>
-    );
-  }
+  }, [amountKey, disabled]);
 
   return (
     <>

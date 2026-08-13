@@ -6,7 +6,7 @@ import { MINISTRY_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: `Give · ${MINISTRY_NAME}`,
-  description: `Support ${MINISTRY_NAME} with a one-time or monthly gift.`,
+  description: `Support ${MINISTRY_NAME} with a one-time gift through PayPal.`,
 };
 
 export default function GivingPage() {
@@ -25,8 +25,7 @@ export default function GivingPage() {
           <BrandDivider light className="my-4 max-w-xs" />
           <p className="text-lg leading-relaxed text-cream/90">
             Your gift helps {MINISTRY_NAME} keep live teaching, fellowship, and
-            pastoral care going. Give once with PayPal (right on this page), or use
-            a card through Stripe — including monthly gifts.
+            pastoral care going. Give with PayPal right on this page.
           </p>
         </div>
       </section>
