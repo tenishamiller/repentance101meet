@@ -10,7 +10,7 @@ export function MobileAppHeader() {
   const { data: session } = useSession();
 
   return (
-    <header className="navbar-brand sticky top-0 z-50">
+    <header className="site-theme navbar-brand sticky top-0 z-50">
       <div className="flex items-center justify-between px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-1">
           <SiteBrandMark size="sm" href="/m" showText={false} />

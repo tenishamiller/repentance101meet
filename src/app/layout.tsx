@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="ministry-bg flex min-h-full flex-col font-sans text-foreground antialiased">
+      <body className="flex min-h-full flex-col font-sans text-foreground antialiased">
         <Providers>
           <LayoutSwitch
             desktop={

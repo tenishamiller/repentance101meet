@@ -6,7 +6,7 @@ import { MINISTRY_NAME } from "@/lib/brand";
 
 export function Footer() {
   return (
-    <footer className="footer-brand mt-auto hidden border-t-2 border-gold/30 text-cream-dark md:block">
+    <footer className="site-theme footer-brand mt-auto hidden border-t-2 border-gold/30 text-cream-dark md:block">
       <div className="mx-auto max-w-7xl px-4 py-12">
         <BrandDivider light className="mb-10" />
 

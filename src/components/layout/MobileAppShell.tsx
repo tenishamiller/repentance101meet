@@ -22,7 +22,7 @@ export function MobileAppShell({ children }: Props) {
   const showNav = !immersive;
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-cream">
+    <div className={cn("flex min-h-[100dvh] flex-col", !immersive && "site-theme ministry-bg")}>
       {!immersive && <MobileAppHeader />}
       <main
         className={cn(
@@ -32,7 +32,11 @@ export function MobileAppShell({ children }: Props) {
       >
         {children}
       </main>
-      {showNav && <MobileBottomNav mobileApp />}
+      {showNav && (
+        <div className="site-theme">
+          <MobileBottomNav mobileApp />
+        </div>
+      )}
     </div>
   );
 }

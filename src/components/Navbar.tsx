@@ -10,7 +10,7 @@ export async function Navbar() {
   const session = await auth();
 
   return (
-    <header className="navbar-brand sticky top-0 z-50">
+    <header className="site-theme navbar-brand sticky top-0 z-50">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-3 sm:px-4 sm:py-4">
         <SiteBrandMark size="md" />
 

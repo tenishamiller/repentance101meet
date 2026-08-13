@@ -13,8 +13,8 @@
   --cream-dark: #f5ede0;
 }
 
-/* Dark mode — burgundy and sepia/cream palettes swap roles */
-[data-theme="dark"] {
+/* Dark mode — main website only (.site-theme). Livestream/meeting UI keeps :root colors. */
+[data-theme="dark"] .site-theme {
   --background: #3d1818;
   --foreground: #fef9f0;
   --burgundy: #f5ede0;
@@ -53,7 +53,7 @@ body {
     radial-gradient(ellipse 50% 30% at 0% 80%, rgba(201, 162, 39, 0.07), transparent);
 }
 
-[data-theme="dark"] .ministry-bg {
+[data-theme="dark"] .site-theme.ministry-bg {
   background-image:
     radial-gradient(ellipse 80% 50% at 50% -20%, rgba(201, 162, 39, 0.14), transparent),
     radial-gradient(ellipse 60% 40% at 100% 50%, rgba(232, 213, 163, 0.06), transparent),
@@ -233,7 +233,7 @@ body {
   color: var(--burgundy);
 }
 
-[data-theme="dark"] .channel-feed {
+[data-theme="dark"] .site-theme .channel-feed {
   background-image:
     radial-gradient(circle at 20% 20%, rgba(201, 162, 39, 0.1), transparent 45%),
     radial-gradient(circle at 80% 0%, rgba(232, 213, 163, 0.06), transparent 40%),
@@ -375,46 +375,6 @@ body {
     background: rgba(201, 162, 39, 0.85);
   }
 
-}
-
-/**
- * Live meeting room — always uses the dark burgundy palette and high-contrast
- * cream/gold text, even when the site light theme swaps semantic color tokens.
- */
-.livestream-room {
-  --burgundy: #6b2d2d;
-  --burgundy-dark: #4a1f1f;
-  --burgundy-deep: #3d1818;
-  --cream: #fef9f0;
-  --cream-dark: #f5ede0;
-  --foreground: #fef9f0;
-  color: var(--cream);
-}
-
-[data-theme="dark"] .livestream-room,
-[data-theme="light"] .livestream-room {
-  --burgundy: #6b2d2d;
-  --burgundy-dark: #4a1f1f;
-  --burgundy-deep: #3d1818;
-  --cream: #fef9f0;
-  --cream-dark: #f5ede0;
-  --foreground: #fef9f0;
-}
-
-/* Faint gold labels must stay readable on red panels in light site theme */
-.livestream-room :where(
-  [class*="text-gold-light/40"],
-  [class*="text-gold-light/45"],
-  [class*="text-gold-light/50"],
-  [class*="text-gold-light/60"],
-  [class*="text-gold-light/70"],
-  [class*="text-gold-light/80"]
-) {
-  color: #e8d5a3;
-}
-
-.livestream-room :where([class*="text-cream/80"], [class*="text-cream/90"]) {
-  color: #fef9f0;
 }
 
 /* Touch-friendly tap targets on mobile */

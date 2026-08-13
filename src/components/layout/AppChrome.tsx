@@ -20,6 +20,7 @@ export function AppChrome({ children, footer }: Props) {
       <main
         className={cn(
           "flex flex-1 flex-col",
+          !immersive && "site-theme ministry-bg",
           showBottomNav && "mobile-main-pad md:pb-0",
           immersive
             ? "flex min-h-0 flex-1 flex-col overflow-hidden h-[calc(100svh-4.5rem)] max-h-[calc(100svh-4.5rem)] sm:h-[calc(100svh-5rem)] sm:max-h-[calc(100svh-5rem)] mobile-immersive-main"
@@ -29,7 +30,11 @@ export function AppChrome({ children, footer }: Props) {
         {children}
       </main>
       {!immersive && footer}
-      {showBottomNav && <MobileBottomNav />}
+      {showBottomNav && (
+        <div className="site-theme">
+          <MobileBottomNav />
+        </div>
+      )}
     </>
   );
 }

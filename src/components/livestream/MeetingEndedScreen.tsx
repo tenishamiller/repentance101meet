@@ -28,7 +28,7 @@ export function MeetingEndedScreen({
   const isHost = variant === "host";
 
   return (
-    <div className="livestream-room flex min-h-[calc(100vh-80px)] flex-col items-center justify-center bg-burgundy-deep px-4 py-12 text-center">
+    <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center bg-burgundy-deep px-4 py-12 text-center">
       <Image
         src="/brand/repentance101-logo.png"
         alt="Repentance 101"
