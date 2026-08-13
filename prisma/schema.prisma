@@ -324,12 +324,17 @@ model MeetingMessage {
   userId      String
   content     String    @db.Text
   attachments Json?
+  replyToId   String?
   editedAt    DateTime?
   createdAt   DateTime  @default(now())
   deletedAt   DateTime?
 
-  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting Meeting          @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyTo MeetingMessage?  @relation("MeetingMessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies MeetingMessage[] @relation("MeetingMessageReply")
+
+  @@index([replyToId])
 }
 
 model MissedItDay {

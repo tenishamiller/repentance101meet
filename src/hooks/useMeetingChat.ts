@@ -8,6 +8,13 @@ import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
 import { MEETING_POLL } from "@/lib/meeting-poll-intervals";
 import { useVisibilityPolling } from "@/hooks/useVisibilityPolling";
 
+export type MeetingChatReplyTo = {
+  id: string;
+  content: string;
+  deletedAt: string | null;
+  user: { id: string; name: string };
+};
+
 export type MeetingChatMessage = {
   id: string;
   content: string;
@@ -15,6 +22,7 @@ export type MeetingChatMessage = {
   createdAt: string;
   editedAt: string | null;
   deletedAt: string | null;
+  replyTo?: MeetingChatReplyTo | null;
   user: { id: string; name: string; avatarUrl: string | null };
 };
 
@@ -35,6 +43,7 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
   const [showScrollDown, setShowScrollDown] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const [replyTo, setReplyTo] = useState<MeetingChatMessage | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -177,6 +186,7 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
       body: JSON.stringify({
         content: content.trim(),
         attachments: attachments.length ? attachments : undefined,
+        replyToId: replyTo?.id,
       }),
     }).then(async (res) => {
       if (!res.ok) return;
@@ -193,6 +203,7 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
     });
 
     setContent("");
+    setReplyTo(null);
     setShowEmoji(false);
     setSending(false);
     stickToBottomRef.current = true;
@@ -261,6 +272,16 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
     }
   }
 
+  function startReply(message: MeetingChatMessage) {
+    setReplyTo(message);
+    setEditingId(null);
+    setEditContent("");
+  }
+
+  function cancelReply() {
+    setReplyTo(null);
+  }
+
   return {
     messages,
     canModerate,
@@ -276,6 +297,9 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
     setEditingId,
     editContent,
     setEditContent,
+    replyTo,
+    startReply,
+    cancelReply,
     now,
     scrollRef,
     fileRef,

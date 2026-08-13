@@ -4,6 +4,18 @@ import { prisma } from "@/lib/db";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
+const messageInclude = {
+  user: { select: { id: true, name: true, avatarUrl: true } },
+  replyTo: {
+    select: {
+      id: true,
+      content: true,
+      deletedAt: true,
+      user: { select: { id: true, name: true } },
+    },
+  },
+} as const;
+
 async function canModerateMeetingChat(
   meeting: { id: string; createdById: string },
   userId: string,
@@ -40,7 +52,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       ...(canModerate ? {} : { deletedAt: null }),
       ...(sinceValid ? { createdAt: { gt: sinceDate } } : {}),
     },
-    include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+    include: messageInclude,
     orderBy: { createdAt: "asc" },
     take: sinceValid ? 100 : 200,
   });
@@ -70,10 +82,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return Response.json({ error: "Join the meeting to chat" }, { status: 403 });
   }
 
-  const { content, attachments } = await request.json();
+  const { content, attachments, replyToId } = await request.json();
 
   if (!content?.trim() && !attachments?.length) {
     return Response.json({ error: "Message cannot be empty" }, { status: 400 });
+  }
+
+  let replyToIdValue: string | undefined;
+  if (typeof replyToId === "string" && replyToId.trim()) {
+    const parent = await prisma.meetingMessage.findFirst({
+      where: { id: replyToId, meetingId: meeting.id },
+      select: { id: true },
+    });
+    if (!parent) {
+      return Response.json({ error: "Message to reply to was not found" }, { status: 400 });
+    }
+    replyToIdValue = parent.id;
   }
 
   const message = await prisma.meetingMessage.create({
@@ -82,8 +106,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       userId: session.user.id,
       content: content ?? "",
       attachments: attachments ?? undefined,
+      replyToId: replyToIdValue,
     },
-    include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+    include: messageInclude,
   });
 
   return Response.json({ message });

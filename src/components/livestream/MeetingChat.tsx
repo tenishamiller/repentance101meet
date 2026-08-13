@@ -1,11 +1,11 @@
 "use client";
 
-import { Paperclip, Pencil, RotateCcw, Smile, Trash2 } from "lucide-react";
+import { CornerDownRight, Paperclip, Pencil, RotateCcw, Smile, Trash2, X } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatDate } from "@/lib/utils";
 import { MEETING_CHAT_MAX_FILE_LABEL } from "@/lib/chat-attachments";
-import { useMeetingChat } from "@/hooks/useMeetingChat";
-import { MessageAttachments } from "@/components/livestream/MessageAttachments";
+import { meetingChatReplyPreview } from "@/lib/meeting-chat-reply";
+import { useMeetingChat } from "@/hooks/useMeetingChat";import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { EmojiPicker } from "@/components/livestream/EmojiPicker";
 
 export function MeetingChat({
@@ -96,6 +96,20 @@ export function MeetingChat({
                   </div>
                 ) : (
                   <>
+                    {msg.replyTo && (
+                      <div className="mb-2 rounded-lg border-l-2 border-gold/50 bg-burgundy/40 px-2.5 py-1.5">
+                        <p className="text-[11px] font-semibold text-gold">
+                          {msg.replyTo.deletedAt
+                            ? "Original message removed"
+                            : msg.replyTo.user.name}
+                        </p>
+                        {!msg.replyTo.deletedAt && (
+                          <p className="mt-0.5 line-clamp-2 text-xs text-gold-light/70">
+                            {meetingChatReplyPreview(msg.replyTo.content)}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     {msg.content && (
                       <p className="whitespace-pre-wrap break-words text-sm text-cream/90">
                         {msg.content}
@@ -105,6 +119,19 @@ export function MeetingChat({
                       <MessageAttachments attachments={msg.attachments} />
                     )}
                   </>
+                )}
+
+                {!isEditing && (
+                  <div className="mt-1 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => chat.startReply(msg)}
+                      className="inline-flex items-center gap-1 text-xs text-gold-light/60 hover:text-gold"
+                    >
+                      <CornerDownRight className="h-3 w-3" />
+                      Reply
+                    </button>
+                  </div>
                 )}
 
                 {canModify && !isEditing && (
@@ -186,6 +213,27 @@ export function MeetingChat({
         onSubmit={(e) => void chat.sendMessage(e)}
         className="relative shrink-0 border-t border-gold/20 bg-burgundy-dark p-2 sm:p-3"
       >
+        {chat.replyTo && (
+          <div className="mb-2 flex items-start gap-2 rounded-lg border border-gold/30 bg-burgundy px-2.5 py-2">
+            <CornerDownRight className="mt-0.5 h-4 w-4 shrink-0 text-gold" aria-hidden />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-gold">
+                Replying to {chat.replyTo.user.name}
+              </p>
+              <p className="mt-0.5 line-clamp-2 text-xs text-gold-light/70">
+                {meetingChatReplyPreview(chat.replyTo.content)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={chat.cancelReply}
+              className="shrink-0 rounded p-1 text-gold-light/60 hover:bg-burgundy-deep hover:text-gold-light"
+              aria-label="Cancel reply"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         {chat.uploadError && (
           <p className="mb-2 text-xs text-red-300">{chat.uploadError}</p>
         )}
@@ -240,7 +288,7 @@ export function MeetingChat({
             type="text"
             value={chat.content}
             onChange={(e) => chat.setContent(e.target.value)}
-            placeholder="Message..."
+            placeholder={chat.replyTo ? "Write a reply..." : "Message..."}
             className="min-w-0 flex-1 rounded-md border border-gold/30 bg-burgundy px-2 py-1.5 text-sm text-cream placeholder:text-gold-light/40 focus:outline-none focus:ring-2 focus:ring-gold/40 sm:px-3"
           />
           <button

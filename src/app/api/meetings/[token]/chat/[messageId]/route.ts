@@ -15,6 +15,14 @@ async function canModerateMeetingChat(
 
 const messageInclude = {
   user: { select: { id: true, name: true, avatarUrl: true } },
+  replyTo: {
+    select: {
+      id: true,
+      content: true,
+      deletedAt: true,
+      user: { select: { id: true, name: true } },
+    },
+  },
 } as const;
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
