@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, ClipboardList, Trash2 } from "lucide-react";
+import { AlertTriangle, ClipboardList, PlusCircle, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AdminRecordSurveyForm } from "@/components/admin/AdminRecordSurveyForm";
 import { formatRequestDateTime } from "@/lib/utils";
 
 type Submission = {
@@ -14,6 +15,7 @@ type Submission = {
   signedUpAt: string;
   completedAt: string;
   isDeleted: boolean;
+  recordedByAdmin: boolean;
   parseWarning: string | null;
   entries: { label: string; value: string }[];
 };
@@ -25,7 +27,10 @@ type IncompleteSignup = {
   avatarUrl: string | null;
   status: string;
   signedUpAt: string;
+  isDeleted: boolean;
   hasMembershipThread: boolean;
+  missingReason: string;
+  missingReasonLabel: string;
 };
 
 export function AdminSurveyAnswersPanel() {
@@ -34,6 +39,7 @@ export function AdminSurveyAnswersPanel() {
   const [loading, setLoading] = useState(true);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [recordingId, setRecordingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const fetchSubmissions = useCallback(async () => {
@@ -83,14 +89,15 @@ export function AdminSurveyAnswersPanel() {
           <h2 className="font-serif text-xl font-semibold text-burgundy">Survey Answers</h2>
         </div>
         <p className="text-sm text-burgundy/60">
-          Membership questionnaire responses from signup. Completed surveys appear first; members
-          who signed up or messaged without finishing the survey are listed below so you can follow
-          up. Deleting removes answers from this list only — it does not remove their account.
+          Every member account is checked for a saved questionnaire. Completed surveys appear first.
+          Missing surveys are listed below — these were never saved to the database (often approved
+          manually or signup Step 2 was not finished). You can record answers on their behalf when you
+          receive them offline.
         </p>
         {!loading && (
           <p className="mt-3 text-sm font-medium text-burgundy">
             {completedCount} completed
-            {incompleteCount > 0 ? ` · ${incompleteCount} incomplete` : ""}
+            {incompleteCount > 0 ? ` · ${incompleteCount} missing` : ""}
           </p>
         )}
       </section>
@@ -106,9 +113,6 @@ export function AdminSurveyAnswersPanel() {
       ) : submissions.length === 0 && incomplete.length === 0 ? (
         <section className="card-brand p-8 text-center">
           <p className="font-medium text-burgundy/70">No survey answers yet.</p>
-          <p className="mt-2 text-sm text-burgundy/55">
-            Responses appear here after members complete the signup questionnaire.
-          </p>
         </section>
       ) : (
         <>
@@ -136,6 +140,11 @@ export function AdminSurveyAnswersPanel() {
                           {submission.isDeleted && (
                             <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-burgundy/50">
                               Removed
+                            </span>
+                          )}
+                          {submission.recordedByAdmin && (
+                            <span className="ml-2 text-xs font-semibold uppercase tracking-wide text-gold-muted">
+                              Admin recorded
                             </span>
                           )}
                         </p>
@@ -197,9 +206,6 @@ export function AdminSurveyAnswersPanel() {
                             <p className="text-sm font-medium text-burgundy">
                               Delete {submission.name}&apos;s survey answers from this list?
                             </p>
-                            <p className="mt-1 text-xs text-burgundy/65">
-                              Their account stays active. This cannot be undone.
-                            </p>
                             <div className="mt-3 flex flex-wrap gap-2">
                               <button
                                 type="button"
@@ -231,38 +237,69 @@ export function AdminSurveyAnswersPanel() {
           {incomplete.length > 0 && (
             <section className="card-brand p-6">
               <h3 className="font-serif text-lg font-semibold text-burgundy">
-                Incomplete signups ({incomplete.length})
+                Missing surveys ({incomplete.length})
               </h3>
               <p className="mt-1 text-sm text-burgundy/60">
-                These members created an account or opened membership messages but never saved a
-                questionnaire. Ask them to sign in and finish Step 2 at signup, or send them the
-                signup link again.
+                These accounts have no questionnaire saved. Use &ldquo;Record answers&rdquo; when
+                you collect their survey by phone, email, or message.
               </p>
               <ul className="mt-4 space-y-3">
                 {incomplete.map((member) => (
                   <li
                     key={member.id}
-                    className="flex flex-col gap-3 rounded-xl border border-gold/25 bg-cream-dark p-4 sm:flex-row sm:items-center sm:justify-between"
+                    className="rounded-xl border border-gold/25 bg-cream-dark p-4"
                   >
-                    <div className="flex items-center gap-3">
-                      <UserAvatar
-                        userId={member.id}
-                        name={member.name}
-                        avatarUrl={member.avatarUrl}
-                        size="md"
-                      />
-                      <div>
-                        <p className="font-semibold text-burgundy">{member.name}</p>
-                        <p className="text-sm text-burgundy/60">{member.email}</p>
-                        <p className="mt-1 text-xs text-burgundy/50">
-                          Signed up {formatRequestDateTime(member.signedUpAt)}
-                          {" · "}
-                          Status: {member.status === "REJECTED" ? "DENIED" : member.status}
-                          {member.hasMembershipThread ? " · Has messages" : ""}
-                        </p>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <UserAvatar
+                          userId={member.id}
+                          name={member.name}
+                          avatarUrl={member.avatarUrl}
+                          size="md"
+                        />
+                        <div>
+                          <p className="font-semibold text-burgundy">
+                            {member.name}
+                            {member.isDeleted && (
+                              <span className="ml-2 text-xs font-semibold uppercase text-burgundy/50">
+                                Removed
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-sm text-burgundy/60">{member.email}</p>
+                          <p className="mt-1 text-xs text-burgundy/50">
+                            Signed up {formatRequestDateTime(member.signedUpAt)}
+                            {" · "}
+                            Status: {member.status === "REJECTED" ? "DENIED" : member.status}
+                          </p>
+                          <p className="mt-1 text-xs font-medium text-amber-800/90">
+                            {member.missingReasonLabel}
+                          </p>
+                        </div>
                       </div>
+                      {recordingId !== member.id && (
+                        <button
+                          type="button"
+                          onClick={() => setRecordingId(member.id)}
+                          className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-gold/40 bg-cream px-3 py-2 text-sm font-semibold text-burgundy hover:bg-gold/10"
+                        >
+                          <PlusCircle className="h-4 w-4" />
+                          Record answers
+                        </button>
+                      )}
                     </div>
-                    <p className="text-sm font-medium text-amber-800/90">Survey not saved</p>
+
+                    {recordingId === member.id && (
+                      <AdminRecordSurveyForm
+                        userId={member.id}
+                        memberName={member.name}
+                        onCancel={() => setRecordingId(null)}
+                        onSaved={() => {
+                          setRecordingId(null);
+                          void fetchSubmissions();
+                        }}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
