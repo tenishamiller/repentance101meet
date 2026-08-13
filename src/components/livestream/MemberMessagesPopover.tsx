@@ -101,8 +101,8 @@ export function MemberMessagesPopover({ userId }: Props) {
       aria-modal="false"
       className={
         isMobile
-          ? "fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-[100] flex max-h-[min(70dvh,28rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl"
-          : "absolute bottom-full right-0 z-50 mb-2 flex w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl sm:w-80"
+          ? "fixed inset-x-2 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-[100] flex max-h-[min(46dvh,15.5rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl"
+          : "absolute bottom-full right-0 z-50 mb-2 flex max-h-[min(52vh,17.5rem)] w-[min(calc(100vw-1rem),26rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl sm:w-[26rem]"
       }
     >
       <div className="flex shrink-0 items-center justify-between border-b border-gold/20 px-4 py-3">
@@ -120,14 +120,17 @@ export function MemberMessagesPopover({ userId }: Props) {
         </button>
       </div>
 
-      <div ref={scrollRef} className="chat-scroll min-h-[8rem] flex-1 overflow-y-auto px-3 py-3">
+      <div
+        ref={scrollRef}
+        className="chat-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 touch-pan-y"
+      >
         {messages.length === 0 ? (
           <p className="py-6 text-center text-sm text-burgundy/50">
             No messages yet. Norman may reach out here about membership or ministry.
           </p>
         ) : (
           <ul className="space-y-3">
-            {messages.slice(-12).map((msg) => {
+            {messages.map((msg) => {
               const isOwn = msg.sender.id === userId;
               return (
                 <li
