@@ -1,13 +1,15 @@
 "use client";
 
-import { Pencil, Trash2, Video } from "lucide-react";
+import { Pencil, Trash2, Video, Copy } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { useAppPath } from "@/hooks/useAppBase";
 import { isMessageEdited, getEditTimeRemaining } from "@/lib/channel-messages";
 import { canEditMessage, cn, type Attachment } from "@/lib/utils";
 import { formatRequestDateTime } from "@/lib/utils";
+import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 
 export type MembershipMessageData = {
   id: string;
@@ -54,12 +56,20 @@ export function MembershipMessageBubble({
   now = Date.now(),
   allowEdit = true,
 }: Props) {
+  const [copied, setCopied] = useState(false);
   const personalMinistryBase = useAppPath("/personal-ministry");
   const isText = message.type === "TEXT";
   const canModify = allowEdit && isText && isOwn && canEditMessage(message.createdAt, now);
   const isEditing = editingId === message.id;
   const edited = isMessageEdited(message.editedAt);
   const editRemaining = canModify ? getEditTimeRemaining(message.createdAt, now) : null;
+
+  async function copyMessage() {
+    const ok = await copyTextToClipboard(message.content);
+    if (!ok) return;
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }
 
   return (
     <div className={cn("group flex gap-3", isOwn && "flex-row-reverse")}>
@@ -151,24 +161,38 @@ export function MembershipMessageBubble({
           </div>
         </div>
 
-        {canModify && !isEditing && (
+        {(canModify || message.content.trim()) && !isEditing && (
           <div className={cn("mt-1.5 flex gap-3", isOwn && "justify-end")}>
-            <button
-              type="button"
-              onClick={onStartEdit}
-              className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
-            >
-              <Pencil className="h-3 w-3" />
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
-            >
-              <Trash2 className="h-3 w-3" />
-              Delete
-            </button>
+            {message.content.trim() && (
+              <button
+                type="button"
+                onClick={() => void copyMessage()}
+                className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
+              >
+                <Copy className="h-3 w-3" />
+                {copied ? "Copied" : "Copy"}
+              </button>
+            )}
+            {canModify && (
+              <>
+                <button
+                  type="button"
+                  onClick={onStartEdit}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
+                >
+                  <Pencil className="h-3 w-3" />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Delete
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

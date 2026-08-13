@@ -18,17 +18,14 @@ export function MobileNavDrawer() {
   const isMember = session?.user?.status === "APPROVED" && !isAdmin;
   const links = [
     { href: "/livestream", label: "Live Meeting", highlight: true },
-    { href: "/missed-it", label: "In case you missed it" },
-    { href: "/giving", label: "Give" },
     { href: "/channels/guidelines", label: "Guidelines" },
     ...(isApproved
       ? [
           { href: "/dashboard", label: "Dashboard" },
-          { href: "/channels/general", label: "Chat" },
-          { href: "/personal-ministry", label: "Personal Ministry" },
           ...(isMember ? [{ href: "/messages", label: "Messages" }] : []),
         ]
       : []),
+    { href: "/giving", label: "Give" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin Console", highlight: true }] : []),
     ...(session?.user
       ? [{ href: "/settings", label: "Settings" }]

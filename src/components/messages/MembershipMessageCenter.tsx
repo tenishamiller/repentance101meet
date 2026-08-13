@@ -2,12 +2,22 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Ban, MessageCircle, Paperclip, SendHorizontal, UserMinus } from "lucide-react";
+import { Ban, ClipboardPaste, MessageCircle, Paperclip, SendHorizontal, UserMinus, X } from "lucide-react";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
+import { EmojiPicker } from "@/components/channels/EmojiPicker";
 import { MINISTRY_LEADER } from "@/lib/brand";
 import { formatRequestDateTime, type Attachment } from "@/lib/utils";
 import { scrollContainerToBottom } from "@/lib/chat-scroll";
+import { uploadDirectAttachment } from "@/lib/direct-upload";
+import {
+  MESSAGE_MAX_ATTACHMENTS,
+  collectMediaAttachmentsFromText,
+  fileTooLargeError,
+  filesFromClipboard,
+  maxBytesForFile,
+  normalizeClipboardFile,
+} from "@/lib/message-attachments";
 import { useAppBase } from "@/hooks/useAppBase";
 import {
   MembershipMessageBubble,
@@ -209,31 +219,71 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   }, [messages]);
 
   async function uploadFile(file: File): Promise<Attachment | null> {
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: form });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setUploadError(typeof data.error === "string" ? data.error : "Could not upload file.");
+    const uploaded = await uploadDirectAttachment(file);
+    if ("error" in uploaded) {
+      setUploadError(uploaded.error);
       return null;
     }
-    const data = await res.json();
-    const type = file.type.startsWith("image/")
-      ? "image"
-      : file.type.startsWith("video/")
-        ? "video"
-        : file.type.startsWith("audio/")
-          ? "audio"
-          : "file";
-    return { type, url: data.url, name: file.name };
+    return uploaded;
+  }
+
+  function addPendingFiles(files: File[]) {
+    if (files.length === 0) return;
+    setUploadError("");
+    const accepted: File[] = [];
+    for (const file of files) {
+      if (file.size > maxBytesForFile(file)) {
+        setUploadError(fileTooLargeError(file));
+        continue;
+      }
+      accepted.push(file);
+    }
+    if (accepted.length === 0) return;
+    setPendingFiles((current) => [...current, ...accepted].slice(0, MESSAGE_MAX_ATTACHMENTS));
   }
 
   function handleFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
     const files = event.target.files ? Array.from(event.target.files) : [];
-    if (files.length === 0) return;
-    setUploadError("");
-    setPendingFiles((current) => [...current, ...files].slice(0, 5));
     event.target.value = "";
+    addPendingFiles(files);
+  }
+
+  function handlePaste(event: React.ClipboardEvent) {
+    const files = filesFromClipboard(event.clipboardData);
+    if (files.length === 0) return;
+    event.preventDefault();
+    addPendingFiles(files);
+  }
+
+  async function pasteFromClipboard() {
+    setUploadError("");
+    try {
+      if (!navigator.clipboard?.read) {
+        setUploadError("Paste a screenshot with Ctrl+V (or Cmd+V), or attach a file.");
+        return;
+      }
+      const items = await navigator.clipboard.read();
+      const files: File[] = [];
+      for (const item of items) {
+        const type = item.types.find(
+          (value) => value.startsWith("image/") || value.startsWith("video/"),
+        );
+        if (!type) continue;
+        const blob = await item.getType(type);
+        files.push(normalizeClipboardFile(new File([blob], "image.png", { type })));
+      }
+      if (files.length === 0) {
+        setUploadError("No screenshot or image on the clipboard. Copy one, then paste here.");
+        return;
+      }
+      addPendingFiles(files);
+    } catch {
+      setUploadError("Paste a screenshot with Ctrl+V (or Cmd+V), or attach a file.");
+    }
+  }
+
+  function insertEmoji(emoji: string) {
+    setContent((prev) => prev + emoji);
   }
 
   function clearPendingFiles() {
@@ -255,7 +305,17 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       if (attachment) attachments.push(attachment);
     }
 
-    if (!content.trim() && attachments.length === 0) {
+    let trimmed = content.trim();
+    for (const extra of collectMediaAttachmentsFromText(trimmed)) {
+      if (attachments.length >= MESSAGE_MAX_ATTACHMENTS) break;
+      if (attachments.some((item) => item.url === extra.url)) continue;
+      attachments.push(extra);
+    }
+    if (attachments.length === 1 && trimmed === attachments[0].url) {
+      trimmed = "";
+    }
+
+    if (!trimmed && attachments.length === 0) {
       setSending(false);
       return;
     }
@@ -266,12 +326,12 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       body: JSON.stringify(
         messagingPeer
           ? {
-              content: content.trim(),
+              content: trimmed,
               userId: peerId,
               attachments: attachments.length > 0 ? attachments : undefined,
             }
           : {
-              content: content.trim(),
+              content: trimmed,
               threadUserId,
               attachments: attachments.length > 0 ? attachments : undefined,
             },
@@ -741,7 +801,9 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                       {isAdmin
                         ? "Choose a member from the dropdown or pick a conversation to start messaging."
                         : messagingPeer
-                          ? "Request approval before sending messages."
+                          ? peerRelation?.canMessage
+                            ? "Send a first message, photo, GIF, or video."
+                            : "Request approval before sending messages."
                           : `Message ${MINISTRY_LEADER} here. Your one-on-one invite will appear in this box.`}
                     </p>
                   </div>
@@ -791,19 +853,20 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                 )}
 
               {(!messagingPeer || peerRelation?.canMessage) && (
-              <form onSubmit={sendMessage} className="shrink-0 border-t border-gold/20 p-3">
+              <form onSubmit={sendMessage} onPaste={handlePaste} className="shrink-0 border-t border-gold/20 p-3">
                 {uploadError && (
                   <p className="mb-2 text-xs text-burgundy">{uploadError}</p>
                 )}
                 {pendingFiles.length > 0 && (
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    {pendingFiles.map((file) => (
-                      <span
-                        key={`${file.name}-${file.size}-${file.lastModified}`}
-                        className="rounded-full border border-gold/30 bg-cream-dark px-2.5 py-1 text-xs text-burgundy/80"
-                      >
-                        📎 {file.name}
-                      </span>
+                    {pendingFiles.map((file, index) => (
+                      <PendingAttachmentChip
+                        key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+                        file={file}
+                        onRemove={() =>
+                          setPendingFiles((current) => current.filter((_, i) => i !== index))
+                        }
+                      />
                     ))}
                     <button
                       type="button"
@@ -818,23 +881,40 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                   ref={fileRef}
                   type="file"
                   multiple
-                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip"
+                  accept="image/gif,image/*,video/*,audio/*,.gif,.mp4,.webm,.mov,.pdf,.doc,.docx,.txt,.zip"
                   className="hidden"
                   id="membership-message-file"
                   onChange={handleFilesSelected}
                 />
-                <div className="flex gap-2">
+                <div className="flex items-end gap-2">
                   <label
                     htmlFor="membership-message-file"
-                    className="flex shrink-0 cursor-pointer items-center rounded-lg border border-gold/30 bg-cream-dark px-3 py-2 text-burgundy hover:bg-gold/10"
-                    title="Attach file (max 10 MB)"
+                    className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-gold/30 bg-cream-dark text-burgundy hover:bg-gold/10"
+                    title="Attach a photo, GIF, video, or file (max 10 MB; videos up to 25 MB)"
                   >
                     <Paperclip className="h-4 w-4" />
                   </label>
-                  <input
-                    type="text"
+                  <button
+                    type="button"
+                    onClick={() => void pasteFromClipboard()}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-gold/30 bg-cream-dark text-burgundy hover:bg-gold/10"
+                    title="Paste screenshot or copied image"
+                  >
+                    <ClipboardPaste className="h-4 w-4" />
+                  </button>
+                  <EmojiPicker
+                    onSelect={insertEmoji}
+                    buttonClassName="h-11 w-11 rounded-xl border-gold/30 bg-cream-dark"
+                  />
+                  <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
                     placeholder={
                       isAdmin
                         ? "Message this member..."
@@ -842,7 +922,8 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                           ? "Message this member..."
                           : "Message Norman..."
                     }
-                    className="input-field flex-1"
+                    rows={1}
+                    className="input-field max-h-32 min-h-[44px] flex-1 resize-none py-2.5"
                     disabled={(isAdmin && !selectedUserId) || (messagingPeer && !peerRelation?.canMessage)}
                   />
                   <button
@@ -853,12 +934,15 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                       (isAdmin && !selectedUserId) ||
                       (messagingPeer && !peerRelation?.canMessage)
                     }
-                    className="btn-primary flex shrink-0 items-center gap-2 !px-4 disabled:opacity-50"
+                    className="btn-primary flex h-11 shrink-0 items-center gap-2 !px-4 disabled:opacity-50"
                   >
                     <SendHorizontal className="h-4 w-4" />
                     <span className="hidden sm:inline">Send</span>
                   </button>
                 </div>
+                <p className="mt-2 text-center text-[11px] text-burgundy/45">
+                  Photos, GIFs, and videos · Paste a screenshot with Ctrl+V (Cmd+V on Mac)
+                </p>
               </form>
               )}
             </>
@@ -866,5 +950,38 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
         </div>
       </div>
     </div>
+  );
+}
+
+function PendingAttachmentChip({ file, onRemove }: { file: File; onRemove: () => void }) {
+  const [preview, setPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file.type.startsWith("image/")) return;
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  return (
+    <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-gold/30 bg-cream-dark py-1 pl-1 pr-2 text-xs text-burgundy/80">
+      {preview ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={preview} alt="" className="h-8 w-8 rounded-full object-cover" />
+      ) : (
+        <span className="pl-1.5" aria-hidden>
+          {file.type.startsWith("video/") ? "🎬" : "📎"}
+        </span>
+      )}
+      <span className="max-w-[9rem] truncate">{file.name}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="rounded-full p-0.5 text-burgundy/45 hover:bg-burgundy/10 hover:text-burgundy"
+        aria-label={`Remove ${file.name}`}
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </span>
   );
 }

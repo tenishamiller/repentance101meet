@@ -8,9 +8,10 @@ import { EMOJI_CATEGORIES, QUICK_EMOJIS } from "@/lib/channel-messages";
 type Props = {
   onSelect: (emoji: string) => void;
   className?: string;
+  buttonClassName?: string;
 };
 
-export function EmojiPicker({ onSelect, className }: Props) {
+export function EmojiPicker({ onSelect, className, buttonClassName }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +38,10 @@ export function EmojiPicker({ onSelect, className }: Props) {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex h-11 w-11 items-center justify-center rounded-xl border border-gold/40 bg-cream text-burgundy transition hover:border-gold hover:bg-gold/10"
+        className={cn(
+          "flex h-11 w-11 items-center justify-center rounded-xl border border-gold/40 bg-cream text-burgundy transition hover:border-gold hover:bg-gold/10",
+          buttonClassName,
+        )}
         aria-label="Add emoji"
         title="Add emoji"
       >

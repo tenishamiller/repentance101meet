@@ -16,8 +16,6 @@ export async function Navbar() {
         <nav className="hidden items-center gap-1 text-sm font-medium md:flex">
           {[
             { href: "/livestream", label: "Live Meeting", highlight: true },
-            { href: "/missed-it", label: "In case you missed it" },
-            { href: "/giving", label: "Give" },
             { href: "/channels/guidelines", label: "Guidelines" },
           ].map((item) => (
             <Link
@@ -34,12 +32,6 @@ export async function Navbar() {
           ))}
           {(session?.user?.status === "APPROVED" || session?.user?.role === "ADMIN") && (
             <>
-              <Link
-                href="/personal-ministry"
-                className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
-              >
-                Personal Ministry
-              </Link>
               {session.user.role !== "ADMIN" && (
                 <Link
                   href="/messages"
@@ -54,14 +46,14 @@ export async function Navbar() {
               >
                 Dashboard
               </Link>
-              <Link
-                href="/channels/general"
-                className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
-              >
-                Chat
-              </Link>
             </>
           )}
+          <Link
+            href="/giving"
+            className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
+          >
+            Give
+          </Link>
           {session?.user?.role === "ADMIN" ? (
             <Link
               href="/admin"

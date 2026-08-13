@@ -5,7 +5,7 @@ import { MINISTRY_NAME, MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { LiveMeetingBanner } from "@/components/livestream/LiveMeetingBanner";
 import { formatRequestDateTime } from "@/lib/utils";
-import { Heart, MessageCircle, Radio, Settings, Shield, Users } from "lucide-react";
+import { Heart, HandHeart, MessageCircle, Radio, Settings, Shield, Users } from "lucide-react";
 
 export async function MobileHome() {
   const session = await auth();
@@ -108,6 +108,12 @@ export async function MobileHome() {
               },
             ]
           : []),
+        {
+          href: `${base}/giving`,
+          label: "Give",
+          desc: "Support the ministry",
+          icon: HandHeart,
+        },
       ];
 
   return (

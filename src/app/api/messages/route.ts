@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { activeUserFilter } from "@/lib/user-deletion";
+import { attachmentSchema } from "@/lib/message-attachments";
 
 const messageInclude = {
   sender: { select: { id: true, name: true, avatarUrl: true, role: true } },
@@ -159,12 +160,6 @@ export async function GET(request: NextRequest) {
     isAdmin: false,
   });
 }
-
-const attachmentSchema = z.object({
-  type: z.enum(["image", "video", "audio", "file", "link"]),
-  url: z.string().url(),
-  name: z.string().optional(),
-});
 
 const postSchema = z.object({
   content: z.string().trim().max(2000).optional(),

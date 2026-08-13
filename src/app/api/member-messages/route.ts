@@ -4,12 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { activeUserFilter } from "@/lib/user-deletion";
 import { assertApprovedMember, getDmRelation, pairFilter } from "@/lib/member-dm";
-
-const attachmentSchema = z.object({
-  type: z.enum(["image", "video", "audio", "file", "link"]),
-  url: z.string().url(),
-  name: z.string().optional(),
-});
+import { attachmentSchema } from "@/lib/message-attachments";
 
 function serializeMessage(message: {
   id: string;
@@ -162,7 +157,7 @@ export async function GET(request: NextRequest) {
       unreadCount: unreadBy.get(member.id) ?? 0,
       lastMessage: lastByOther.get(member.id)
         ? {
-            content: lastByOther.get(member.id)!.content,
+            content: lastByOther.get(member.id)!.content.trim() || "📎 Attachment",
             createdAt: lastByOther.get(member.id)!.createdAt.toISOString(),
           }
         : null,

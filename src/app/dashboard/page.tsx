@@ -198,6 +198,20 @@ export default async function DashboardPage() {
           </Link>
         </div>
       )}
+
+      <Link
+        href="/giving"
+        className="card-glow hero-brand mt-10 flex flex-col items-center justify-between gap-4 rounded-2xl p-6 sm:flex-row"
+      >
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-gold-light">Give</p>
+          <p className="mt-1 font-serif text-xl font-bold text-cream">Support the ministry</p>
+          <p className="mt-1 text-sm text-cream/80">
+            A one-time or monthly gift helps keep teaching and fellowship going.
+          </p>
+        </div>
+        <span className="btn-primary shrink-0">Give →</span>
+      </Link>
     </div>
   );
 }
