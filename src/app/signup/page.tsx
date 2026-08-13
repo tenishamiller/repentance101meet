@@ -100,6 +100,16 @@ export default function SignupPage() {
       setError("Please pick at least two options for the Jesus love question.");
       return;
     }
+    if (relationshipWithJesus.trim().length < 100) {
+      setError(
+        `Please write at least 100 characters about your relationship with Jesus (${100 - relationshipWithJesus.trim().length} more needed).`,
+      );
+      return;
+    }
+    if (!spiritualStage || !location.trim() || !witchcraft.trim() || !bitterness.trim() || !baptism.trim()) {
+      setError("Please answer every required question.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -284,7 +294,20 @@ export default function SignupPage() {
               <CharCount current={baptism.length} max={100} />
             </QuestionBlock>
 
-            <button type="submit" disabled={loading} className="btn-primary w-full disabled:opacity-60">
+            <button
+              type="submit"
+              disabled={
+                loading ||
+                jesusLoveSelections.length < 2 ||
+                relationshipWithJesus.trim().length < 100 ||
+                !spiritualStage ||
+                !location.trim() ||
+                !witchcraft.trim() ||
+                !bitterness.trim() ||
+                !baptism.trim()
+              }
+              className="btn-primary w-full disabled:opacity-60"
+            >
               {loading ? "Submitting..." : "Submit Questionnaire"}
             </button>
           </form>
