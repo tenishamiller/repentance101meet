@@ -11,6 +11,7 @@ import {
   type LiveKitMeetingContextValue,
 } from "@/components/livekit/livekit-meeting-context";
 import { LiveKitBackgroundAudio } from "@/components/livekit/LiveKitBackgroundAudio";
+import { LiveKitPersistInBackground } from "@/components/livekit/LiveKitPersistInBackground";
 import { LiveKitTokenSync } from "@/components/livekit/LiveKitTokenSync";
 
 type TokenResponse = {
@@ -185,7 +186,12 @@ export function LiveKitMeetingShell({
       >
         <LiveKitTokenSync serverUrl={credentials.serverUrl} token={credentials.token} />
         <RoomConnectionMonitor roomError={roomError} onRoomError={setRoomError} />
-        {persistInBackground && <LiveKitBackgroundAudio meetingTitle={meetingTitle} />}
+        {persistInBackground && (
+          <>
+            <LiveKitPersistInBackground />
+            <LiveKitBackgroundAudio meetingTitle={meetingTitle} />
+          </>
+        )}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
         {!skipRoomAudio && <RoomAudioRenderer />}
       </LiveKitRoom>
