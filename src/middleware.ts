@@ -34,6 +34,7 @@ const protectedPaths = [
   "/meeting",
   "/personal-ministry",
   "/messages",
+  "/questionnaire",
   "/livestream",
   "/m/dashboard",
   "/m/settings",
@@ -41,6 +42,7 @@ const protectedPaths = [
   "/m/meeting",
   "/m/personal-ministry",
   "/m/messages",
+  "/m/questionnaire",
   "/m/livestream",
 ];
 
@@ -196,6 +198,7 @@ export const config = {
     "/meeting/:path*",
     "/personal-ministry/:path*",
     "/messages/:path*",
+    "/questionnaire/:path*",
     "/livestream/:path*",
     "/giving",
     "/giving/:path*",
@@ -212,6 +215,7 @@ export const config = {
     "/m/meeting/:path*",
     "/m/personal-ministry/:path*",
     "/m/messages/:path*",
+    "/m/questionnaire/:path*",
     "/m/livestream/:path*",
     "/m/giving",
     "/m/giving/:path*",

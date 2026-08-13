@@ -45,6 +45,11 @@ export const ONBOARDING_INVITE_TITLE =
 export const ONBOARDING_INVITE_MESSAGE =
   "Norman has invited you to a required personal one-on-one meeting to complete your membership approval. This is the meeting you need before joining the group — tap Join below when the session is live.";
 
+export const QUESTIONNAIRE_RETAKE_TITLE = "Membership Questionnaire — Please Complete Again";
+
+export const QUESTIONNAIRE_RETAKE_MESSAGE =
+  "Norman has asked you to complete the membership questionnaire again. Tap the button below to open the survey — your updated answers will be saved for review.";
+
 export const ONBOARDING_DUE_HOURS = 24;
 
 export function computeOnboardingDueAt(from = new Date()) {

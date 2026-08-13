@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, Video, Copy } from "lucide-react";
+import { Pencil, Trash2, Video, Copy, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -15,7 +15,7 @@ export type MembershipMessageData = {
   id: string;
   content: string;
   attachments: Attachment[] | null;
-  type: "TEXT" | "ONBOARDING_INVITE" | "SYSTEM";
+  type: "TEXT" | "ONBOARDING_INVITE" | "QUESTIONNAIRE_RETAKE" | "SYSTEM";
   createdAt: string;
   updatedAt: string;
   editedAt: string | null;
@@ -58,6 +58,7 @@ export function MembershipMessageBubble({
 }: Props) {
   const [copied, setCopied] = useState(false);
   const personalMinistryBase = useAppPath("/personal-ministry");
+  const questionnairePath = useAppPath("/questionnaire");
   const isText = message.type === "TEXT";
   const canModify = allowEdit && isText && isOwn && canEditMessage(message.createdAt, now);
   const isEditing = editingId === message.id;
@@ -85,7 +86,9 @@ export function MembershipMessageBubble({
             "rounded-2xl px-4 py-3",
             message.type === "ONBOARDING_INVITE"
               ? "border-2 border-gold bg-gold/15"
-              : message.type === "SYSTEM"
+              : message.type === "QUESTIONNAIRE_RETAKE"
+                ? "border-2 border-gold bg-gold/15"
+                : message.type === "SYSTEM"
                 ? "border border-gold/30 bg-cream-dark"
                 : message.sender.role === "ADMIN"
                   ? "border border-gold/25 bg-white"
@@ -95,6 +98,11 @@ export function MembershipMessageBubble({
           {message.type === "ONBOARDING_INVITE" && (
             <p className="mb-2 text-xs font-bold uppercase tracking-wide text-burgundy">
               Membership Approval — Required One-on-One
+            </p>
+          )}
+          {message.type === "QUESTIONNAIRE_RETAKE" && (
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-burgundy">
+              Membership Questionnaire — Action Required
             </p>
           )}
 
@@ -143,6 +151,16 @@ export function MembershipMessageBubble({
               {message.meeting.status === "LIVE"
                 ? "Join One-on-One Now"
                 : "Open One-on-One Session"}
+            </Link>
+          )}
+
+          {message.type === "QUESTIONNAIRE_RETAKE" && (
+            <Link
+              href={questionnairePath}
+              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-burgundy px-4 py-2 text-sm font-semibold text-cream hover:bg-burgundy-dark"
+            >
+              <ClipboardList className="h-4 w-4" />
+              Open Membership Questionnaire
             </Link>
           )}
 

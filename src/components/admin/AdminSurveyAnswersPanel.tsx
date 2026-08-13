@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, ClipboardList, PlusCircle, Trash2 } from "lucide-react";
+import { AlertTriangle, ClipboardList, Mail, PlusCircle, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AdminRecordSurveyForm } from "@/components/admin/AdminRecordSurveyForm";
 import { formatRequestDateTime } from "@/lib/utils";
@@ -31,6 +31,7 @@ type IncompleteSignup = {
   hasMembershipThread: boolean;
   missingReason: string;
   missingReasonLabel: string;
+  retakeRequested: boolean;
 };
 
 export function AdminSurveyAnswersPanel() {
@@ -40,6 +41,8 @@ export function AdminSurveyAnswersPanel() {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [recordingId, setRecordingId] = useState<string | null>(null);
+  const [retakeSendingId, setRetakeSendingId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
 
   const fetchSubmissions = useCallback(async () => {
@@ -78,6 +81,27 @@ export function AdminSurveyAnswersPanel() {
     setSubmissions((prev) => prev.filter((entry) => entry.id !== userId));
   }
 
+  async function requestRetake(userId: string, memberName: string) {
+    setRetakeSendingId(userId);
+    setError("");
+    setSuccessMessage("");
+    const res = await fetch("/api/admin/survey-answers/retake-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    setRetakeSendingId(null);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(typeof data.error === "string" ? data.error : "Could not send retake request.");
+      return;
+    }
+
+    setSuccessMessage(`Survey retake sent to ${memberName} in their membership messages.`);
+    void fetchSubmissions();
+  }
+
   const completedCount = submissions.length;
   const incompleteCount = incomplete.length;
 
@@ -105,6 +129,12 @@ export function AdminSurveyAnswersPanel() {
       {error && (
         <div className="rounded-xl border border-burgundy/30 bg-burgundy/5 px-4 py-3 text-sm text-burgundy">
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-burgundy">
+          {successMessage}
         </div>
       )}
 
@@ -191,7 +221,16 @@ export function AdminSurveyAnswersPanel() {
                         )}
                       </div>
 
-                      <div className="mt-5 border-t border-gold/15 pt-4">
+                      <div className="mt-5 flex flex-wrap gap-2 border-t border-gold/15 pt-4">
+                        <button
+                          type="button"
+                          disabled={retakeSendingId === submission.id}
+                          onClick={() => void requestRetake(submission.id, submission.name)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-gold/40 bg-cream px-4 py-2 text-sm font-semibold text-burgundy hover:bg-gold/10 disabled:opacity-60"
+                        >
+                          <Mail className="h-4 w-4" />
+                          {retakeSendingId === submission.id ? "Sending..." : "Request retake"}
+                        </button>
                         {!isConfirming ? (
                           <button
                             type="button"
@@ -202,7 +241,7 @@ export function AdminSurveyAnswersPanel() {
                             Delete survey answers
                           </button>
                         ) : (
-                          <div className="rounded-xl border border-amber-300/60 bg-amber-50/90 px-4 py-4">
+                          <div className="w-full rounded-xl border border-amber-300/60 bg-amber-50/90 px-4 py-4">
                             <p className="text-sm font-medium text-burgundy">
                               Delete {submission.name}&apos;s survey answers from this list?
                             </p>
@@ -274,18 +313,34 @@ export function AdminSurveyAnswersPanel() {
                           </p>
                           <p className="mt-1 text-xs font-medium text-amber-800/90">
                             {member.missingReasonLabel}
+                            {member.retakeRequested && " · Retake request sent — waiting on member"}
                           </p>
                         </div>
                       </div>
                       {recordingId !== member.id && (
-                        <button
-                          type="button"
-                          onClick={() => setRecordingId(member.id)}
-                          className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-gold/40 bg-cream px-3 py-2 text-sm font-semibold text-burgundy hover:bg-gold/10"
-                        >
-                          <PlusCircle className="h-4 w-4" />
-                          Record answers
-                        </button>
+                        <div className="flex shrink-0 flex-col gap-2 self-start">
+                          <button
+                            type="button"
+                            onClick={() => setRecordingId(member.id)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-gold/40 bg-cream px-3 py-2 text-sm font-semibold text-burgundy hover:bg-gold/10"
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                            Record answers
+                          </button>
+                          <button
+                            type="button"
+                            disabled={retakeSendingId === member.id || member.retakeRequested}
+                            onClick={() => void requestRetake(member.id, member.name)}
+                            className="inline-flex items-center gap-2 rounded-lg border border-burgundy/25 bg-cream px-3 py-2 text-sm font-semibold text-burgundy hover:bg-burgundy/5 disabled:opacity-60"
+                          >
+                            <Mail className="h-4 w-4" />
+                            {member.retakeRequested
+                              ? "Retake sent"
+                              : retakeSendingId === member.id
+                                ? "Sending..."
+                                : "Send survey"}
+                          </button>
+                        </div>
                       )}
                     </div>
 

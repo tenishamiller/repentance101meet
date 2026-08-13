@@ -64,6 +64,7 @@ enum MemberActivityType {
 enum MembershipMessageType {
   TEXT
   ONBOARDING_INVITE
+  QUESTIONNAIRE_RETAKE
   SYSTEM
 }
 
@@ -84,6 +85,7 @@ model User {
   status       AccountStatus @default(PENDING)
   questionnaireCompletedAt DateTime?
   questionnaireAnswers     Json?
+  questionnaireRetakeRequestedAt DateTime?
   onboardingDueAt          DateTime?
   deletedAt                DateTime?
   purgeAt                  DateTime?

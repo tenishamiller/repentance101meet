@@ -29,6 +29,7 @@ export function canPendingAccessPath(
 ): boolean {
   const path = normalizePath(pathname);
   if (path === "/signup" || path.startsWith("/signup/")) return true;
+  if (path === "/questionnaire" || path.startsWith("/questionnaire/")) return true;
   if (
     questionnaireCompleted &&
     (path === "/messages" || path.startsWith("/messages/"))

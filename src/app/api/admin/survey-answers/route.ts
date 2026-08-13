@@ -101,6 +101,7 @@ export async function GET() {
       purgeAt: true,
       questionnaireCompletedAt: true,
       questionnaireAnswers: true,
+      questionnaireRetakeRequestedAt: true,
       createdAt: true,
       membershipThread: {
         select: { id: true },
@@ -121,6 +122,7 @@ export async function GET() {
     hasMembershipThread: boolean;
     missingReason: string;
     missingReasonLabel: string;
+    retakeRequested: boolean;
   }> = [];
 
   for (const member of members) {
@@ -147,6 +149,7 @@ export async function GET() {
       hasMembershipThread: member.membershipThread.length > 0,
       missingReason: missingReasonFor(member),
       missingReasonLabel: missingReasonLabel[missingReasonFor(member)],
+      retakeRequested: Boolean(member.questionnaireRetakeRequestedAt),
     });
   }
 

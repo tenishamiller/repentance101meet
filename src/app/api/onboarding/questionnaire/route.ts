@@ -7,53 +7,41 @@ import {
 } from "@/lib/onboarding";
 import { z } from "zod";
 
-export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      questionnaireCompletedAt: true,
-      onboardingDueAt: true,
-      status: true,
-    },
-  });
-
-  if (!user) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return Response.json({
-    questionnaireCompleted: Boolean(user.questionnaireCompletedAt),
-    onboardingDueAt: user.onboardingDueAt?.toISOString() ?? null,
-    status: user.status,
-  });
-}
-
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (session.user.role !== "MEMBER" || session.user.status !== "PENDING") {
+  if (session.user.role !== "MEMBER") {
+    return Response.json({ error: "Questionnaire not required" }, { status: 400 });
+  }
+
+  const member = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      questionnaireCompletedAt: true,
+      questionnaireRetakeRequestedAt: true,
+      onboardingDueAt: true,
+      status: true,
+    },
+  });
+
+  if (!member) {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const isRetake = Boolean(member.questionnaireRetakeRequestedAt);
+  const isInitialPending =
+    member.status === "PENDING" && !member.questionnaireCompletedAt && !isRetake;
+
+  if (!isRetake && !isInitialPending) {
     return Response.json({ error: "Questionnaire not required" }, { status: 400 });
   }
 
   try {
     const body = await request.json();
     const answers = questionnaireSchema.parse(body);
-
-    const existing = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { questionnaireCompletedAt: true },
-    });
-    if (existing?.questionnaireCompletedAt) {
-      return Response.json({ error: "Questionnaire already submitted" }, { status: 409 });
-    }
 
     if (
       answers.jesusLoveSelections.includes("(Write your answer)") &&
@@ -66,13 +54,14 @@ export async function POST(request: Request) {
     }
 
     const now = new Date();
-    const dueAt = computeOnboardingDueAt(now);
+    const dueAt = member.onboardingDueAt ?? computeOnboardingDueAt(now);
 
     await prisma.user.update({
       where: { id: session.user.id },
       data: {
         questionnaireAnswers: answers,
         questionnaireCompletedAt: now,
+        questionnaireRetakeRequestedAt: null,
         onboardingDueAt: dueAt,
       },
     });
@@ -80,7 +69,9 @@ export async function POST(request: Request) {
     await logMemberActivity({
       userId: session.user.id,
       type: "QUESTIONNAIRE_COMPLETED",
-      label: "Completed membership questionnaire",
+      label: isRetake
+        ? "Completed membership questionnaire (retake)"
+        : "Completed membership questionnaire",
     });
 
     const admin = await prisma.user.findFirst({
@@ -94,7 +85,9 @@ export async function POST(request: Request) {
           threadUserId: session.user.id,
           senderId: session.user.id,
           type: "SYSTEM",
-          content: `${session.user.name} has completed the membership questionnaire and is waiting for a personal one-on-one with Norman. Please review their answers and send an invite when ready.`,
+          content: isRetake
+            ? `${session.user.name} has completed the membership questionnaire (retake). Updated answers are ready in Admin → Survey Answers.`
+            : `${session.user.name} has completed the membership questionnaire and is waiting for a personal one-on-one with Norman. Please review their answers and send an invite when ready.`,
         },
       });
     }
@@ -102,6 +95,7 @@ export async function POST(request: Request) {
     return Response.json({
       success: true,
       onboardingDueAt: dueAt.toISOString(),
+      retake: isRetake,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

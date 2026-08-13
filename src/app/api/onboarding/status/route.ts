@@ -11,6 +11,7 @@ export async function GET() {
     where: { id: session.user.id },
     select: {
       questionnaireCompletedAt: true,
+      questionnaireRetakeRequestedAt: true,
       onboardingDueAt: true,
       status: true,
     },
@@ -22,6 +23,7 @@ export async function GET() {
 
   return Response.json({
     questionnaireCompleted: Boolean(user.questionnaireCompletedAt),
+    questionnaireRetakeRequested: Boolean(user.questionnaireRetakeRequestedAt),
     onboardingDueAt: user.onboardingDueAt?.toISOString() ?? null,
     status: user.status,
   });
