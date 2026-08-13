@@ -13,6 +13,17 @@
   --cream-dark: #f5ede0;
 }
 
+/* Dark mode — burgundy and sepia/cream palettes swap roles */
+[data-theme="dark"] {
+  --background: #3d1818;
+  --foreground: #fef9f0;
+  --burgundy: #f5ede0;
+  --burgundy-dark: #e8d5a3;
+  --burgundy-deep: #fef9f0;
+  --cream: #4a1f1f;
+  --cream-dark: #3d1818;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -40,6 +51,13 @@ body {
     radial-gradient(ellipse 80% 50% at 50% -20%, rgba(201, 162, 39, 0.1), transparent),
     radial-gradient(ellipse 60% 40% at 100% 50%, rgba(107, 45, 45, 0.05), transparent),
     radial-gradient(ellipse 50% 30% at 0% 80%, rgba(201, 162, 39, 0.07), transparent);
+}
+
+[data-theme="dark"] .ministry-bg {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(201, 162, 39, 0.14), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 50%, rgba(232, 213, 163, 0.06), transparent),
+    radial-gradient(ellipse 50% 30% at 0% 80%, rgba(201, 162, 39, 0.1), transparent);
 }
 
 @keyframes float {
@@ -213,6 +231,13 @@ body {
 .prose-ministry strong {
   font-weight: 600;
   color: var(--burgundy);
+}
+
+[data-theme="dark"] .channel-feed {
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(201, 162, 39, 0.1), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(232, 213, 163, 0.06), transparent 40%),
+    linear-gradient(180deg, rgba(74, 31, 31, 0.95), rgba(61, 24, 24, 0.85));
 }
 
 /* Channel conversation feed — subtle parchment texture */

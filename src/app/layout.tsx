@@ -35,7 +35,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${crimson.variable} ${sourceSans.variable} h-full`}>
+    <html lang="en" className={`${crimson.variable} ${sourceSans.variable} h-full`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("r101-theme");if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="ministry-bg flex min-h-full flex-col font-sans text-foreground antialiased">
         <Providers>
           <LayoutSwitch
