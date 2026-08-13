@@ -21,9 +21,12 @@ import {
 } from "@/lib/media-devices";
 import {
   getMemberCameraPublishOptions,
+  getHostScreenSharePublish,
+  getScreenShareCaptureAttempts,
   hostLivestreamCameraCapture,
   hostLivestreamCameraPublish,
-  screenShareCaptureAttempts,
+  hostPresentingCameraCapture,
+  hostPresentingCameraPublish,
 } from "@/lib/livekit-capture";
 import { isLiveKitPermissionError } from "@/lib/livekit-errors";
 
@@ -543,17 +546,36 @@ export function useLiveKitStage({
     };
   }, [connectionState, ensureKindDevice, reconcileMediaDevices, room]);
 
-  /** Restore host camera on the main stage as soon as screen share ends. */
+  /** Match host camera profile to screen-share state — lighter PiP while presenting. */
   useEffect(() => {
     if (!isHost || mode !== "livestream" || connectionState !== ConnectionState.Connected) return;
-    if (isScreenSharing || cameraOffByUser) return;
-    void enableHostCamera(true);
+    if (cameraOffByUser) return;
+
+    void (async () => {
+      try {
+        if (isScreenSharing) {
+          await localParticipant.setCameraEnabled(
+            true,
+            withExactDeviceId(
+              hostPresentingCameraCapture,
+              preferredVideoDeviceIdRef.current,
+            ),
+            hostPresentingCameraPublish,
+          );
+          return;
+        }
+        await enableHostCamera(true);
+      } catch {
+        /* surfaced via lastCameraError */
+      }
+    })();
   }, [
     cameraOffByUser,
     connectionState,
     enableHostCamera,
     isHost,
     isScreenSharing,
+    localParticipant,
     mode,
   ]);
 
@@ -611,13 +633,9 @@ export function useLiveKitStage({
       return;
     }
 
-    const publishOptions: { degradationPreference: "maintain-framerate" | "maintain-resolution" } = {
-      degradationPreference: isMobileLiveKitClient()
-        ? "maintain-framerate"
-        : "maintain-resolution",
-    };
+    const publishOptions = getHostScreenSharePublish();
 
-    for (const options of screenShareCaptureAttempts) {
+    for (const options of getScreenShareCaptureAttempts()) {
       try {
         await localParticipant.setScreenShareEnabled(true, options, publishOptions);
         return;

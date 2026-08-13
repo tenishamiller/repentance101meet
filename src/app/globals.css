@@ -292,6 +292,12 @@ body {
   min-height: 0;
 }
 
+/** Main-stage remote video — GPU compositing for smoother screen-share playback. */
+.livekit-main-stage-low-latency video {
+  transform: translateZ(0);
+  will-change: contents;
+}
+
 /** Livestream mobile: shared screen uses most of the viewport; in-room tiles stay on swipe. */
 @media (max-width: 1023px) {
   .mobile-livestream-screen-share {

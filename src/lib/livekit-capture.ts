@@ -7,37 +7,65 @@ import {
   type VideoCaptureOptions,
 } from "livekit-client";
 
-const screenShareResolution = ScreenSharePresets.h720fps15.resolution;
+function isMobileLiveKitClient() {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+}
+
+/** Retina-aware layer selection for viewers — does not increase host uplink. */
+function getAdaptiveStreamPixelDensity() {
+  if (typeof window === "undefined") return 1;
+  return Math.min(window.devicePixelRatio || 1, 2);
+}
+
+function getScreenSharePreset() {
+  return isMobileLiveKitClient()
+    ? ScreenSharePresets.h720fps15
+    : ScreenSharePresets.h1080fps15;
+}
 
 /**
  * Screen capture for livestream host.
  * Do not set systemAudio: "include" — it breaks window sharing in Chrome (tabs still work).
  * Tab audio uses audio: true plus the browser's "Share tab audio" checkbox.
  */
-export const screenShareCaptureOptions: ScreenShareCaptureOptions = {
-  audio: true,
-  resolution: screenShareResolution,
-  contentHint: "detail",
-  surfaceSwitching: "include",
-};
+export function getScreenShareCaptureAttempts(): ScreenShareCaptureOptions[] {
+  const resolution = getScreenSharePreset().resolution;
 
-/** Fallback when the browser rejects audio in getDisplayMedia (still shares window/tab video). */
-export const screenShareVideoOnlyOptions: ScreenShareCaptureOptions = {
-  audio: false,
-  resolution: screenShareResolution,
-  contentHint: "detail",
-};
+  return [
+    {
+      audio: true,
+      resolution,
+      contentHint: "detail",
+      surfaceSwitching: "include",
+    },
+    {
+      audio: false,
+      resolution,
+      contentHint: "detail",
+    },
+    { audio: false },
+  ];
+}
 
-/** Ordered attempts — stop at the first successful publish. */
-export const screenShareCaptureAttempts: ScreenShareCaptureOptions[] = [
-  screenShareCaptureOptions,
-  screenShareVideoOnlyOptions,
-  { audio: false },
-];
+/** H.264 screen share — sharper text, less CPU than VP8, no simulcast overhead. */
+export function getHostScreenSharePublish(): TrackPublishOptions {
+  const preset = getScreenSharePreset();
 
-function isMobileLiveKitClient() {
-  if (typeof navigator === "undefined") return false;
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  return {
+    videoCodec: "h264",
+    backupCodec: {
+      codec: "vp8",
+      encoding: preset.encoding,
+    },
+    degradationPreference: isMobileLiveKitClient()
+      ? "maintain-framerate"
+      : "maintain-resolution",
+    simulcast: false,
+    screenShareEncoding: {
+      ...preset.encoding,
+    },
+  };
 }
 
 /**
@@ -47,10 +75,11 @@ function isMobileLiveKitClient() {
  */
 export function getLiveKitRoomOptions(persistInBackground = false): RoomOptions {
   const mobileClient = isMobileLiveKitClient();
+  const screenSharePreset = getScreenSharePreset();
 
   return {
     adaptiveStream: {
-      pixelDensity: 1,
+      pixelDensity: getAdaptiveStreamPixelDensity(),
       // Keep video alive when listeners background the tab during livestream.
       pauseVideoInBackground: !persistInBackground,
     },
@@ -68,8 +97,7 @@ export function getLiveKitRoomOptions(persistInBackground = false): RoomOptions 
       videoCodec: "vp8",
       degradationPreference: "maintain-framerate",
       screenShareEncoding: {
-        ...ScreenSharePresets.h720fps15.encoding,
-        maxFramerate: mobileClient ? 15 : 24,
+        ...screenSharePreset.encoding,
       },
       videoSimulcastLayers: [VideoPresets.h180],
     },
@@ -98,6 +126,19 @@ export const hostLivestreamCameraPublish: TrackPublishOptions = {
   degradationPreference: "maintain-framerate",
   simulcast: true,
   videoSimulcastLayers: [VideoPresets.h540, VideoPresets.h360, VideoPresets.h180],
+};
+
+/** Host PiP camera while screen sharing — frees uplink for 1080p presentation. */
+export const hostPresentingCameraCapture: VideoCaptureOptions = {
+  resolution: VideoPresets.h360.resolution,
+  frameRate: 15,
+};
+
+export const hostPresentingCameraPublish: TrackPublishOptions = {
+  videoCodec: "h264",
+  videoEncoding: VideoPresets.h360.encoding,
+  degradationPreference: "maintain-framerate",
+  simulcast: false,
 };
 
 /** Member camera when host is not presenting (pip / split layout). */

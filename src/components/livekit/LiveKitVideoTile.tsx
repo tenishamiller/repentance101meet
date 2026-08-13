@@ -77,7 +77,13 @@ export function LiveKitVideoTile({
   }, [lowLatency, panelLayout, trackRef]);
 
   return (
-    <div className={cn("relative h-full min-h-0 w-full overflow-hidden bg-black", className)}>
+    <div
+      className={cn(
+        "relative h-full min-h-0 w-full overflow-hidden bg-black",
+        lowLatency && "livekit-main-stage-low-latency",
+        className,
+      )}
+    >
       {showVideo && trackRef ? (
         <VideoTrack key={videoKey} trackRef={trackRef} className={resolvedVideoClassName} />
       ) : cameraOff ? (
