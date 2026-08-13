@@ -280,7 +280,7 @@ function LivestreamRoomContent({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden overscroll-none bg-burgundy-deep lg:min-h-0 lg:flex-row">
+    <div className="livestream-room flex h-full min-h-0 flex-1 flex-col overflow-hidden overscroll-none bg-burgundy-deep lg:min-h-0 lg:flex-row">
       <div
         className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
           isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""

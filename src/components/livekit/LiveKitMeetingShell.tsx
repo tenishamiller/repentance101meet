@@ -69,6 +69,11 @@ export function LiveKitMeetingShell({
   meetingTitle,
   skipRoomAudio = false,
 }: Props) {
+  const livestreamShell = skipRoomAudio;
+  const shellClass = livestreamShell
+    ? "livestream-room flex h-full min-h-0 flex-1 flex-col"
+    : "flex h-full min-h-0 flex-1 flex-col";
+
   const [credentials, setCredentials] = useState<TokenResponse | null>(null);
   const [error, setError] = useState("");
   const [roomError, setRoomError] = useState("");
@@ -142,16 +147,18 @@ export function LiveKitMeetingShell({
 
   if (loading) {
     return (
-      <div className="flex min-h-[12rem] flex-1 items-center justify-center bg-burgundy-deep">
-        <p className="font-serif text-gold-light">Connecting video…</p>
+      <div className={`${shellClass} items-center justify-center bg-burgundy-deep`}>
+        <p className="font-serif text-cream">Connecting video…</p>
       </div>
     );
   }
 
   if (error || !credentials) {
     return (
-      <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-3 bg-burgundy-deep px-4 text-center">
-        <p className="max-w-md text-sm text-gold-light">{error || "Video unavailable"}</p>
+      <div
+        className={`${shellClass} flex-col items-center justify-center gap-3 bg-burgundy-deep px-4 text-center`}
+      >
+        <p className="max-w-md text-sm text-cream/90">{error || "Video unavailable"}</p>
         <button type="button" onClick={() => void loadToken()} className="btn-primary text-sm">
           Retry
         </button>
@@ -182,7 +189,7 @@ export function LiveKitMeetingShell({
           );
         }}
         data-lk-theme="default"
-        className="flex h-full min-h-0 flex-1 flex-col"
+        className={shellClass}
       >
         <LiveKitTokenSync serverUrl={credentials.serverUrl} token={credentials.token} />
         <RoomConnectionMonitor roomError={roomError} onRoomError={setRoomError} />
