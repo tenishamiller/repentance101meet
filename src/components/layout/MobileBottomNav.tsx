@@ -15,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { mobileHref } from "@/lib/mobile-paths";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type NavItem = {
   href: string;
@@ -184,13 +185,16 @@ export function MobileBottomNav({ mobileApp = false }: { mobileApp?: boolean }) 
             >
               In case you missed it
             </Link>
-            <Link
-              href={link("/giving")}
-              onClick={() => setMoreOpen(false)}
-              className="rounded-xl border border-gold/25 bg-cream-dark px-3 py-3 text-sm font-medium text-burgundy"
-            >
-              Give
-            </Link>
+            <div className="col-span-2 flex items-center gap-2 rounded-xl border border-gold/25 bg-cream-dark px-3 py-2">
+              <Link
+                href={link("/giving")}
+                onClick={() => setMoreOpen(false)}
+                className="flex-1 py-1 text-sm font-medium text-burgundy"
+              >
+                Give
+              </Link>
+              <ThemeToggle />
+            </div>
             <Link
               href={link("/channels/guidelines")}
               onClick={() => setMoreOpen(false)}

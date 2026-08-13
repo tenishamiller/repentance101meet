@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { SiteBrandMark } from "@/components/SiteBrandMark";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { UserAvatar } from "@/components/UserAvatar";
 import { SignOutButton } from "@/components/SignOutButton";
 import { MobileNavDrawer } from "@/components/layout/MobileNavDrawer";
@@ -48,12 +49,15 @@ export async function Navbar() {
               </Link>
             </>
           )}
-          <Link
-            href="/giving"
-            className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
-          >
-            Give
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link
+              href="/giving"
+              className="rounded-lg px-3 py-2 text-burgundy/80 transition hover:bg-gold/10 hover:text-burgundy"
+            >
+              Give
+            </Link>
+            <ThemeToggle />
+          </div>
           {session?.user?.role === "ADMIN" ? (
             <Link
               href="/admin"

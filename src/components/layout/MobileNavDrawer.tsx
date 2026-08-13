@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function MobileNavDrawer() {
   const [open, setOpen] = useState(false);
@@ -67,23 +68,41 @@ export function MobileNavDrawer() {
               </button>
             </div>
             <nav className="flex-1 overflow-y-auto p-3">
-              {links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "mb-1 block rounded-xl px-4 py-3 text-sm font-semibold transition",
-                    link.highlight
-                      ? "bg-burgundy text-cream"
-                      : pathname === link.href || pathname.startsWith(`${link.href}/`)
-                        ? "bg-gold/15 text-burgundy"
-                        : "text-burgundy/80 hover:bg-cream-dark",
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
+              {links.map((link) =>
+                link.href === "/giving" ? (
+                  <div key={link.href} className="mb-1 flex items-center gap-2">
+                    <Link
+                      href={link.href}
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        "flex-1 rounded-xl px-4 py-3 text-sm font-semibold transition",
+                        pathname === link.href || pathname.startsWith(`${link.href}/`)
+                          ? "bg-gold/15 text-burgundy"
+                          : "text-burgundy/80 hover:bg-cream-dark",
+                      )}
+                    >
+                      {link.label}
+                    </Link>
+                    <ThemeToggle />
+                  </div>
+                ) : (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "mb-1 block rounded-xl px-4 py-3 text-sm font-semibold transition",
+                      link.highlight
+                        ? "bg-burgundy text-cream"
+                        : pathname === link.href || pathname.startsWith(`${link.href}/`)
+                          ? "bg-gold/15 text-burgundy"
+                          : "text-burgundy/80 hover:bg-cream-dark",
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                ),
+              )}
             </nav>
           </div>
         </>
