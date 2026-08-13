@@ -113,9 +113,7 @@ export function MissedItBoard({ initialWeek, isAdmin = false }: Props) {
               ) : (
                 <>
                   <h2 className="mt-3 font-serif text-lg font-semibold leading-snug text-burgundy">
-                    {day.topic
-                      ? `${day.name} talked about ${day.topic}`
-                      : `${day.name} — nothing posted yet`}
+                    {day.topic || "Nothing posted yet"}
                   </h2>
                   <ul className="mt-3 flex-1 space-y-2">
                     {day.links.length === 0 ? (
@@ -218,12 +216,12 @@ function DayEditor({
   return (
     <div className="mt-3 flex flex-1 flex-col gap-2">
       <label className="text-xs font-semibold text-burgundy">
-        {day.name} talked about
+        Topic
         <textarea
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           rows={3}
-          placeholder="this topic…"
+          placeholder="What was taught this day…"
           className="input-field mt-1 text-sm"
         />
       </label>
