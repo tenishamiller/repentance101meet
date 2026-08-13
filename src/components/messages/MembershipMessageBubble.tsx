@@ -38,6 +38,7 @@ type Props = {
   onSaveEdit: () => void;
   onDelete: () => void;
   now?: number;
+  allowEdit?: boolean;
 };
 
 export function MembershipMessageBubble({
@@ -51,10 +52,11 @@ export function MembershipMessageBubble({
   onSaveEdit,
   onDelete,
   now = Date.now(),
+  allowEdit = true,
 }: Props) {
   const personalMinistryBase = useAppPath("/personal-ministry");
   const isText = message.type === "TEXT";
-  const canModify = isText && isOwn && canEditMessage(message.createdAt, now);
+  const canModify = allowEdit && isText && isOwn && canEditMessage(message.createdAt, now);
   const isEditing = editingId === message.id;
   const edited = isMessageEdited(message.editedAt);
   const editRemaining = canModify ? getEditTimeRemaining(message.createdAt, now) : null;

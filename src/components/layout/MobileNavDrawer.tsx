@@ -18,6 +18,7 @@ export function MobileNavDrawer() {
   const isMember = session?.user?.status === "APPROVED" && !isAdmin;
   const links = [
     { href: "/livestream", label: "Live Meeting", highlight: true },
+    { href: "/giving", label: "Give" },
     { href: "/channels/guidelines", label: "Guidelines" },
     ...(isApproved
       ? [

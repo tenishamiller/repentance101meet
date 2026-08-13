@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { MessageCircle, Paperclip, SendHorizontal } from "lucide-react";
+import { Ban, MessageCircle, Paperclip, SendHorizontal, UserMinus } from "lucide-react";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
 import { MINISTRY_LEADER } from "@/lib/brand";
@@ -34,6 +34,30 @@ type MemberOption = {
   status: string;
 };
 
+type PeerMember = {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+  blockedByMe: boolean;
+  blockedMe: boolean;
+  pendingOutgoing: boolean;
+  pendingIncoming: boolean;
+  approved: boolean;
+  canMessage: boolean;
+  unreadCount: number;
+  lastMessage: { content: string; createdAt: string } | null;
+};
+
+type DmRelation = {
+  canMessage: boolean;
+  blockedByMe: boolean;
+  blockedMe: boolean;
+  pendingOutgoing: boolean;
+  pendingIncoming: boolean;
+  approved: boolean;
+};
+
 type Props = {
   /** When true, renders inside Admin Console (sidebar threads, no page header). */
   embedded?: boolean;
@@ -46,6 +70,8 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   const inMobileShell = appBase === "/m";
   const isAdmin = embedded || session?.user?.role === "ADMIN";
   const isPending = session?.user?.status === "PENDING";
+  const isPeerMessaging =
+    !isAdmin && session?.user?.role === "MEMBER" && session.user.status === "APPROVED";
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [allMembers, setAllMembers] = useState<MemberOption[]>([]);
@@ -62,12 +88,17 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   const [actionError, setActionError] = useState("");
   const [uploadError, setUploadError] = useState("");
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [peerMembers, setPeerMembers] = useState<PeerMember[]>([]);
+  const [peerId, setPeerId] = useState<string | null>(null);
+  const [peerRelation, setPeerRelation] = useState<DmRelation | null>(null);
+  const [peerSearch, setPeerSearch] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const fetchSeqRef = useRef(0);
 
   const threadUserId = isAdmin ? selectedUserId : session?.user?.id;
+  const messagingPeer = isPeerMessaging && Boolean(peerId);
 
   const fetchInbox = useCallback(async () => {
     if (sessionStatus === "loading") return;
@@ -96,6 +127,29 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       return;
     }
 
+    if (isPeerMessaging) {
+      const dirRes = await fetch("/api/member-messages");
+      if (dirRes.ok) {
+        const data = await dirRes.json();
+        setPeerMembers(data.members ?? []);
+      }
+
+      if (peerId) {
+        const seq = ++fetchSeqRef.current;
+        const res = await fetch(`/api/member-messages?userId=${encodeURIComponent(peerId)}`);
+        if (res.ok && seq === fetchSeqRef.current) {
+          const data = await res.json();
+          setMessages(data.messages ?? []);
+          setPeerRelation(data.relation ?? null);
+          setMemberInfo(data.member ?? null);
+        }
+        if (seq === fetchSeqRef.current) setLoading(false);
+        return;
+      }
+
+      setPeerRelation(null);
+    }
+
     const url =
       isAdmin && selectedUserId
         ? `/api/messages?userId=${selectedUserId}`
@@ -111,7 +165,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     if (seq === fetchSeqRef.current) {
       setLoading(false);
     }
-  }, [isAdmin, onUnreadChange, selectedUserId, sessionStatus]);
+  }, [isAdmin, isPeerMessaging, onUnreadChange, peerId, selectedUserId, sessionStatus]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -140,6 +194,14 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       void fetchInbox();
     }
   }, [isAdmin, selectedUserId, fetchInbox]);
+
+  useEffect(() => {
+    if (isPeerMessaging) {
+      setLoading(true);
+      setEditingId(null);
+      void fetchInbox();
+    }
+  }, [isPeerMessaging, peerId, fetchInbox]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -181,7 +243,8 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
-    if ((!content.trim() && pendingFiles.length === 0) || !threadUserId) return;
+    if ((!content.trim() && pendingFiles.length === 0) || (!messagingPeer && !threadUserId)) return;
+    if (messagingPeer && !peerRelation?.canMessage) return;
     setSending(true);
     setActionError("");
     setUploadError("");
@@ -197,14 +260,22 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       return;
     }
 
-    const res = await fetch("/api/messages", {
+    const res = await fetch(messagingPeer ? "/api/member-messages" : "/api/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: content.trim(),
-        threadUserId,
-        attachments: attachments.length > 0 ? attachments : undefined,
-      }),
+      body: JSON.stringify(
+        messagingPeer
+          ? {
+              content: content.trim(),
+              userId: peerId,
+              attachments: attachments.length > 0 ? attachments : undefined,
+            }
+          : {
+              content: content.trim(),
+              threadUserId,
+              attachments: attachments.length > 0 ? attachments : undefined,
+            },
+      ),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -279,6 +350,63 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     void fetchInbox();
   }
 
+  async function peerAction(path: string, extra: Record<string, unknown> = {}) {
+    if (!peerId) return;
+    setActionLoading(true);
+    setActionError("");
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: peerId, ...extra }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setActionError(typeof data.error === "string" ? data.error : "Could not update.");
+      setActionLoading(false);
+      return;
+    }
+    setActionLoading(false);
+    void fetchInbox();
+  }
+
+  async function peerAction(path: string, extra: Record<string, unknown> = {}) {
+    if (!peerId) return;
+    setActionLoading(true);
+    setActionError("");
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: peerId, ...extra }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setActionError(typeof data.error === "string" ? data.error : "Could not update.");
+      setActionLoading(false);
+      return;
+    }
+    setActionLoading(false);
+    void fetchInbox();
+  }
+
+  async function peerAction(path: string, extra: Record<string, unknown> = {}) {
+    if (!peerId) return;
+    setActionLoading(true);
+    setActionError("");
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: peerId, ...extra }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setActionError(typeof data.error === "string" ? data.error : "Could not update.");
+      setActionLoading(false);
+      return;
+    }
+    setActionLoading(false);
+    void fetchInbox();
+  }
+
   const shellClass = embedded
     ? "flex min-h-[min(70vh,720px)] flex-col"
     : inMobileShell
@@ -306,6 +434,16 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
         }
       : null);
 
+  const peerSearchLower = peerSearch.trim().toLowerCase();
+  const filteredPeers = peerMembers.filter((member) => {
+    if (!peerSearchLower) return true;
+    return (
+      member.name.toLowerCase().includes(peerSearchLower) ||
+      member.email.toLowerCase().includes(peerSearchLower)
+    );
+  });
+  const selectedPeer = peerMembers.find((member) => member.id === peerId) ?? null;
+
   return (
     <div className={shellClass}>
       {!embedded && (
@@ -325,6 +463,82 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+        {isPeerMessaging && (
+          <aside className="card-brand flex max-h-64 flex-col overflow-hidden p-3 lg:max-h-none lg:w-72 lg:shrink-0">
+            <button
+              type="button"
+              onClick={() => setPeerId(null)}
+              className={`mb-3 w-full rounded-xl px-3 py-2 text-left text-sm font-semibold ${
+                !peerId ? "bg-burgundy text-cream" : "hover:bg-cream-dark text-burgundy"
+              }`}
+            >
+              Ministry leadership
+            </button>
+            <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/55">
+              Members
+            </label>
+            <input
+              type="search"
+              value={peerSearch}
+              onChange={(e) => setPeerSearch(e.target.value)}
+              placeholder="Search members..."
+              className="input-field mt-2 mb-2 text-sm"
+            />
+            <div className="chat-scroll min-h-0 flex-1">
+              {filteredPeers.length === 0 ? (
+                <p className="text-sm text-burgundy/60">No members yet.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {filteredPeers.map((member) => (
+                    <li key={member.id}>
+                      <button
+                        type="button"
+                        onClick={() => setPeerId(member.id)}
+                        className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition ${
+                          peerId === member.id
+                            ? "bg-burgundy text-cream"
+                            : "hover:bg-cream-dark"
+                        }`}
+                      >
+                        <UserAvatar
+                          userId={member.id}
+                          name={member.name}
+                          avatarUrl={member.avatarUrl}
+                          size="sm"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2">
+                            <span className="block truncate text-sm font-semibold">{member.name}</span>
+                            {member.pendingIncoming && (
+                              <span className="rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-bold text-burgundy-deep">
+                                Request
+                              </span>
+                            )}
+                            {member.unreadCount > 0 && (
+                              <span className="rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-bold text-burgundy-deep">
+                                {member.unreadCount}
+                              </span>
+                            )}
+                          </span>
+                          <span className="block truncate text-[11px] opacity-70">
+                            {member.blockedByMe
+                              ? "Blocked"
+                              : member.pendingOutgoing
+                                ? "Waiting for approval"
+                                : member.canMessage
+                                  ? member.lastMessage?.content || "Conversation open"
+                                  : "Tap to request"}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </aside>
+        )}
+
         {isAdmin && (
           <aside className="card-brand flex max-h-56 flex-col overflow-hidden p-3 lg:max-h-none lg:w-72 lg:shrink-0">
             <div className="mb-3 shrink-0 space-y-2">
@@ -412,6 +626,103 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
             <p className="p-6 text-center text-burgundy/60">Loading messages...</p>
           ) : (
             <>
+              {isPeerMessaging && selectedPeer && (
+                <div className="shrink-0 border-b border-gold/20 bg-cream-dark/80 px-4 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <UserAvatar
+                        userId={selectedPeer.id}
+                        name={selectedPeer.name}
+                        avatarUrl={selectedPeer.avatarUrl}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-burgundy">{selectedPeer.name}</p>
+                        <p className="truncate text-xs text-burgundy/60">
+                          {peerRelation?.blockedByMe
+                            ? "Blocked"
+                            : peerRelation?.blockedMe
+                              ? "This member blocked you"
+                              : peerRelation?.canMessage
+                                ? "You can message each other"
+                                : peerRelation?.pendingIncoming
+                                  ? "Wants to message you"
+                                  : peerRelation?.pendingOutgoing
+                                    ? "Waiting for their approval"
+                                    : "Needs their approval to message"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {peerRelation?.pendingIncoming && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={actionLoading}
+                            onClick={() => void peerAction("/api/member-messages/respond", { action: "approve" })}
+                            className="btn-primary !px-3 !py-2 text-xs sm:text-sm"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            disabled={actionLoading}
+                            onClick={() => void peerAction("/api/member-messages/respond", { action: "decline" })}
+                            className="rounded-xl border border-burgundy/30 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/10 sm:text-sm"
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+                      {!peerRelation?.canMessage &&
+                        !peerRelation?.pendingIncoming &&
+                        !peerRelation?.pendingOutgoing &&
+                        !peerRelation?.blockedByMe &&
+                        !peerRelation?.blockedMe && (
+                          <button
+                            type="button"
+                            disabled={actionLoading}
+                            onClick={() => void peerAction("/api/member-messages/request")}
+                            className="btn-primary !px-3 !py-2 text-xs sm:text-sm"
+                          >
+                            Request to message
+                          </button>
+                        )}
+                      {peerRelation?.canMessage && (
+                        <button
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "Remove this person from messaging you? They are not blocked and can request again.",
+                              )
+                            ) {
+                              void peerAction("/api/member-messages/remove");
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 rounded-xl border border-gold/40 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-gold/10 sm:text-sm"
+                        >
+                          <UserMinus className="h-3.5 w-3.5" />
+                          Remove
+                        </button>
+                      )}
+                      {!peerRelation?.blockedMe && (
+                        <button
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={() => void peerAction("/api/member-messages/block")}
+                          className="inline-flex items-center gap-1 rounded-xl border border-burgundy/30 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/10 sm:text-sm"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                          {peerRelation?.blockedByMe ? "Unblock" : "Block"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {isAdmin && selectedMember && (
                 <div className="shrink-0 border-b border-gold/20 bg-cream-dark/80 px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -467,7 +778,9 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                     <p className="text-burgundy/70">
                       {isAdmin
                         ? "Choose a member from the dropdown or pick a conversation to start messaging."
-                        : `Message ${MINISTRY_LEADER} here. Your one-on-one invite will appear in this box.`}
+                        : messagingPeer
+                          ? "Request approval before sending messages."
+                          : `Message ${MINISTRY_LEADER} here. Your one-on-one invite will appear in this box.`}
                     </p>
                   </div>
                 )}
@@ -492,6 +805,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                     onSaveEdit={() => void saveEdit(msg.id)}
                     onDelete={() => void deleteMessage(msg.id)}
                     now={now}
+                    allowEdit={!messagingPeer}
                   />
                 ))}
               </div>
@@ -504,6 +818,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
               {memberInfo &&
                 !isAdmin &&
+                !messagingPeer &&
                 (memberInfo as { onboardingDueAt?: string }).onboardingDueAt && (
                   <p className="shrink-0 border-t border-gold/20 bg-gold/5 px-4 py-2 text-center text-xs text-burgundy/70">
                     Complete your meeting with Norman by{" "}
@@ -513,6 +828,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                   </p>
                 )}
 
+              {(!messagingPeer || peerRelation?.canMessage) && (
               <form onSubmit={sendMessage} className="shrink-0 border-t border-gold/20 p-3">
                 {uploadError && (
                   <p className="mb-2 text-xs text-burgundy">{uploadError}</p>
@@ -557,16 +873,23 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                     type="text"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder={isAdmin ? "Message this member..." : "Message Norman..."}
+                    placeholder={
+                      isAdmin
+                        ? "Message this member..."
+                        : messagingPeer
+                          ? "Message this member..."
+                          : "Message Norman..."
+                    }
                     className="input-field flex-1"
-                    disabled={isAdmin && !selectedUserId}
+                    disabled={(isAdmin && !selectedUserId) || (messagingPeer && !peerRelation?.canMessage)}
                   />
                   <button
                     type="submit"
                     disabled={
                       sending ||
                       (!content.trim() && pendingFiles.length === 0) ||
-                      (isAdmin && !selectedUserId)
+                      (isAdmin && !selectedUserId) ||
+                      (messagingPeer && !peerRelation?.canMessage)
                     }
                     className="btn-primary flex shrink-0 items-center gap-2 !px-4 disabled:opacity-50"
                   >
@@ -575,6 +898,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                   </button>
                 </div>
               </form>
+              )}
             </>
           )}
         </div>

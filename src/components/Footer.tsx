@@ -25,6 +25,7 @@ export function Footer() {
             </h3>
             <ul className="space-y-2 text-sm text-cream-dark/90">
               {[
+                { href: "/giving", label: "Give" },
                 { href: "/channels/guidelines", label: "Guidelines" },
                 { href: "/livestream", label: "Live Meeting Room" },
                 { href: "/personal-ministry", label: "Personal Ministry" },

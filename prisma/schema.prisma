@@ -67,6 +67,13 @@ enum MembershipMessageType {
   SYSTEM
 }
 
+enum MemberDmRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  REMOVED
+}
+
 model User {
   id           String        @id @default(cuid())
   email        String        @unique
@@ -98,6 +105,12 @@ model User {
   activityActions     MemberActivityLog[]   @relation("MemberActivityActor")
   membershipThread    MembershipMessage[]   @relation("MembershipThread")
   membershipMessagesSent MembershipMessage[] @relation("MembershipMessageSender")
+  dmRequestsSent      MemberDmRequest[]     @relation("DmRequestFrom")
+  dmRequestsReceived  MemberDmRequest[]     @relation("DmRequestTo")
+  dmBlocksIssued      MemberDmBlock[]       @relation("DmBlocker")
+  dmBlocksReceived    MemberDmBlock[]       @relation("DmBlocked")
+  dmMessagesSent      MemberDirectMessage[] @relation("DmSender")
+  dmMessagesReceived  MemberDirectMessage[] @relation("DmRecipient")
 }
 
 model MemberActivityLog {
@@ -137,6 +150,51 @@ model MembershipMessage {
   meeting    Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
 
   @@index([threadUserId, createdAt])
+}
+
+model MemberDmRequest {
+  id         String                @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  status     MemberDmRequestStatus @default(PENDING)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  fromUser User @relation("DmRequestFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("DmRequestTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@index([toUserId, status])
+}
+
+model MemberDmBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("DmBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("DmBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+}
+
+model MemberDirectMessage {
+  id          String    @id @default(cuid())
+  senderId    String
+  recipientId String
+  content     String    @db.Text
+  attachments Json?
+  readAt      DateTime?
+  editedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sender    User @relation("DmSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User @relation("DmRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([senderId, recipientId, createdAt])
+  @@index([recipientId, readAt])
 }
 
 model BlockList {

@@ -47,6 +47,7 @@ const keys = [
   "LIVEKIT_API_SECRET",
   "LIVEKIT_URL",
   "NEXT_PUBLIC_LIVEKIT_URL",
+  "STRIPE_SECRET_KEY",
 ];
 
 const livekitKeys = new Set([

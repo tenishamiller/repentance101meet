@@ -197,6 +197,8 @@ export const config = {
     "/personal-ministry/:path*",
     "/messages/:path*",
     "/livestream/:path*",
+    "/giving",
+    "/giving/:path*",
     "/channels/:path*",
     "/m",
     "/m/host",
@@ -209,6 +211,8 @@ export const config = {
     "/m/personal-ministry/:path*",
     "/m/messages/:path*",
     "/m/livestream/:path*",
+    "/m/giving",
+    "/m/giving/:path*",
     "/m/channels/:path*",
   ],
 };

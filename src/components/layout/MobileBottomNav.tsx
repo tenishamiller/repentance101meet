@@ -178,6 +178,13 @@ export function MobileBottomNav({ mobileApp = false }: { mobileApp?: boolean }) 
           </p>
           <div className="grid grid-cols-2 gap-2">
             <Link
+              href={link("/giving")}
+              onClick={() => setMoreOpen(false)}
+              className="rounded-xl border border-gold/25 bg-cream-dark px-3 py-3 text-sm font-medium text-burgundy"
+            >
+              Give
+            </Link>
+            <Link
               href={link("/channels/guidelines")}
               onClick={() => setMoreOpen(false)}
               className="rounded-xl border border-gold/25 bg-cream-dark px-3 py-3 text-sm font-medium text-burgundy"
