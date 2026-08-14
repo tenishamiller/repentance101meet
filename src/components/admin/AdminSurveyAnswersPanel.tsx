@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, ClipboardList, Mail, PlusCircle, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AdminRecordSurveyForm } from "@/components/admin/AdminRecordSurveyForm";
+import { PaginatedScrollList } from "@/components/admin/PaginatedScrollList";
 import { formatRequestDateTime } from "@/lib/utils";
 
 type Submission = {
@@ -45,7 +46,8 @@ export function AdminSurveyAnswersPanel() {
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
 
-  const fetchSubmissions = useCallback(async () => {
+  const fetchSubmissions = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     const res = await fetch("/api/admin/survey-answers");
     if (!res.ok) {
       setLoading(false);
@@ -59,6 +61,19 @@ export function AdminSurveyAnswersPanel() {
 
   useEffect(() => {
     void fetchSubmissions();
+    const interval = window.setInterval(() => {
+      void fetchSubmissions(true);
+    }, 15000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void fetchSubmissions(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [fetchSubmissions]);
 
   async function deleteSubmission(userId: string) {
@@ -113,16 +128,73 @@ export function AdminSurveyAnswersPanel() {
           <h2 className="font-serif text-xl font-semibold text-burgundy">Survey Answers</h2>
         </div>
         <p className="text-sm text-burgundy/60">
-          Every member account is checked for a saved questionnaire. Completed surveys appear first.
-          Missing surveys are listed below — these were never saved to the database (often approved
-          manually or signup Step 2 was not finished). You can record answers on their behalf when you
-          receive them offline.
+          Completed surveys are listed below. If someone has not finished, their name appears in the
+          short note under the count — not in a separate box.
         </p>
         {!loading && (
           <p className="mt-3 text-sm font-medium text-burgundy">
             {completedCount} completed
-            {incompleteCount > 0 ? ` · ${incompleteCount} missing` : ""}
+            {incompleteCount > 0 ? ` · ${incompleteCount} still needed` : ""}
           </p>
+        )}
+        {!loading && incomplete.length > 0 && (
+          <details className="mt-4 rounded-xl border border-amber-300/60 bg-amber-50/80 px-4 py-3">
+            <summary className="cursor-pointer text-sm font-semibold text-burgundy">
+              Still needed ({incomplete.length}) — tap for names
+            </summary>
+            <ul className="mt-3 space-y-3">
+              {incomplete.map((member) => (
+                <li key={member.id}>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium text-burgundy">{member.name}</p>
+                      <p className="text-xs text-burgundy/60">
+                        {member.retakeRequested
+                          ? "Survey sent — waiting on them"
+                          : member.missingReasonLabel}
+                      </p>
+                    </div>
+                    {recordingId !== member.id && (
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRecordingId(member.id)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-gold/40 bg-cream px-3 py-1.5 text-xs font-semibold text-burgundy hover:bg-gold/10"
+                        >
+                          <PlusCircle className="h-3.5 w-3.5" />
+                          Record
+                        </button>
+                        <button
+                          type="button"
+                          disabled={retakeSendingId === member.id || member.retakeRequested}
+                          onClick={() => void requestRetake(member.id, member.name)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-burgundy/25 bg-cream px-3 py-1.5 text-xs font-semibold text-burgundy hover:bg-burgundy/5 disabled:opacity-60"
+                        >
+                          <Mail className="h-3.5 w-3.5" />
+                          {member.retakeRequested
+                            ? "Sent"
+                            : retakeSendingId === member.id
+                              ? "Sending..."
+                              : "Send"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {recordingId === member.id && (
+                    <AdminRecordSurveyForm
+                      userId={member.id}
+                      memberName={member.name}
+                      onCancel={() => setRecordingId(null)}
+                      onSaved={() => {
+                        setRecordingId(null);
+                        void fetchSubmissions();
+                      }}
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
       </section>
 
@@ -147,13 +219,16 @@ export function AdminSurveyAnswersPanel() {
       ) : (
         <>
           {submissions.length > 0 && (
-            <div className="space-y-3">
-              {submissions.map((submission) => {
+            <PaginatedScrollList
+              items={submissions}
+              pageSize={10}
+              listClassName="space-y-3"
+              getKey={(submission) => submission.id}
+              renderItem={(submission) => {
                 const isConfirming = confirmingId === submission.id;
 
                 return (
                   <details
-                    key={submission.id}
                     className="group card-brand overflow-hidden"
                     open={submissions.length === 1 ? true : undefined}
                   >
@@ -269,97 +344,10 @@ export function AdminSurveyAnswersPanel() {
                     </div>
                   </details>
                 );
-              })}
-            </div>
+              }}
+            />
           )}
 
-          {incomplete.length > 0 && (
-            <section className="card-brand p-6">
-              <h3 className="font-serif text-lg font-semibold text-burgundy">
-                Missing surveys ({incomplete.length})
-              </h3>
-              <p className="mt-1 text-sm text-burgundy/60">
-                These accounts have no questionnaire saved. Use &ldquo;Record answers&rdquo; when
-                you collect their survey by phone, email, or message.
-              </p>
-              <ul className="mt-4 space-y-3">
-                {incomplete.map((member) => (
-                  <li
-                    key={member.id}
-                    className="rounded-xl border border-gold/25 bg-cream-dark p-4"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar
-                          userId={member.id}
-                          name={member.name}
-                          avatarUrl={member.avatarUrl}
-                          size="md"
-                        />
-                        <div>
-                          <p className="font-semibold text-burgundy">
-                            {member.name}
-                            {member.isDeleted && (
-                              <span className="ml-2 text-xs font-semibold uppercase text-burgundy/50">
-                                Removed
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-sm text-burgundy/60">{member.email}</p>
-                          <p className="mt-1 text-xs text-burgundy/50">
-                            Signed up {formatRequestDateTime(member.signedUpAt)}
-                            {" · "}
-                            Status: {member.status === "REJECTED" ? "DENIED" : member.status}
-                          </p>
-                          <p className="mt-1 text-xs font-medium text-amber-800/90">
-                            {member.missingReasonLabel}
-                            {member.retakeRequested && " · Retake request sent — waiting on member"}
-                          </p>
-                        </div>
-                      </div>
-                      {recordingId !== member.id && (
-                        <div className="flex shrink-0 flex-col gap-2 self-start">
-                          <button
-                            type="button"
-                            onClick={() => setRecordingId(member.id)}
-                            className="inline-flex items-center gap-2 rounded-lg border border-gold/40 bg-cream px-3 py-2 text-sm font-semibold text-burgundy hover:bg-gold/10"
-                          >
-                            <PlusCircle className="h-4 w-4" />
-                            Record answers
-                          </button>
-                          <button
-                            type="button"
-                            disabled={retakeSendingId === member.id || member.retakeRequested}
-                            onClick={() => void requestRetake(member.id, member.name)}
-                            className="inline-flex items-center gap-2 rounded-lg border border-burgundy/25 bg-cream px-3 py-2 text-sm font-semibold text-burgundy hover:bg-burgundy/5 disabled:opacity-60"
-                          >
-                            <Mail className="h-4 w-4" />
-                            {member.retakeRequested
-                              ? "Retake sent"
-                              : retakeSendingId === member.id
-                                ? "Sending..."
-                                : "Send survey"}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {recordingId === member.id && (
-                      <AdminRecordSurveyForm
-                        userId={member.id}
-                        memberName={member.name}
-                        onCancel={() => setRecordingId(null)}
-                        onSaved={() => {
-                          setRecordingId(null);
-                          void fetchSubmissions();
-                        }}
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
         </>
       )}
     </div>

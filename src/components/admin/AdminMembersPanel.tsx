@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Search, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { formatRequestDateTime } from "@/lib/utils";
 import { ListPagination } from "./ListPagination";
+import { PaginatedScrollList } from "./PaginatedScrollList";
 import { MEMBER_STATUS_OPTIONS, StatusToggle } from "./StatusToggle";
 import { MemberDetailPanel } from "./MemberDetailPanel";
 import { UserDeleteCountdown } from "./UserDeleteCountdown";
@@ -29,7 +30,6 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const PAGE_SIZE = 25;
-const PENDING_PAGE_SIZE = 10;
 
 export function AdminMembersPanel({
   pendingMembers,
@@ -43,25 +43,11 @@ export function AdminMembersPanel({
   const [filter, setFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<MemberDirectoryFilter>("ALL");
   const [page, setPage] = useState(1);
-  const [pendingPage, setPendingPage] = useState(1);
   const [members, setMembers] = useState<Member[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [detailUserId, setDetailUserId] = useState<string | null>(null);
-
-  const pendingTotalPages = Math.max(1, Math.ceil(pendingMembers.length / PENDING_PAGE_SIZE));
-
-  const pagedPendingMembers = useMemo(() => {
-    const start = (pendingPage - 1) * PENDING_PAGE_SIZE;
-    return pendingMembers.slice(start, start + PENDING_PAGE_SIZE);
-  }, [pendingMembers, pendingPage]);
-
-  useEffect(() => {
-    if (pendingPage > pendingTotalPages) {
-      setPendingPage(pendingTotalPages);
-    }
-  }, [pendingPage, pendingTotalPages]);
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
@@ -110,95 +96,87 @@ export function AdminMembersPanel({
             No pending membership requests — all caught up!
           </p>
         ) : (
-          <>
-            <div className="max-h-[32rem] space-y-3 overflow-y-auto chat-scroll pr-1">
-              {pagedPendingMembers.map((m) => (
-                <div
-                  key={m.id}
-                  className="flex flex-col gap-4 rounded-xl border border-gold/25 bg-cream-dark p-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <UserAvatar userId={m.id} name={m.name} avatarUrl={m.avatarUrl} size="md" />
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setDetailUserId(m.id)}
-                        className="text-left font-semibold text-burgundy hover:text-gold-muted hover:underline"
-                      >
-                        {m.name}
-                      </button>
-                      <p className="text-sm text-burgundy/60">{m.email}</p>
-                      <p className="text-xs text-burgundy/50">
-                        Requested {formatRequestDateTime(m.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                  <StatusToggle
-                    value="PENDING"
-                    options={MEMBER_STATUS_OPTIONS}
-                    onChange={(status) => onStatusChange(m.id, status)}
-                  />
-                  <div className="flex flex-wrap gap-2">
+          <PaginatedScrollList
+            items={pendingMembers}
+            pageSize={10}
+            listClassName="space-y-3"
+            getKey={(m) => m.id}
+            renderItem={(m) => (
+              <div className="flex flex-col gap-4 rounded-xl border border-gold/25 bg-cream-dark p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                  <UserAvatar userId={m.id} name={m.name} avatarUrl={m.avatarUrl} size="md" />
+                  <div>
                     <button
                       type="button"
-                      onClick={async () => {
-                        await fetch("/api/admin/onboarding", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ action: "invite", userId: m.id }),
-                        });
-                      }}
-                      className="rounded-lg bg-burgundy px-3 py-2 text-xs font-semibold text-cream hover:bg-burgundy-dark"
+                      onClick={() => setDetailUserId(m.id)}
+                      className="text-left font-semibold text-burgundy hover:text-gold-muted hover:underline"
                     >
-                      Send 1-on-1 Invite
+                      {m.name}
                     </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await fetch("/api/admin/onboarding", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ action: "start", userId: m.id }),
-                        });
-                      }}
-                      className="rounded-lg border border-gold/40 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-gold/10"
-                    >
-                      Start Session
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const sure = window.confirm(
-                          `Remove ${m.name}'s profile from the website? They can be restored within 30 days.`,
-                        );
-                        if (!sure) return;
-                        const final = window.confirm(
-                          "Final confirmation: remove this member's profile?",
-                        );
-                        if (!final) return;
-                        await fetch("/api/admin/onboarding", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ action: "deny", userId: m.id, confirm: true }),
-                        });
-                        window.location.reload();
-                      }}
-                      className="rounded-lg border border-burgundy/40 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/10"
-                    >
-                      Deny & Remove
-                    </button>
+                    <p className="text-sm text-burgundy/60">{m.email}</p>
+                    <p className="text-xs text-burgundy/50">
+                      Requested {formatRequestDateTime(m.createdAt)}
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-            <ListPagination
-              page={pendingPage}
-              totalPages={pendingTotalPages}
-              total={pendingMembers.length}
-              pageSize={PENDING_PAGE_SIZE}
-              onPageChange={setPendingPage}
-            />
-          </>
+                <StatusToggle
+                  value="PENDING"
+                  options={MEMBER_STATUS_OPTIONS}
+                  onChange={(status) => onStatusChange(m.id, status)}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await fetch("/api/admin/onboarding", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "invite", userId: m.id }),
+                      });
+                    }}
+                    className="rounded-lg bg-burgundy px-3 py-2 text-xs font-semibold text-cream hover:bg-burgundy-dark"
+                  >
+                    Send 1-on-1 Invite
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await fetch("/api/admin/onboarding", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "start", userId: m.id }),
+                      });
+                    }}
+                    className="rounded-lg border border-gold/40 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-gold/10"
+                  >
+                    Start Session
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const sure = window.confirm(
+                        `Remove ${m.name}'s profile from the website? They can be restored within 30 days.`,
+                      );
+                      if (!sure) return;
+                      const final = window.confirm(
+                        "Final confirmation: remove this member's profile?",
+                      );
+                      if (!final) return;
+                      await fetch("/api/admin/onboarding", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "deny", userId: m.id, confirm: true }),
+                      });
+                      window.location.reload();
+                    }}
+                    className="rounded-lg border border-burgundy/40 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/10"
+                  >
+                    Deny & Remove
+                  </button>
+                </div>
+              </div>
+            )}
+          />
         )}
       </section>
 

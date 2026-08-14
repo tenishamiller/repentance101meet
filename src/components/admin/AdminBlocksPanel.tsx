@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { Ban, ShieldOff } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
-import { ShowMoreList } from "@/components/ShowMoreList";
 import { formatDate } from "@/lib/utils";
 import { MemberSearchPicker } from "./MemberSearchPicker";
+import { PaginatedScrollList } from "./PaginatedScrollList";
 import type { Block, Member } from "./types";
 
 type Props = {
@@ -19,6 +19,7 @@ export function AdminBlocksPanel({ blocks, onUnblock, onBlock }: Props) {
   const [blockReason, setBlockReason] = useState("");
 
   const activeBlocks = blocks.filter((b) => !b.unblockedAt);
+  const pastBlocks = blocks.filter((b) => b.unblockedAt);
 
   function handleBlock() {
     if (!selectedMember) return;
@@ -70,12 +71,10 @@ export function AdminBlocksPanel({ blocks, onUnblock, onBlock }: Props) {
             No users are currently blocked.
           </p>
         ) : (
-          <ShowMoreList
+          <PaginatedScrollList
             items={activeBlocks}
-            initialCount={5}
-            step={5}
+            pageSize={10}
             listClassName="space-y-3"
-            moreLabel="blocks"
             getKey={(b) => b.id}
             renderItem={(b) => (
               <div className="flex flex-col gap-4 rounded-xl border border-gold/25 bg-cream-dark p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -109,19 +108,21 @@ export function AdminBlocksPanel({ blocks, onUnblock, onBlock }: Props) {
         )}
       </section>
 
-      {blocks.filter((b) => b.unblockedAt).length > 0 && (
+      {pastBlocks.length > 0 && (
         <section className="card-brand p-6 opacity-80">
           <h2 className="mb-3 font-serif text-lg font-semibold text-burgundy">Past Blocks</h2>
-          <ul className="max-h-48 space-y-2 overflow-y-auto text-sm text-burgundy/60">
-            {blocks
-              .filter((b) => b.unblockedAt)
-              .slice(0, 10)
-              .map((b) => (
-                <li key={b.id}>
-                  {b.user.name} — unblocked {b.unblockedAt ? formatDate(b.unblockedAt) : ""}
-                </li>
-              ))}
-          </ul>
+          <PaginatedScrollList
+            items={pastBlocks}
+            pageSize={10}
+            maxHeightClass="max-h-48"
+            listClassName="space-y-2"
+            getKey={(b) => b.id}
+            renderItem={(b) => (
+              <p className="text-sm text-burgundy/60">
+                {b.user.name} — unblocked {b.unblockedAt ? formatDate(b.unblockedAt) : ""}
+              </p>
+            )}
+          />
         </section>
       )}
     </div>

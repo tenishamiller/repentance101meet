@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { Mic, Share2, Trash2, Video } from "lucide-react";
 import { MemberJoinLink } from "@/components/livestream/MemberJoinLink";
-import { ListPagination } from "@/components/admin/ListPagination";
+import { PaginatedScrollList } from "@/components/admin/PaginatedScrollList";
 import { formatDate } from "@/lib/utils";
 import { isMeetingPendingDeletion } from "@/lib/meeting-deletion-shared";
 import type { Meeting } from "./types";
@@ -25,21 +24,11 @@ export function AdminLivestreamPanel({
   goLiveLoading = false,
   onMeetingAction,
 }: Props) {
-  const [sessionsPage, setSessionsPage] = useState(1);
-  const SESSIONS_PAGE_SIZE = 5;
-
   const liveMeeting = meetings.find((m) => m.status === "LIVE" && !isMeetingPendingDeletion(m));
   const scheduledMeeting = meetings.find(
     (m) => m.status === "SCHEDULED" && !isMeetingPendingDeletion(m),
   );
   const activeSession = liveMeeting ?? scheduledMeeting;
-
-  const sessionsTotalPages = Math.max(1, Math.ceil(meetings.length / SESSIONS_PAGE_SIZE));
-
-  const pagedMeetings = useMemo(() => {
-    const start = (sessionsPage - 1) * SESSIONS_PAGE_SIZE;
-    return meetings.slice(start, start + SESSIONS_PAGE_SIZE);
-  }, [meetings, sessionsPage]);
 
   function confirmDelete(meeting: Meeting) {
     const endingNote =
@@ -153,12 +142,15 @@ export function AdminLivestreamPanel({
         {meetings.length === 0 ? (
           <p className="text-burgundy/60">No sessions yet — press Go Live to start your first teaching.</p>
         ) : (
-          <div className="space-y-4">
-            {pagedMeetings.map((m) => {
+          <PaginatedScrollList
+            items={meetings}
+            pageSize={5}
+            listClassName="space-y-4"
+            getKey={(m) => m.id}
+            renderItem={(m) => {
               const pendingDelete = isMeetingPendingDeletion(m);
               return (
               <div
-                key={m.id}
                 className={`rounded-xl border p-5 ${
                   pendingDelete
                     ? "border-amber-300/50 bg-amber-50/80"
@@ -210,16 +202,9 @@ export function AdminLivestreamPanel({
                 )}
               </div>
             );
-            })}
-          </div>
+            }}
+          />
         )}
-        <ListPagination
-          page={sessionsPage}
-          totalPages={sessionsTotalPages}
-          total={meetings.length}
-          pageSize={SESSIONS_PAGE_SIZE}
-          onPageChange={setSessionsPage}
-        />
       </section>
     </div>
   );

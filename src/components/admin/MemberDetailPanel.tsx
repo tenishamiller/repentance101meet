@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { PaginatedScrollList } from "@/components/admin/PaginatedScrollList";
 import type { TimelineEvent } from "@/lib/member-timeline";
 
 type MemberInfo = {
@@ -106,9 +107,14 @@ export function MemberDetailPanel({ userId, onClose }: Props) {
               {timeline.length === 0 ? (
                 <p className="text-sm text-burgundy/60">No activity recorded yet.</p>
               ) : (
-                <ol className="relative space-y-0 border-l-2 border-gold/25 pl-5">
-                  {timeline.map((event) => (
-                    <li key={event.id} className="relative pb-6 last:pb-0">
+                <PaginatedScrollList
+                  items={timeline}
+                  pageSize={15}
+                  maxHeightClass="max-h-[28rem]"
+                  listClassName="relative space-y-0 border-l-2 border-gold/25 pl-5"
+                  getKey={(event) => event.id}
+                  renderItem={(event) => (
+                    <div className="relative pb-6 last:pb-0">
                       <span className="absolute -left-[1.35rem] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-cream bg-gold" />
                       <p className="text-xs font-semibold uppercase tracking-wide text-gold-muted">
                         {event.occurredAt}
@@ -140,9 +146,9 @@ export function MemberDetailPanel({ userId, onClose }: Props) {
                           </button>
                         </div>
                       )}
-                    </li>
-                  ))}
-                </ol>
+                    </div>
+                  )}
+                />
               )}
             </>
           ) : (

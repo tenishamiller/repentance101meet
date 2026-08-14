@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
+import { PaginatedScrollList } from "@/components/admin/PaginatedScrollList";
 import { ShowMoreList } from "@/components/ShowMoreList";
 import { MemberSearchPicker } from "@/components/admin/MemberSearchPicker";
 import { formatDate } from "@/lib/utils";
@@ -305,14 +306,24 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-burgundy/55">
                   Active & scheduled ({activeSessions.length})
                 </p>
-                <ShowMoreList
-                  items={activeSessions}
-                  initialCount={5}
-                  step={5}
-                  listClassName="space-y-4"
-                  getKey={(s) => s.id}
-                  renderItem={(s) => renderSessionCard(s)}
-                />
+                {isAdmin ? (
+                  <PaginatedScrollList
+                    items={activeSessions}
+                    pageSize={5}
+                    listClassName="space-y-4"
+                    getKey={(s) => s.id}
+                    renderItem={(s) => renderSessionCard(s)}
+                  />
+                ) : (
+                  <ShowMoreList
+                    items={activeSessions}
+                    initialCount={5}
+                    step={5}
+                    listClassName="space-y-4"
+                    getKey={(s) => s.id}
+                    renderItem={(s) => renderSessionCard(s)}
+                  />
+                )}
               </div>
             )}
 
@@ -321,15 +332,25 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-burgundy/55">
                   Past sessions ({endedSessions.length})
                 </p>
-                <ShowMoreList
-                  items={endedSessions}
-                  initialCount={3}
-                  step={5}
-                  listClassName="space-y-4"
-                  getKey={(s) => s.id}
-                  renderItem={(s) => renderSessionCard(s)}
-                  moreLabel="past sessions"
-                />
+                {isAdmin ? (
+                  <PaginatedScrollList
+                    items={endedSessions}
+                    pageSize={5}
+                    listClassName="space-y-4"
+                    getKey={(s) => s.id}
+                    renderItem={(s) => renderSessionCard(s)}
+                  />
+                ) : (
+                  <ShowMoreList
+                    items={endedSessions}
+                    initialCount={3}
+                    step={5}
+                    listClassName="space-y-4"
+                    getKey={(s) => s.id}
+                    renderItem={(s) => renderSessionCard(s)}
+                    moreLabel="past sessions"
+                  />
+                )}
               </div>
             )}
           </div>

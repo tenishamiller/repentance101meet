@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, ExternalLink, Lock, MessageSquare, UserMinus, Users } from "lucide-react";
+import { ExternalLink, Lock, MessageSquare, UserMinus, Users } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
-import { ShowMoreList } from "@/components/ShowMoreList";
 import { CHANNELS, formatRequestDateTime } from "@/lib/utils";
+import { PaginatedScrollList } from "./PaginatedScrollList";
 import { CHANNEL_STATUS_OPTIONS, StatusToggle } from "./StatusToggle";
 import type { ChannelMembershipStatus, ChannelRequest, ChannelSummary } from "./types";
 
@@ -22,8 +21,6 @@ const TYPE_LABEL: Record<string, string> = {
   PRIVATE: "Private",
   GENERAL: "Members",
 };
-
-const MEMBERS_PREVIEW = 5;
 
 function ChannelRequestRow({
   req,
@@ -71,43 +68,20 @@ function ChannelMemberList({
   onStatusChange: (membershipId: string, status: ChannelMembershipStatus) => void;
   onRemoveMember: (membershipId: string) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const visible = expanded ? members : members.slice(0, MEMBERS_PREVIEW);
-  const hasMore = members.length > MEMBERS_PREVIEW;
-
   return (
     <div className="mt-4 border-t border-gold/15 pt-4">
-      <button
-        type="button"
-        onClick={() => hasMore && setExpanded((e) => !e)}
-        className={`mb-2 flex w-full items-center justify-between gap-2 text-left text-xs font-semibold uppercase tracking-wide text-burgundy/60 ${
-          hasMore ? "cursor-pointer hover:text-burgundy" : "cursor-default"
-        }`}
-      >
-        <span className="flex items-center gap-1.5">
-          <Users className="h-3.5 w-3.5" />
-          {members.length} member{members.length !== 1 ? "s" : ""}
-        </span>
-        {hasMore && (
-          <span className="inline-flex items-center gap-1 normal-case tracking-normal">
-            {expanded ? (
-              <>
-                Show less <ChevronUp className="h-3.5 w-3.5" />
-              </>
-            ) : (
-              <>
-                Show all <ChevronDown className="h-3.5 w-3.5" />
-              </>
-            )}
-          </span>
-        )}
-      </button>
-      <ul className={`space-y-2 ${expanded ? "max-h-64 overflow-y-auto pr-1" : ""}`}>
-        {visible.map((m) => (
-          <li
-            key={m.membershipId}
-            className="flex flex-col gap-2 rounded-lg bg-cream px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
-          >
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-burgundy/60">
+        <Users className="h-3.5 w-3.5" />
+        {members.length} member{members.length !== 1 ? "s" : ""}
+      </p>
+      <PaginatedScrollList
+        items={members}
+        pageSize={5}
+        maxHeightClass="max-h-64"
+        listClassName="space-y-2"
+        getKey={(m) => m.membershipId}
+        renderItem={(m) => (
+          <div className="flex flex-col gap-2 rounded-lg bg-cream px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-2">
               <UserAvatar userId={m.id} name={m.name} avatarUrl={m.avatarUrl} size="sm" />
               <span className="truncate text-sm text-burgundy">{m.name}</span>
@@ -129,18 +103,9 @@ function ChannelMemberList({
                 Remove
               </button>
             </div>
-          </li>
-        ))}
-      </ul>
-      {!expanded && hasMore && (
-        <button
-          type="button"
-          onClick={() => setExpanded(true)}
-          className="mt-2 text-xs font-semibold text-gold-muted hover:underline"
-        >
-          + {members.length - MEMBERS_PREVIEW} more members
-        </button>
-      )}
+          </div>
+        )}
+      />
     </div>
   );
 }
@@ -166,12 +131,10 @@ export function AdminChannelsPanel({
             No pending channel requests.
           </p>
         ) : (
-          <ShowMoreList
+          <PaginatedScrollList
             items={pendingRequests}
-            initialCount={5}
-            step={5}
+            pageSize={10}
             listClassName="space-y-3"
-            moreLabel="requests"
             getKey={(req) => req.id}
             renderItem={(req) => (
               <ChannelRequestRow
@@ -190,12 +153,10 @@ export function AdminChannelsPanel({
           <p className="mb-4 text-sm text-burgundy/60">
             Switch back to Pending or Approved if you denied someone by mistake.
           </p>
-          <ShowMoreList
+          <PaginatedScrollList
             items={deniedRequests}
-            initialCount={5}
-            step={5}
+            pageSize={10}
             listClassName="space-y-3"
-            moreLabel="requests"
             getKey={(req) => req.id}
             renderItem={(req) => (
               <ChannelRequestRow
@@ -210,12 +171,10 @@ export function AdminChannelsPanel({
 
       <section className="card-brand p-6">
         <h2 className="mb-4 font-serif text-xl font-semibold text-burgundy">All Channels</h2>
-        <ShowMoreList
+        <PaginatedScrollList
           items={channels}
-          initialCount={6}
-          step={4}
+          pageSize={6}
           listClassName="grid gap-4 md:grid-cols-2"
-          moreLabel="channels"
           getKey={(ch) => ch.id}
           renderItem={(ch) => {
             const meta = Object.values(CHANNELS).find((c) => c.slug === ch.slug);
