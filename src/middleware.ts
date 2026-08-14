@@ -9,6 +9,7 @@ import {
   toDesktopPath,
   toMobilePath,
 } from "@/lib/mobile-paths";
+import { safeCallbackUrl } from "@/lib/safe-callback-url";
 
 const { auth } = NextAuth(authConfig);
 
@@ -88,7 +89,12 @@ export default auth((req) => {
       path.startsWith("/admin") || path.startsWith("/m/admin")
         ? mobileAwarePath(path, mobileRoute, "/host")
         : mobileAwarePath(path, mobileRoute, "/login");
-    return NextResponse.redirect(new URL(loginPath, req.url));
+    const loginUrl = new URL(loginPath, req.url);
+    const dest = `${path}${req.nextUrl.search}`;
+    if (safeCallbackUrl(dest)) {
+      loginUrl.searchParams.set("callbackUrl", dest);
+    }
+    return NextResponse.redirect(loginUrl);
   }
 
   if (
@@ -150,6 +156,10 @@ export default auth((req) => {
     (path === "/login" || path === "/m/login") &&
     user
   ) {
+    const callback = safeCallbackUrl(req.nextUrl.searchParams.get("callbackUrl"));
+    if (callback) {
+      return NextResponse.redirect(new URL(callback, req.url));
+    }
     if (user.role === "ADMIN") {
       return NextResponse.redirect(
         new URL(mobileAwarePath(path, mobileRoute, "/admin"), req.url),

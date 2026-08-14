@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, ClipboardList, Mail, PlusCircle, Trash2 } from "lucide-react";
+import { AlertTriangle, ClipboardList, Mail, Trash2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
-import { AdminRecordSurveyForm } from "@/components/admin/AdminRecordSurveyForm";
 import { PaginatedScrollList } from "@/components/admin/PaginatedScrollList";
 import { formatRequestDateTime } from "@/lib/utils";
 
@@ -41,7 +40,6 @@ export function AdminSurveyAnswersPanel() {
   const [loading, setLoading] = useState(true);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [recordingId, setRecordingId] = useState<string | null>(null);
   const [retakeSendingId, setRetakeSendingId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
@@ -154,43 +152,20 @@ export function AdminSurveyAnswersPanel() {
                           : member.missingReasonLabel}
                       </p>
                     </div>
-                    {recordingId !== member.id && (
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setRecordingId(member.id)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-gold/40 bg-cream px-3 py-1.5 text-xs font-semibold text-burgundy hover:bg-gold/10"
-                        >
-                          <PlusCircle className="h-3.5 w-3.5" />
-                          Record
-                        </button>
-                        <button
-                          type="button"
-                          disabled={retakeSendingId === member.id || member.retakeRequested}
-                          onClick={() => void requestRetake(member.id, member.name)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-burgundy/25 bg-cream px-3 py-1.5 text-xs font-semibold text-burgundy hover:bg-burgundy/5 disabled:opacity-60"
-                        >
-                          <Mail className="h-3.5 w-3.5" />
-                          {member.retakeRequested
-                            ? "Sent"
-                            : retakeSendingId === member.id
-                              ? "Sending..."
-                              : "Send"}
-                        </button>
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      disabled={retakeSendingId === member.id || member.retakeRequested}
+                      onClick={() => void requestRetake(member.id, member.name)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-burgundy/25 bg-cream px-3 py-1.5 text-xs font-semibold text-burgundy hover:bg-burgundy/5 disabled:opacity-60"
+                    >
+                      <Mail className="h-3.5 w-3.5" />
+                      {member.retakeRequested
+                        ? "Sent"
+                        : retakeSendingId === member.id
+                          ? "Sending..."
+                          : "Send"}
+                    </button>
                   </div>
-                  {recordingId === member.id && (
-                    <AdminRecordSurveyForm
-                      userId={member.id}
-                      memberName={member.name}
-                      onCancel={() => setRecordingId(null)}
-                      onSaved={() => {
-                        setRecordingId(null);
-                        void fetchSubmissions();
-                      }}
-                    />
-                  )}
                 </li>
               ))}
             </ul>

@@ -138,6 +138,10 @@ export async function GET() {
       continue;
     }
 
+    if (member.status === "REJECTED" || member.deletedAt) {
+      continue;
+    }
+
     incomplete.push({
       id: member.id,
       name: member.name,
@@ -244,6 +248,7 @@ export async function PATCH(request: NextRequest) {
     data: {
       questionnaireAnswers: answers,
       questionnaireCompletedAt: member.questionnaireCompletedAt ?? now,
+      questionnaireRetakeRequestedAt: null,
       onboardingDueAt: member.onboardingDueAt ?? computeOnboardingDueAt(now),
     },
     select: {

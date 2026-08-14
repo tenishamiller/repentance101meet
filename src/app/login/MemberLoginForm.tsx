@@ -3,11 +3,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { signIn, getSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { RememberMeCheckbox, useRememberedEmail } from "@/components/auth/RememberMeField";
+import { safeCallbackUrl } from "@/lib/safe-callback-url";
 
 export function MemberLoginForm({ mobileApp = false }: { mobileApp?: boolean }) {
   const base = mobileApp ? "/m" : "";
+  const searchParams = useSearchParams();
+  const afterLogin = safeCallbackUrl(searchParams.get("callbackUrl"));
   const { email, setEmail, rememberMe, setRememberMe, persistOnLogin } = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -26,7 +30,7 @@ export function MemberLoginForm({ mobileApp = false }: { mobileApp?: boolean }) 
         password,
         rememberMe: rememberMe ? "true" : "false",
         redirect: false,
-        callbackUrl: `${base}/dashboard`,
+        callbackUrl: afterLogin ?? `${base}/dashboard`,
       });
 
       if (result?.error || result?.ok === false) {
@@ -49,6 +53,10 @@ export function MemberLoginForm({ mobileApp = false }: { mobileApp?: boolean }) 
       const statusRes = await fetch("/api/onboarding/status");
       if (statusRes.ok) {
         const statusData = await statusRes.json();
+        if (statusData.questionnaireRetakeRequested) {
+          window.location.assign(afterLogin ?? `${base}/questionnaire`);
+          return;
+        }
         if (statusData.status === "PENDING") {
           window.location.assign(
             statusData.questionnaireCompleted ? `${base}/messages` : `${base}/signup`,
@@ -65,7 +73,7 @@ export function MemberLoginForm({ mobileApp = false }: { mobileApp?: boolean }) 
         }
       }
 
-      window.location.assign(`${base}/dashboard`);
+      window.location.assign(afterLogin ?? `${base}/dashboard`);
     } catch {
       setError("Could not sign in. Please try again.");
       setLoading(false);

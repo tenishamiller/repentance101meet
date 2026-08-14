@@ -5,6 +5,7 @@ import {
   computeOnboardingDueAt,
   questionnaireSchema,
 } from "@/lib/onboarding";
+import { memberHasOpenQuestionnaire } from "@/lib/questionnaire-retake";
 import { z } from "zod";
 
 export async function POST(request: Request) {
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  const isRetake = Boolean(member.questionnaireRetakeRequestedAt);
+  const isRetake = await memberHasOpenQuestionnaire(session.user.id);
   const isInitialPending =
     member.status === "PENDING" && !member.questionnaireCompletedAt && !isRetake;
 

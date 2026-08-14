@@ -41,6 +41,7 @@ type Props = {
   onDelete: () => void;
   now?: number;
   allowEdit?: boolean;
+  viewerIsAdmin?: boolean;
 };
 
 export function MembershipMessageBubble({
@@ -55,6 +56,7 @@ export function MembershipMessageBubble({
   onDelete,
   now = Date.now(),
   allowEdit = true,
+  viewerIsAdmin = false,
 }: Props) {
   const [copied, setCopied] = useState(false);
   const personalMinistryBase = useAppPath("/personal-ministry");
@@ -154,15 +156,20 @@ export function MembershipMessageBubble({
             </Link>
           )}
 
-          {message.type === "QUESTIONNAIRE_RETAKE" && (
-            <Link
-              href={questionnairePath}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-burgundy px-4 py-2 text-sm font-semibold text-cream hover:bg-burgundy-dark"
-            >
-              <ClipboardList className="h-4 w-4" />
-              Open Membership Questionnaire
-            </Link>
-          )}
+          {message.type === "QUESTIONNAIRE_RETAKE" &&
+            (viewerIsAdmin ? (
+              <p className="mt-3 text-xs font-medium text-burgundy/70">
+                The member opens this survey from their own Messages while signed in.
+              </p>
+            ) : (
+              <Link
+                href={questionnairePath}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg bg-burgundy px-4 py-2 text-sm font-semibold text-cream hover:bg-burgundy-dark"
+              >
+                <ClipboardList className="h-4 w-4" />
+                Open Membership Questionnaire
+              </Link>
+            ))}
 
           <div className={cn("mt-2 flex flex-wrap items-center gap-2", isOwn && "justify-end")}>
             <p className="text-[11px] text-burgundy/45">

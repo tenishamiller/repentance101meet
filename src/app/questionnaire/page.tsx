@@ -25,6 +25,13 @@ export default function QuestionnaireRetakePage() {
           setReady(true);
           return;
         }
+        if (data.role === "ADMIN") {
+          setError(
+            "This survey is for the member. They need to open the link while signed into their own account.",
+          );
+          setReady(true);
+          return;
+        }
         if (data.questionnaireRetakeRequested) {
           setAllowed(true);
           setReady(true);

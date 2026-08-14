@@ -830,6 +830,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                     onDelete={() => void deleteMessage(msg.id)}
                     now={now}
                     allowEdit={!messagingPeer}
+                    viewerIsAdmin={isAdmin}
                   />
                 ))}
               </div>
