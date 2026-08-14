@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { memberHasOpenQuestionnaire } from "@/lib/questionnaire-retake";
 
 export async function GET() {
   const session = await auth();
@@ -14,6 +15,7 @@ export async function GET() {
       questionnaireRetakeRequestedAt: true,
       onboardingDueAt: true,
       status: true,
+      role: true,
     },
   });
 
@@ -21,10 +23,14 @@ export async function GET() {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
+  const questionnaireRetakeRequested =
+    user.role === "MEMBER" ? await memberHasOpenQuestionnaire(session.user.id) : false;
+
   return Response.json({
     questionnaireCompleted: Boolean(user.questionnaireCompletedAt),
-    questionnaireRetakeRequested: Boolean(user.questionnaireRetakeRequestedAt),
+    questionnaireRetakeRequested,
     onboardingDueAt: user.onboardingDueAt?.toISOString() ?? null,
     status: user.status,
+    role: user.role,
   });
 }
