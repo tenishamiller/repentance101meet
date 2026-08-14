@@ -251,6 +251,42 @@ export async function POST(request: NextRequest) {
   return Response.json({ message: serializeMessage(message) });
 }
 
+export async function DELETE(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const threadUserId = request.nextUrl.searchParams.get("userId")?.trim();
+  if (!threadUserId) {
+    return Response.json({ error: "userId required" }, { status: 400 });
+  }
+
+  const isAdmin = session.user.role === "ADMIN";
+  if (!isAdmin && threadUserId !== session.user.id) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const threadUser = await prisma.user.findUnique({
+    where: { id: threadUserId },
+    select: { id: true, role: true },
+  });
+
+  if (!threadUser || threadUser.role !== "MEMBER") {
+    return Response.json({ error: "Member not found" }, { status: 404 });
+  }
+
+  if (isAdmin) {
+    const result = await prisma.membershipMessage.deleteMany({ where: { threadUserId } });
+    return Response.json({ success: true, deleted: result.count });
+  }
+
+  const result = await prisma.membershipMessage.deleteMany({
+    where: { threadUserId, senderId: session.user.id, type: "TEXT" },
+  });
+  return Response.json({ success: true, deleted: result.count });
+}
+
 function serializeMessage(message: {
   id: string;
   content: string;

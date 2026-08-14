@@ -63,6 +63,8 @@ export function MembershipMessageBubble({
   const questionnairePath = useAppPath("/questionnaire");
   const isText = message.type === "TEXT";
   const canModify = allowEdit && isText && isOwn && canEditMessage(message.createdAt, now);
+  const canDelete =
+    isText && (viewerIsAdmin || (isOwn && allowEdit && canEditMessage(message.createdAt, now)));
   const isEditing = editingId === message.id;
   const edited = isMessageEdited(message.editedAt);
   const editRemaining = canModify ? getEditTimeRemaining(message.createdAt, now) : null;
@@ -186,7 +188,7 @@ export function MembershipMessageBubble({
           </div>
         </div>
 
-        {(canModify || message.content.trim()) && !isEditing && (
+        {(canModify || canDelete || message.content.trim()) && !isEditing && (
           <div className={cn("mt-1.5 flex gap-3", isOwn && "justify-end")}>
             {message.content.trim() && (
               <button
@@ -199,24 +201,24 @@ export function MembershipMessageBubble({
               </button>
             )}
             {canModify && (
-              <>
-                <button
-                  type="button"
-                  onClick={onStartEdit}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
-                >
-                  <Pencil className="h-3 w-3" />
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={onDelete}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Delete
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={onStartEdit}
+                className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
+              >
+                <Pencil className="h-3 w-3" />
+                Edit
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete
+              </button>
             )}
           </div>
         )}

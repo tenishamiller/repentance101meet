@@ -112,20 +112,19 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (message.type !== "TEXT") {
-    return Response.json({ error: "This message cannot be deleted" }, { status: 400 });
-  }
-
   if (!(await canAccessMessage(message, session.user.id, session.user.role))) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (message.senderId !== session.user.id) {
+  const isAdmin = session.user.role === "ADMIN";
+  const isOwner = message.senderId === session.user.id;
+
+  if (!isAdmin && !isOwner) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (!canEditMessage(message.createdAt)) {
-    return Response.json({ error: "Delete window expired (5 minutes)" }, { status: 400 });
+  if (!isAdmin && message.type !== "TEXT") {
+    return Response.json({ error: "This message cannot be deleted" }, { status: 400 });
   }
 
   await prisma.membershipMessage.delete({ where: { id: messageId } });

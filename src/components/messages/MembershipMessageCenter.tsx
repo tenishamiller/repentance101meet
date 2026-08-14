@@ -21,10 +21,12 @@ import {
 import { useAppBase } from "@/hooks/useAppBase";
 import { useMessagePagination } from "@/hooks/useMessagePagination";
 import { MessagePagination } from "@/components/messages/MessagePagination";
+import { MessageDeleteSection } from "@/components/messages/MessageDeleteSection";
 import {
   MembershipMessageBubble,
   type MembershipMessageData,
 } from "@/components/messages/MembershipMessageBubble";
+import type { Member } from "@/components/admin/types";
 
 type Thread = {
   id: string;
@@ -104,6 +106,8 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   const [peerId, setPeerId] = useState<string | null>(null);
   const [peerRelation, setPeerRelation] = useState<DmRelation | null>(null);
   const [peerSearch, setPeerSearch] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -409,13 +413,37 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     void fetchInbox();
   }
 
-  async function deleteMessage(messageId: string) {
-    if (!window.confirm("Delete this message permanently? This cannot be undone.")) return;
+  async function deleteMessage(messageId: string, options?: { skipPrompt?: boolean }) {
+    if (!options?.skipPrompt) {
+      if (!window.confirm("Delete this message permanently? This cannot be undone.")) return;
+    }
     setActionError("");
-    const res = await fetch(`/api/messages/${messageId}`, { method: "DELETE" });
+    setDeletingId(messageId);
+    const url = messagingPeer
+      ? `/api/member-messages/${messageId}`
+      : `/api/messages/${messageId}`;
+    const res = await fetch(url, { method: "DELETE" });
+    setDeletingId(null);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setActionError(typeof data.error === "string" ? data.error : "Could not delete message.");
+      return;
+    }
+    void fetchInbox();
+  }
+
+  async function deleteConversation() {
+    setActionError("");
+    const url = messagingPeer
+      ? `/api/member-messages?userId=${encodeURIComponent(peerId ?? "")}`
+      : `/api/messages?userId=${encodeURIComponent(threadUserId ?? "")}`;
+    if ((messagingPeer && !peerId) || (!messagingPeer && !threadUserId)) return;
+    setDeletingAll(true);
+    const res = await fetch(url, { method: "DELETE" });
+    setDeletingAll(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setActionError(typeof data.error === "string" ? data.error : "Could not delete conversation.");
       return;
     }
     void fetchInbox();
@@ -476,6 +504,35 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     );
   });
   const selectedPeer = peerMembers.find((member) => member.id === peerId) ?? null;
+
+  const deletePickerMember: Member | null = selectedMember
+    ? {
+        id: selectedMember.id,
+        name: selectedMember.name,
+        email: selectedMember.email,
+        avatarUrl: selectedMember.avatarUrl,
+        status:
+          "status" in selectedMember &&
+          (selectedMember.status === "PENDING" ||
+            selectedMember.status === "APPROVED" ||
+            selectedMember.status === "REJECTED")
+            ? selectedMember.status
+            : "APPROVED",
+        createdAt: "",
+      }
+    : null;
+
+  const deleteConversationName = isAdmin
+    ? selectedMember?.name ?? null
+    : messagingPeer
+      ? selectedPeer?.name ?? null
+      : MINISTRY_LEADER;
+
+  const canDeleteConversation = isAdmin
+    ? Boolean(selectedUserId)
+    : messagingPeer
+      ? Boolean(peerId)
+      : true;
 
   return (
     <div className={shellClass}>
@@ -654,7 +711,8 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
           </aside>
         )}
 
-        <div className="card-brand flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+        <div className="card-brand flex min-h-[50vh] flex-1 flex-col overflow-hidden lg:min-h-0">
           {loading ? (
             <p className="p-6 text-center text-burgundy/60">Loading messages...</p>
           ) : (
@@ -967,6 +1025,33 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
               )}
             </>
           )}
+        </div>
+
+        <MessageDeleteSection
+          isAdmin={isAdmin}
+          conversationName={deleteConversationName}
+          messages={messages}
+          currentUserId={session?.user?.id}
+          selectedMember={deletePickerMember}
+          onSelectMember={
+            isAdmin
+              ? (member) => setSelectedUserId(member?.id ?? null)
+              : undefined
+          }
+          onDeleteMessage={(messageId) => deleteMessage(messageId, { skipPrompt: true })}
+          onDeleteConversation={deleteConversation}
+          canDeleteConversation={canDeleteConversation}
+          deletingId={deletingId}
+          deletingAll={deletingAll}
+          deleteAllLabel={
+            isAdmin || messagingPeer ? "Delete entire conversation" : "Delete all my messages"
+          }
+          deleteAllDescription={
+            isAdmin || messagingPeer
+              ? `Delete every message with ${deleteConversationName}? This cannot be undone.`
+              : `Delete every message you sent to ${MINISTRY_LEADER}? Invites from Norman will stay.`
+          }
+        />
         </div>
       </div>
     </div>

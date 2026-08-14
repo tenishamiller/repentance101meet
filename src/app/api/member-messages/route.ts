@@ -225,3 +225,24 @@ export async function POST(request: NextRequest) {
 
   return Response.json({ message: serializeMessage(message) });
 }
+
+export async function DELETE(request: NextRequest) {
+  const authz = await requireApprovedMember();
+  if (authz.error) return authz.error;
+  const meId = authz.session.user.id;
+  const otherId = request.nextUrl.searchParams.get("userId")?.trim();
+
+  if (!otherId || otherId === meId) {
+    return Response.json({ error: "Invalid member" }, { status: 400 });
+  }
+
+  const other = await assertApprovedMember(otherId);
+  if (!other) {
+    return Response.json({ error: "Member not found" }, { status: 404 });
+  }
+
+  const result = await prisma.memberDirectMessage.deleteMany({
+    where: pairFilter(meId, otherId),
+  });
+  return Response.json({ success: true, deleted: result.count });
+}
