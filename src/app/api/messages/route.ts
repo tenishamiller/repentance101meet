@@ -29,6 +29,17 @@ async function markThreadRead(threadUserId: string) {
   });
 }
 
+async function markMemberInboxRead(threadUserId: string) {
+  await prisma.membershipMessage.updateMany({
+    where: {
+      threadUserId,
+      readAt: null,
+      sender: { role: "ADMIN" },
+    },
+    data: { readAt: new Date() },
+  });
+}
+
 async function getAdminThreads() {
   const latestMessages = await prisma.membershipMessage.findMany({
     distinct: ["threadUserId"],
@@ -145,6 +156,16 @@ export async function GET(request: NextRequest) {
     take: 300,
   });
 
+  await markMemberInboxRead(session.user.id);
+
+  const unreadCount = await prisma.membershipMessage.count({
+    where: {
+      threadUserId: session.user.id,
+      readAt: null,
+      sender: { role: "ADMIN" },
+    },
+  });
+
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
     select: {
@@ -158,6 +179,7 @@ export async function GET(request: NextRequest) {
     messages: messages.map(serializeMessage),
     member: me,
     isAdmin: false,
+    unreadCount: 0,
   });
 }
 

@@ -23,6 +23,7 @@ import { useAppPath } from "@/hooks/useAppBase";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { ImmersiveMobileTabs } from "@/components/layout/ImmersiveMobileTabs";
 import { MeetingChat } from "@/components/livestream/MeetingChat";
+import { MemberMessagesPopover } from "@/components/livestream/MemberMessagesPopover";
 import { CameraDeviceSelect } from "@/components/livestream/CameraDeviceSelect";
 import { AudioDeviceSelect } from "@/components/livestream/AudioDeviceSelect";
 import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
@@ -75,6 +76,8 @@ function PrivateMinistryRoomContent({
   const personalMinistryPath = useAppPath("/personal-ministry");
   const adminPath = useAppPath("/admin");
   const [mobileTab, setMobileTab] = useState<"video" | "chat">("video");
+  const [chatUnread, setChatUnread] = useState(0);
+  const chatVisible = !isMobile || mobileTab === "chat";
   const [showDecision, setShowDecision] = useState(false);
   const [decisionLoading, setDecisionLoading] = useState(false);
 
@@ -340,6 +343,7 @@ function PrivateMinistryRoomContent({
               label={isCameraOff ? "Camera On" : "Camera Off"}
               icon={isCameraOff ? VideoOff : Video}
             />
+            {!isHost && <MemberMessagesPopover userId={userId} />}
             <button
               type="button"
               onClick={() => void handleLeave()}
@@ -380,7 +384,13 @@ function PrivateMinistryRoomContent({
                 {isHost && <BlockedUsersPanel meetingToken={meetingToken} />}
               </div>
               <div className="flex h-0 min-h-0 flex-1 flex-col overflow-hidden">
-                <MeetingChat meetingToken={meetingToken} userId={userId} isAdmin={isHost} />
+                <MeetingChat
+                  meetingToken={meetingToken}
+                  userId={userId}
+                  isAdmin={isHost}
+                  isVisible={chatVisible}
+                  onUnreadChange={setChatUnread}
+                />
               </div>
             </div>
           )}
@@ -392,7 +402,7 @@ function PrivateMinistryRoomContent({
             onChange={(id) => setMobileTab(id as "video" | "chat")}
             tabs={[
               { id: "video", label: "Video", icon: Video },
-              { id: "chat", label: "Chat", icon: MessageCircle },
+              { id: "chat", label: "Chat", icon: MessageCircle, badge: chatUnread },
             ]}
           />
         )}

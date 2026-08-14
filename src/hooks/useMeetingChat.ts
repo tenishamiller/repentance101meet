@@ -30,9 +30,18 @@ type Options = {
   meetingToken: string;
   userId: string;
   isAdmin: boolean;
+  /** When false, counts incoming messages as unread until the chat is shown again. */
+  isVisible?: boolean;
+  onUnreadChange?: (count: number) => void;
 };
 
-export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
+export function useMeetingChat({
+  meetingToken,
+  userId,
+  isAdmin,
+  isVisible = true,
+  onUnreadChange,
+}: Options) {
   const [messages, setMessages] = useState<MeetingChatMessage[]>([]);
   const [canModerate, setCanModerate] = useState(isAdmin);
   const [content, setContent] = useState("");
@@ -50,6 +59,8 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
   const stickToBottomRef = useRef(true);
   const lastMessageIdRef = useRef<string | null>(null);
   const lastMessageAtRef = useRef<string | null>(null);
+  const lastViewedMessageIdRef = useRef<string | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const canSend = content.trim().length > 0 || pendingFiles.length > 0;
 
@@ -102,6 +113,25 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (isVisible) {
+      const last = messages.at(-1);
+      if (last) lastViewedMessageIdRef.current = last.id;
+      setUnreadCount(0);
+      onUnreadChange?.(0);
+      return;
+    }
+
+    const lastViewedIdx = lastViewedMessageIdRef.current
+      ? messages.findIndex((message) => message.id === lastViewedMessageIdRef.current)
+      : -1;
+    const unread = messages
+      .slice(lastViewedIdx + 1)
+      .filter((message) => message.user.id !== userId && !message.deletedAt).length;
+    setUnreadCount(unread);
+    onUnreadChange?.(unread);
+  }, [isVisible, messages, onUnreadChange, userId]);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -333,5 +363,6 @@ export function useMeetingChat({ meetingToken, userId, isAdmin }: Options) {
     isMessageEdited,
     getEditTimeRemaining,
     canEditMessage,
+    unreadCount,
   };
 }

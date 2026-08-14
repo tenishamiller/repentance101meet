@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { mobileHref } from "@/lib/mobile-paths";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useMembershipUnreadCount } from "@/hooks/useMembershipUnreadCount";
+import { UnreadCountBadge } from "@/components/messages/UnreadCountBadge";
 
 type NavItem = {
   href: string;
@@ -85,6 +87,7 @@ export function MobileBottomNav({ mobileApp = false }: { mobileApp?: boolean }) 
   }
 
   const normalizedPath = matchPath(pathname);
+  const { unread: messageUnread } = useMembershipUnreadCount(10000);
   const navClass = mobileApp
     ? "mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-gold/30 bg-cream/95 backdrop-blur-md"
     : "mobile-bottom-nav fixed inset-x-0 bottom-0 z-50 border-t border-gold/30 bg-cream/95 backdrop-blur-md md:hidden";
@@ -101,11 +104,17 @@ export function MobileBottomNav({ mobileApp = false }: { mobileApp?: boolean }) 
           <Link
             href={link("/messages")}
             className={cn(
-              "flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold",
+              "relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-semibold",
               normalizedPath.startsWith("/messages") ? "text-burgundy" : "text-burgundy/55",
             )}
           >
-            <MessageCircle className="h-5 w-5" />
+            <span className="relative">
+              <MessageCircle className="h-5 w-5" />
+              <UnreadCountBadge
+                count={normalizedPath.startsWith("/messages") ? 0 : messageUnread}
+                className="ring-cream"
+              />
+            </span>
             Messages
           </Link>
         </div>
@@ -243,11 +252,16 @@ export function MobileBottomNav({ mobileApp = false }: { mobileApp?: boolean }) 
                 key={item.href}
                 href={link(item.href)}
                 className={cn(
-                  "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold transition",
+                  "relative flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold transition",
                   active ? "text-burgundy" : "text-burgundy/55",
                 )}
               >
-                <Icon className={cn("h-5 w-5", active && "text-gold-muted")} />
+                <span className="relative">
+                  <Icon className={cn("h-5 w-5", active && "text-gold-muted")} />
+                  {item.href === "/messages" && !active && messageUnread > 0 && (
+                    <UnreadCountBadge count={messageUnread} className="ring-cream" />
+                  )}
+                </span>
                 {item.label}
               </Link>
             );

@@ -6,28 +6,40 @@ import { MessageCircle, SendHorizontal, X } from "lucide-react";
 import { scrollContainerToBottom } from "@/lib/chat-scroll";
 import { formatRequestDateTime } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useMembershipUnreadCount } from "@/hooks/useMembershipUnreadCount";
+import { useMessagePagination } from "@/hooks/useMessagePagination";
+import { MessagePagination } from "@/components/messages/MessagePagination";
+import { UnreadCountBadge } from "@/components/messages/UnreadCountBadge";
 import type { MembershipMessageData } from "@/components/messages/MembershipMessageBubble";
 
 type Props = {
   userId: string;
+  onUnreadChange?: (count: number) => void;
 };
 
-export function MemberMessagesPopover({ userId }: Props) {
+export function MemberMessagesPopover({ userId, onUnreadChange }: Props) {
   const isMobile = useIsMobile();
+  const { unread, refresh: refreshUnread } = useMembershipUnreadCount(5000, "admin");
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [messages, setMessages] = useState<MembershipMessageData[]>([]);
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
-  const [hasUnread, setHasUnread] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const lastSeenAdminMessageRef = useRef<string | null>(null);
+
+  const pagination = useMessagePagination(messages, userId);
+  const visibleMessages = pagination.paginatedMessages;
+  const displayUnread = open ? 0 : unread;
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    onUnreadChange?.(displayUnread);
+  }, [displayUnread, onUnreadChange]);
 
   const fetchMessages = useCallback(async () => {
     const res = await fetch("/api/messages");
@@ -35,13 +47,16 @@ export function MemberMessagesPopover({ userId }: Props) {
     const data = await res.json();
     const list = (data.messages ?? []) as MembershipMessageData[];
     setMessages(list);
-
-    const lastAdmin = [...list].reverse().find((m) => m.sender.role === "ADMIN");
-    if (lastAdmin) {
-      const seen = lastSeenAdminMessageRef.current;
-      setHasUnread(!open && seen !== lastAdmin.id);
+    if (open) {
+      void refreshUnread();
     }
-  }, [open]);
+  }, [open, refreshUnread]);
+
+  useEffect(() => {
+    void refreshUnread();
+    const interval = setInterval(() => void refreshUnread(), 5000);
+    return () => clearInterval(interval);
+  }, [refreshUnread]);
 
   useEffect(() => {
     void fetchMessages();
@@ -52,14 +67,8 @@ export function MemberMessagesPopover({ userId }: Props) {
   useEffect(() => {
     if (!open) return;
     const node = scrollRef.current;
-    if (node) scrollContainerToBottom(node);
-
-    const lastAdmin = [...messages].reverse().find((m) => m.sender.role === "ADMIN");
-    if (lastAdmin) {
-      lastSeenAdminMessageRef.current = lastAdmin.id;
-      setHasUnread(false);
-    }
-  }, [messages, open]);
+    if (node && pagination.onLatestPage) scrollContainerToBottom(node);
+  }, [messages, open, pagination.onLatestPage]);
 
   useEffect(() => {
     if (!open) return;
@@ -94,6 +103,16 @@ export function MemberMessagesPopover({ userId }: Props) {
     void fetchMessages();
   }
 
+  function handleToggle() {
+    setOpen((value) => {
+      const next = !value;
+      if (next) {
+        void fetchMessages();
+      }
+      return next;
+    });
+  }
+
   const panel = (
     <div
       ref={panelRef}
@@ -108,7 +127,7 @@ export function MemberMessagesPopover({ userId }: Props) {
       <div className="flex shrink-0 items-center justify-between border-b border-gold/20 px-4 py-3">
         <div>
           <p className="font-serif text-sm font-bold text-burgundy">Messages from Norman</p>
-          <p className="text-xs text-burgundy/55">Reply without leaving the livestream</p>
+          <p className="text-xs text-burgundy/55">Reply without leaving the session</p>
         </div>
         <button
           type="button"
@@ -120,6 +139,15 @@ export function MemberMessagesPopover({ userId }: Props) {
         </button>
       </div>
 
+      <MessagePagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.setPage}
+        compact
+      />
+
       <div
         ref={scrollRef}
         className="chat-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 touch-pan-y"
@@ -130,7 +158,7 @@ export function MemberMessagesPopover({ userId }: Props) {
           </p>
         ) : (
           <ul className="space-y-3">
-            {messages.map((msg) => {
+            {visibleMessages.map((msg) => {
               const isOwn = msg.sender.id === userId;
               return (
                 <li
@@ -182,16 +210,14 @@ export function MemberMessagesPopover({ userId }: Props) {
     <div ref={rootRef} className="relative z-30">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={handleToggle}
         className="relative flex items-center gap-2 rounded-full border border-gold/40 bg-burgundy px-4 py-2.5 text-sm font-semibold text-gold-light transition hover:bg-burgundy-dark"
         aria-expanded={open}
         aria-haspopup="dialog"
       >
         <MessageCircle className="h-4 w-4" />
         <span className="hidden sm:inline">Messages</span>
-        {hasUnread && (
-          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-gold ring-2 ring-burgundy-dark" />
-        )}
+        <UnreadCountBadge count={displayUnread} />
       </button>
 
       {open &&

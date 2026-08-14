@@ -86,6 +86,8 @@ function LivestreamRoomContent({
   const livestreamPath = useAppPath("/livestream");
   const adminPath = useAppPath("/admin");
   const [mobileTab, setMobileTab] = useState<"video" | "chat" | "people">("video");
+  const [chatUnread, setChatUnread] = useState(0);
+  const chatVisible = !isMobile || mobileTab === "chat";
   const [privateMessageMember, setPrivateMessageMember] = useState<{
     id: string;
     name: string;
@@ -762,6 +764,8 @@ function LivestreamRoomContent({
               meetingToken={meetingToken}
               userId={userId}
               isAdmin={isHost}
+              isVisible={chatVisible}
+              onUnreadChange={setChatUnread}
             />
           </div>
         )}
@@ -806,6 +810,7 @@ function LivestreamRoomContent({
             meetingToken={meetingToken}
             userId={userId}
             isAdmin={isHost}
+            isVisible
           />
         </div>
       </aside>
@@ -816,7 +821,7 @@ function LivestreamRoomContent({
           onChange={(id) => setMobileTab(id as "video" | "chat" | "people")}
           tabs={[
             { id: "video", label: "Video", icon: Video },
-            { id: "chat", label: "Chat", icon: MessageCircle },
+            { id: "chat", label: "Chat", icon: MessageCircle, badge: chatUnread },
             ...(isHost
               ? [{ id: "people", label: "People", icon: Users, badge: viewerCount }]
               : []),

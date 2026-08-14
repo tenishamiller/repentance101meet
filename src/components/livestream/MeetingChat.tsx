@@ -6,19 +6,34 @@ import { formatDate } from "@/lib/utils";
 import { MEETING_CHAT_MAX_FILE_LABEL } from "@/lib/chat-attachments";
 import { meetingChatReplyPreview } from "@/lib/meeting-chat-reply";
 import { useMeetingChat } from "@/hooks/useMeetingChat";
+import { useMessagePagination } from "@/hooks/useMessagePagination";
 import { MessageAttachments } from "@/components/livestream/MessageAttachments";
 import { EmojiPicker } from "@/components/livestream/EmojiPicker";
+import { MessagePagination } from "@/components/messages/MessagePagination";
 
 export function MeetingChat({
   meetingToken,
   userId,
   isAdmin,
+  isVisible = true,
+  onUnreadChange,
 }: {
   meetingToken: string;
   userId: string;
   isAdmin: boolean;
+  isVisible?: boolean;
+  onUnreadChange?: (count: number) => void;
 }) {
-  const chat = useMeetingChat({ meetingToken, userId, isAdmin });
+  const chat = useMeetingChat({
+    meetingToken,
+    userId,
+    isAdmin,
+    isVisible,
+    onUnreadChange,
+  });
+
+  const pagination = useMessagePagination(chat.messages, meetingToken);
+  const visibleMessages = pagination.paginatedMessages;
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-burgundy-dark">
@@ -27,6 +42,16 @@ export function MeetingChat({
           Meeting Chat
         </h3>
       </div>
+
+      <MessagePagination
+        page={pagination.page}
+        totalPages={pagination.totalPages}
+        total={pagination.total}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.setPage}
+        variant="dark"
+        compact
+      />
 
       <div
         ref={chat.scrollRef}
@@ -38,7 +63,7 @@ export function MeetingChat({
             Say hello! Share files or add emojis.
           </p>
         )}
-        {chat.messages.map((msg) => {
+        {visibleMessages.map((msg) => {
           const isHidden = Boolean(msg.deletedAt);
           const isOwn = msg.user.id === userId;
           const isEditing = chat.editingId === msg.id;

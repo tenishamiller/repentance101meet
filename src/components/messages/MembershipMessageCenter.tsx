@@ -19,6 +19,8 @@ import {
   normalizeClipboardFile,
 } from "@/lib/message-attachments";
 import { useAppBase } from "@/hooks/useAppBase";
+import { useMessagePagination } from "@/hooks/useMessagePagination";
+import { MessagePagination } from "@/components/messages/MessagePagination";
 import {
   MembershipMessageBubble,
   type MembershipMessageData,
@@ -109,6 +111,14 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
   const threadUserId = isAdmin ? selectedUserId : session?.user?.id;
   const messagingPeer = isPeerMessaging && Boolean(peerId);
+  const messageThreadKey = messagingPeer
+    ? `peer:${peerId ?? "none"}`
+    : isAdmin
+      ? `admin:${selectedUserId ?? "none"}`
+      : `member:${session?.user?.id ?? "none"}`;
+
+  const messagePagination = useMessagePagination(messages, messageThreadKey);
+  const visibleMessages = messagePagination.paginatedMessages;
 
   const fetchInbox = useCallback(async () => {
     if (sessionStatus === "loading") return;
@@ -214,9 +224,10 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   }, [isPeerMessaging, peerId, fetchInbox]);
 
   useEffect(() => {
+    if (!messagePagination.onLatestPage) return;
     const node = scrollRef.current;
     if (node) scrollContainerToBottom(node);
-  }, [messages]);
+  }, [messages, messagePagination.onLatestPage]);
 
   async function uploadFile(file: File): Promise<Attachment | null> {
     const uploaded = await uploadDirectAttachment(file);
@@ -793,6 +804,14 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                 </div>
               )}
 
+              <MessagePagination
+                page={messagePagination.page}
+                totalPages={messagePagination.totalPages}
+                total={messagePagination.total}
+                pageSize={messagePagination.pageSize}
+                onPageChange={messagePagination.setPage}
+              />
+
               <div ref={scrollRef} className="chat-scroll min-h-0 flex-1 space-y-4 p-4">
                 {messages.length === 0 && (
                   <div className="flex h-full flex-col items-center justify-center py-12 text-center">
@@ -809,7 +828,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                   </div>
                 )}
 
-                {messages.map((msg) => (
+                {visibleMessages.map((msg) => (
                   <MembershipMessageBubble
                     key={msg.id}
                     message={msg}
