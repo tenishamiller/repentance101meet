@@ -132,6 +132,24 @@ export default function AdminPage() {
     void fetchAll();
   }
 
+  async function purgeMemberProfile(userId: string) {
+    const sure = window.confirm(
+      "Permanently delete this profile now? This cannot be undone and removes all of their data immediately.",
+    );
+    if (!sure) return;
+
+    const final = window.confirm("Final confirmation: permanently delete this member?");
+    if (!final) return;
+
+    await fetch("/api/admin/members", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, action: "purge" }),
+    });
+    setMembersRefreshKey((k) => k + 1);
+    void fetchAll();
+  }
+
   async function setChannelRequestStatus(membershipId: string, status: ChannelMembershipStatus) {
     await fetch("/api/admin/channel-requests", {
       method: "PATCH",
@@ -252,6 +270,7 @@ export default function AdminPage() {
           onBlock={(userId) => void blockUser(userId)}
           onRemoveProfile={(userId) => void removeMemberProfile(userId)}
           onRestoreProfile={(userId) => void restoreMemberProfile(userId)}
+          onPurgeProfile={(userId) => void purgeMemberProfile(userId)}
           refreshKey={membersRefreshKey}
         />
       )}

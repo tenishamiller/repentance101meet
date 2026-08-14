@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { logMemberActivity } from "@/lib/member-activity";
 import {
   activeUserFilter,
+  permanentlyDeleteUser,
   purgeExpiredUsers,
   restoreDeletedUser,
   softDeleteUser,
@@ -158,6 +159,30 @@ export async function POST(request: NextRequest) {
     if (action === "restore") {
       await restoreDeletedUser(userId, session.user.id);
       return Response.json({ success: true });
+    }
+
+    if (action === "purge") {
+      const member = await prisma.user.findFirst({
+        where: {
+          id: userId,
+          role: "MEMBER",
+          deletedAt: { not: null },
+        },
+      });
+
+      if (!member) {
+        return Response.json(
+          { error: "Member not found or not pending deletion" },
+          { status: 404 },
+        );
+      }
+
+      await permanentlyDeleteUser(
+        userId,
+        session.user.id,
+        "Profile permanently removed by ministry leadership",
+      );
+      return Response.json({ success: true, purged: true });
     }
 
     return Response.json({ error: "Invalid action" }, { status: 400 });

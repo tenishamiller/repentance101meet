@@ -84,13 +84,17 @@ export async function restoreDeletedUser(userId: string, adminId: string) {
   });
 }
 
-export async function permanentlyDeleteUser(userId: string, adminId?: string) {
+export async function permanentlyDeleteUser(
+  userId: string,
+  adminId?: string,
+  label = "Profile permanently removed after 30-day window",
+) {
   if (adminId) {
     await logMemberActivity({
       userId,
       type: "MEMBER_PURGED",
       actorId: adminId,
-      label: "Profile permanently removed after 30-day window",
+      label,
     });
   }
 
