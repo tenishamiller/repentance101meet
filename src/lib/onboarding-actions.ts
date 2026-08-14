@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { getAppUrl } from "@/lib/app-url";
 import { logMemberActivity } from "@/lib/member-activity";
 import { softDeleteUser } from "@/lib/user-deletion";
+import { nextMembershipThreadSeq } from "@/lib/message-thread-deletion";
 import {
   ONBOARDING_DUE_HOURS,
   ONBOARDING_INVITE_MESSAGE,
@@ -60,6 +61,7 @@ export async function sendOnboardingInvite(adminId: string, userId: string) {
       type: "ONBOARDING_INVITE",
       meetingId: meeting.id,
       content: `${ONBOARDING_INVITE_MESSAGE}\n\nJoin link: ${joinUrl}`,
+      threadSeq: await nextMembershipThreadSeq(userId),
     },
   });
 
@@ -95,6 +97,7 @@ export async function approvePendingMember(adminId: string, userId: string, meet
       type: "SYSTEM",
       content:
         "Congratulations — Norman has approved your membership. You now have full access to Repentance 101. Welcome to the group!",
+      threadSeq: await nextMembershipThreadSeq(userId),
     },
   });
 

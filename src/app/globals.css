@@ -337,6 +337,35 @@ body {
   background: rgba(201, 162, 39, 0.7);
 }
 
+/* Larger gold scrollbar for membership conversations and long message text */
+.chat-scroll-gold {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: #c9a227 rgba(107, 45, 45, 0.12);
+}
+
+.chat-scroll-gold::-webkit-scrollbar {
+  width: 14px;
+}
+
+.chat-scroll-gold::-webkit-scrollbar-track {
+  background: rgba(107, 45, 45, 0.1);
+  border-radius: 999px;
+}
+
+.chat-scroll-gold::-webkit-scrollbar-thumb {
+  background: #c9a227;
+  border-radius: 999px;
+  border: 3px solid rgba(253, 248, 232, 0.65);
+}
+
+.chat-scroll-gold::-webkit-scrollbar-thumb:hover {
+  background: #b8921f;
+}
+
 .chat-scroll-dark {
   scrollbar-color: rgba(201, 162, 39, 0.55) rgba(0, 0, 0, 0.25);
 }

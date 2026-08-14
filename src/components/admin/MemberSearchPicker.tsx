@@ -110,7 +110,7 @@ export function MemberSearchPicker({
       </div>
 
       {open && query.trim() && (
-        <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-gold/30 bg-cream shadow-lg">
+        <ul className="chat-scroll-gold absolute z-20 mt-1 max-h-56 w-full rounded-xl border border-gold/30 bg-cream shadow-lg">
           {loading && (
             <li className="px-4 py-3 text-sm text-burgundy/60">Searching...</li>
           )}

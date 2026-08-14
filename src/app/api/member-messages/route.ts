@@ -5,6 +5,14 @@ import { prisma } from "@/lib/db";
 import { activeUserFilter } from "@/lib/user-deletion";
 import { assertApprovedMember, getDmRelation, pairFilter } from "@/lib/member-dm";
 import { attachmentSchema } from "@/lib/message-attachments";
+import {
+  hiddenSeqsForUser,
+  listThreadDeletions,
+  nextDmThreadSeq,
+  purgeExpiredMessageThreads,
+  seqFilter,
+  visibleInboxRanges,
+} from "@/lib/message-thread-deletion";
 
 function serializeMessage(message: {
   id: string;
@@ -37,11 +45,22 @@ async function requireApprovedMember() {
   return { session };
 }
 
+function parseSeqParam(value: string | null) {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
 export async function GET(request: NextRequest) {
   const authz = await requireApprovedMember();
   if (authz.error) return authz.error;
   const meId = authz.session.user.id;
   const otherId = request.nextUrl.searchParams.get("userId");
+  const seqFrom = parseSeqParam(request.nextUrl.searchParams.get("seqFrom"));
+  const seqTo = parseSeqParam(request.nextUrl.searchParams.get("seqTo"));
+  const threadSeq = seqFilter(seqFrom, seqTo);
+
+  await purgeExpiredMessageThreads();
 
   if (otherId) {
     if (otherId === meId) {
@@ -60,9 +79,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const deletions = await listThreadDeletions(meId, "MEMBER_DM", otherId);
+    const hidden = hiddenSeqsForUser(deletions);
     const messages = relation.canMessage
       ? await prisma.memberDirectMessage.findMany({
-          where: pairFilter(meId, otherId),
+          where: {
+            ...pairFilter(meId, otherId),
+            ...(threadSeq ? { threadSeq } : {}),
+          },
           include: {
             sender: { select: { id: true, name: true, avatarUrl: true, role: true } },
           },
@@ -70,15 +94,19 @@ export async function GET(request: NextRequest) {
           take: 300,
         })
       : [];
+    const visible = threadSeq
+      ? messages
+      : messages.filter((msg) => !hidden.has(msg.threadSeq));
 
     return Response.json({
       member: other,
       relation,
-      messages: messages.map(serializeMessage),
+      messages: visible.map(serializeMessage),
     });
   }
 
-  const [members, outgoing, incoming, blocks, latestSent, latestReceived] = await Promise.all([
+  const [members, outgoing, incoming, blocks, latestSent, latestReceived, dmDeletions] =
+    await Promise.all([
     prisma.user.findMany({
       where: {
         role: "MEMBER",
@@ -96,25 +124,26 @@ export async function GET(request: NextRequest) {
     }),
     prisma.memberDirectMessage.findMany({
       where: { senderId: meId },
-      distinct: ["recipientId"],
       orderBy: { createdAt: "desc" },
       select: {
         recipientId: true,
         content: true,
         createdAt: true,
+        threadSeq: true,
       },
     }),
     prisma.memberDirectMessage.findMany({
       where: { recipientId: meId },
-      distinct: ["senderId"],
       orderBy: { createdAt: "desc" },
       select: {
         senderId: true,
         content: true,
         createdAt: true,
         readAt: true,
+        threadSeq: true,
       },
     }),
+    listThreadDeletions(meId, "MEMBER_DM"),
   ]);
 
   const outgoingBy = new Map(outgoing.map((r) => [r.toUserId, r]));
@@ -122,23 +151,49 @@ export async function GET(request: NextRequest) {
   const blockedByMe = new Set(blocks.filter((b) => b.blockerId === meId).map((b) => b.blockedId));
   const blockedMe = new Set(blocks.filter((b) => b.blockedId === meId).map((b) => b.blockerId));
 
-  const lastByOther = new Map<string, { content: string; createdAt: Date }>();
+  const lastByOther = new Map<string, { content: string; createdAt: Date; threadSeq: number }>();
+  const seqsByOther = new Map<string, Set<number>>();
+  function addSeq(otherId: string, seq: number) {
+    const set = seqsByOther.get(otherId) ?? new Set<number>();
+    set.add(seq);
+    seqsByOther.set(otherId, set);
+  }
   for (const msg of latestSent) {
-    lastByOther.set(msg.recipientId, { content: msg.content, createdAt: msg.createdAt });
+    addSeq(msg.recipientId, msg.threadSeq);
+    const hidden = hiddenSeqsForUser(
+      dmDeletions.filter((row) => row.otherUserId === msg.recipientId),
+    );
+    if (hidden.has(msg.threadSeq)) continue;
+    const current = lastByOther.get(msg.recipientId);
+    if (!current || msg.createdAt > current.createdAt) {
+      lastByOther.set(msg.recipientId, {
+        content: msg.content,
+        createdAt: msg.createdAt,
+        threadSeq: msg.threadSeq,
+      });
+    }
   }
   for (const msg of latestReceived) {
+    addSeq(msg.senderId, msg.threadSeq);
+    const hidden = hiddenSeqsForUser(
+      dmDeletions.filter((row) => row.otherUserId === msg.senderId),
+    );
+    if (hidden.has(msg.threadSeq)) continue;
     const current = lastByOther.get(msg.senderId);
     if (!current || msg.createdAt > current.createdAt) {
-      lastByOther.set(msg.senderId, { content: msg.content, createdAt: msg.createdAt });
+      lastByOther.set(msg.senderId, {
+        content: msg.content,
+        createdAt: msg.createdAt,
+        threadSeq: msg.threadSeq,
+      });
     }
   }
 
   const unreadGroups = await prisma.memberDirectMessage.groupBy({
-    by: ["senderId"],
+    by: ["senderId", "threadSeq"],
     where: { recipientId: meId, readAt: null },
     _count: { id: true },
   });
-  const unreadBy = new Map(unreadGroups.map((row) => [row.senderId, row._count.id]));
 
   const directory = members.map((member) => {
     const out = outgoingBy.get(member.id);
@@ -146,6 +201,13 @@ export async function GET(request: NextRequest) {
     const approved = out?.status === "APPROVED" || inn?.status === "APPROVED";
     const iBlocked = blockedByMe.has(member.id);
     const theyBlocked = blockedMe.has(member.id);
+    const memberDeletions = dmDeletions.filter((row) => row.otherUserId === member.id);
+    const hidden = hiddenSeqsForUser(memberDeletions);
+    const unreadCount = unreadGroups
+      .filter((row) => row.senderId === member.id && !hidden.has(row.threadSeq))
+      .reduce((sum, row) => sum + row._count.id, 0);
+    const ranges = visibleInboxRanges([...(seqsByOther.get(member.id) ?? [])], memberDeletions);
+    const latestRange = ranges.at(-1) ?? null;
     return {
       ...member,
       blockedByMe: iBlocked,
@@ -154,7 +216,9 @@ export async function GET(request: NextRequest) {
       pendingIncoming: inn?.status === "PENDING",
       approved,
       canMessage: approved && !iBlocked && !theyBlocked,
-      unreadCount: unreadBy.get(member.id) ?? 0,
+      unreadCount,
+      seqFrom: latestRange?.seqFrom ?? null,
+      seqTo: latestRange?.seqTo ?? null,
       lastMessage: lastByOther.get(member.id)
         ? {
             content: lastByOther.get(member.id)!.content.trim() || "📎 Attachment",
@@ -211,12 +275,14 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Message cannot be empty" }, { status: 400 });
   }
 
+  const threadSeq = await nextDmThreadSeq(meId, body.userId);
   const message = await prisma.memberDirectMessage.create({
     data: {
       senderId: meId,
       recipientId: body.userId,
       content: trimmed,
       attachments: attachments.length > 0 ? attachments : undefined,
+      threadSeq,
     },
     include: {
       sender: { select: { id: true, name: true, avatarUrl: true, role: true } },

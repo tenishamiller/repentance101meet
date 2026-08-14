@@ -136,7 +136,9 @@ export function MembershipMessageBubble({
           ) : (
             <>
               {message.content.trim() && (
-                <p className="whitespace-pre-wrap text-sm text-burgundy/90">{message.content}</p>
+                <p className="chat-scroll-gold max-h-64 overflow-y-auto whitespace-pre-wrap pr-2 text-sm text-burgundy/90">
+                  {message.content}
+                </p>
               )}
               {message.attachments && message.attachments.length > 0 && (
                 <MessageAttachments attachments={message.attachments} />

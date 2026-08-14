@@ -75,6 +75,11 @@ enum MemberDmRequestStatus {
   REMOVED
 }
 
+enum MessageThreadKind {
+  MEMBERSHIP
+  MEMBER_DM
+}
+
 model User {
   id           String        @id @default(cuid())
   email        String        @unique
@@ -113,6 +118,8 @@ model User {
   dmBlocksReceived    MemberDmBlock[]       @relation("DmBlocked")
   dmMessagesSent      MemberDirectMessage[] @relation("DmSender")
   dmMessagesReceived  MemberDirectMessage[] @relation("DmRecipient")
+  deletedMessageThreads DeletedMessageThread[] @relation("DeletedMessageThreads")
+  deletedMessageThreadOthers DeletedMessageThread[] @relation("DeletedMessageThreadOther")
 }
 
 model MemberActivityLog {
@@ -144,6 +151,7 @@ model MembershipMessage {
   meetingId    String?
   readAt       DateTime?
   editedAt     DateTime?
+  threadSeq    Int                   @default(1)
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
 
@@ -152,6 +160,7 @@ model MembershipMessage {
   meeting    Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
 
   @@index([threadUserId, createdAt])
+  @@index([threadUserId, threadSeq, createdAt])
 }
 
 model MemberDmRequest {
@@ -189,6 +198,7 @@ model MemberDirectMessage {
   attachments Json?
   readAt      DateTime?
   editedAt    DateTime?
+  threadSeq   Int       @default(1)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -197,6 +207,25 @@ model MemberDirectMessage {
 
   @@index([senderId, recipientId, createdAt])
   @@index([recipientId, readAt])
+  @@index([senderId, recipientId, threadSeq])
+}
+
+model DeletedMessageThread {
+  id                   String            @id @default(cuid())
+  userId               String
+  kind                 MessageThreadKind
+  otherUserId          String
+  seqFrom              Int
+  seqTo                Int
+  deletedAt            DateTime          @default(now())
+  purgeAt              DateTime
+  permanentlyDeletedAt DateTime?
+
+  user      User @relation("DeletedMessageThreads", fields: [userId], references: [id], onDelete: Cascade)
+  otherUser User @relation("DeletedMessageThreadOther", fields: [otherUserId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind, otherUserId])
+  @@index([purgeAt, permanentlyDeletedAt])
 }
 
 model BlockList {

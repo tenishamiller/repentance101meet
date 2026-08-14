@@ -12,6 +12,10 @@ export function GivingForm() {
 
   return (
     <div className="rounded-3xl border border-gold/30 bg-cream p-6 shadow-xl sm:p-8">
+      <p className="mb-5 text-center text-sm leading-relaxed text-burgundy/80 sm:text-base">
+        Thank you for supporting this ministry. We ask God to bless you a
+        hundredfold for all that you have blessed this ministry.
+      </p>
       <p className="mb-3 text-sm font-semibold text-burgundy">Choose an amount</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {GIVING_PRESETS.map((value) => (

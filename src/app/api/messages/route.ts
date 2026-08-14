@@ -4,6 +4,14 @@ import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { activeUserFilter } from "@/lib/user-deletion";
 import { attachmentSchema } from "@/lib/message-attachments";
+import {
+  hiddenSeqsForUser,
+  listThreadDeletions,
+  nextMembershipThreadSeq,
+  purgeExpiredMessageThreads,
+  seqFilter,
+  visibleInboxRanges,
+} from "@/lib/message-thread-deletion";
 
 const messageInclude = {
   sender: { select: { id: true, name: true, avatarUrl: true, role: true } },
@@ -40,68 +48,106 @@ async function markMemberInboxRead(threadUserId: string) {
   });
 }
 
-async function getAdminThreads() {
-  const latestMessages = await prisma.membershipMessage.findMany({
-    distinct: ["threadUserId"],
-    orderBy: { createdAt: "desc" },
-    include: {
-      threadUser: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          avatarUrl: true,
-          status: true,
-          onboardingDueAt: true,
-          questionnaireCompletedAt: true,
+async function getAdminThreads(adminId: string) {
+  const [latestMessages, unreadGroups, deletions] = await Promise.all([
+    prisma.membershipMessage.findMany({
+      distinct: ["threadUserId", "threadSeq"],
+      orderBy: { createdAt: "desc" },
+      include: {
+        threadUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+            status: true,
+            onboardingDueAt: true,
+            questionnaireCompletedAt: true,
+          },
         },
       },
-    },
-    where: {
-      threadUser: { role: "MEMBER", ...activeUserFilter() },
-    },
-  });
+      where: {
+        threadUser: { role: "MEMBER", ...activeUserFilter() },
+      },
+    }),
+    prisma.membershipMessage.groupBy({
+      by: ["threadUserId", "threadSeq"],
+      where: {
+        readAt: null,
+        sender: { role: "MEMBER" },
+        threadUser: { role: "MEMBER", ...activeUserFilter() },
+      },
+      _count: { id: true },
+    }),
+    listThreadDeletions(adminId, "MEMBERSHIP"),
+  ]);
 
-  const unreadGroups = await prisma.membershipMessage.groupBy({
-    by: ["threadUserId"],
-    where: {
-      readAt: null,
-      sender: { role: "MEMBER" },
-      threadUser: { role: "MEMBER", ...activeUserFilter() },
-    },
-    _count: { id: true },
-  });
-
-  const unreadByThread = new Map(
-    unreadGroups.map((row) => [row.threadUserId, row._count.id]),
+  const unreadBy = new Map(
+    unreadGroups.map((row) => [`${row.threadUserId}:${row.threadSeq}`, row._count.id]),
   );
 
-  const threads = latestMessages
-    .map((msg) => ({
-      id: msg.threadUser.id,
-      name: msg.threadUser.name,
-      email: msg.threadUser.email,
-      avatarUrl: msg.threadUser.avatarUrl,
-      status: msg.threadUser.status,
-      onboardingDueAt: msg.threadUser.onboardingDueAt?.toISOString() ?? null,
-      questionnaireCompletedAt:
-        msg.threadUser.questionnaireCompletedAt?.toISOString() ?? null,
-      unreadCount: unreadByThread.get(msg.threadUserId) ?? 0,
-      lastMessage: {
-        content: msg.content,
-        createdAt: msg.createdAt.toISOString(),
-        type: msg.type,
-      },
-    }))
-    .sort((a, b) => {
-      if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
-      return (
-        new Date(b.lastMessage.createdAt).getTime() -
-        new Date(a.lastMessage.createdAt).getTime()
-      );
-    });
+  const byMember = new Map<string, typeof latestMessages>();
+  for (const msg of latestMessages) {
+    const list = byMember.get(msg.threadUserId) ?? [];
+    list.push(msg);
+    byMember.set(msg.threadUserId, list);
+  }
 
-  return threads;
+  const threads = [];
+  for (const [threadUserId, messages] of byMember) {
+    const memberDeletions = deletions.filter((row) => row.otherUserId === threadUserId);
+    const ranges = visibleInboxRanges(
+      messages.map((msg) => msg.threadSeq),
+      memberDeletions,
+    );
+    const member = messages[0]?.threadUser;
+    if (!member) continue;
+
+    for (const range of ranges) {
+      const inRange = messages.filter(
+        (msg) => msg.threadSeq >= range.seqFrom && msg.threadSeq <= range.seqTo,
+      );
+      const last = inRange.sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+      )[0];
+      if (!last) continue;
+      let unreadCount = 0;
+      for (let seq = range.seqFrom; seq <= range.seqTo; seq += 1) {
+        unreadCount += unreadBy.get(`${threadUserId}:${seq}`) ?? 0;
+      }
+      threads.push({
+        id: member.id,
+        seqFrom: range.seqFrom,
+        seqTo: range.seqTo,
+        name: member.name,
+        email: member.email,
+        avatarUrl: member.avatarUrl,
+        status: member.status,
+        onboardingDueAt: member.onboardingDueAt?.toISOString() ?? null,
+        questionnaireCompletedAt: member.questionnaireCompletedAt?.toISOString() ?? null,
+        unreadCount,
+        lastMessage: {
+          content: last.content,
+          createdAt: last.createdAt.toISOString(),
+          type: last.type,
+        },
+      });
+    }
+  }
+
+  return threads.sort((a, b) => {
+    if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
+    return (
+      new Date(b.lastMessage.createdAt).getTime() -
+      new Date(a.lastMessage.createdAt).getTime()
+    );
+  });
+}
+
+function parseSeqParam(value: string | null) {
+  if (!value) return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 export async function GET(request: NextRequest) {
@@ -110,18 +156,33 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  await purgeExpiredMessageThreads();
+
   const isAdmin = session.user.role === "ADMIN";
   const threadUserId = request.nextUrl.searchParams.get("userId");
+  const seqFrom = parseSeqParam(request.nextUrl.searchParams.get("seqFrom"));
+  const seqTo = parseSeqParam(request.nextUrl.searchParams.get("seqTo"));
+  const threadSeq = seqFilter(seqFrom, seqTo);
 
   if (isAdmin && threadUserId) {
-    await markThreadRead(threadUserId);
+    const deletions = await listThreadDeletions(session.user.id, "MEMBERSHIP", threadUserId);
+    const hidden = hiddenSeqsForUser(deletions);
+    const where = {
+      threadUserId,
+      ...(threadSeq ? { threadSeq } : {}),
+    };
 
     const messages = await prisma.membershipMessage.findMany({
-      where: { threadUserId },
+      where,
       include: messageInclude,
       orderBy: { createdAt: "asc" },
       take: 300,
     });
+    const visible = threadSeq
+      ? messages
+      : messages.filter((msg) => !hidden.has(msg.threadSeq));
+
+    await markThreadRead(threadUserId);
 
     const member = await prisma.user.findUnique({
       where: { id: threadUserId },
@@ -138,33 +199,33 @@ export async function GET(request: NextRequest) {
     });
 
     return Response.json({
-      messages: messages.map(serializeMessage),
+      messages: visible.map(serializeMessage),
       member,
       isAdmin: true,
     });
   }
 
   if (isAdmin) {
-    const threads = await getAdminThreads();
+    const threads = await getAdminThreads(session.user.id);
     return Response.json({ threads, isAdmin: true });
   }
 
+  const deletions = await listThreadDeletions(session.user.id, "MEMBERSHIP", session.user.id);
+  const hidden = hiddenSeqsForUser(deletions);
   const messages = await prisma.membershipMessage.findMany({
-    where: { threadUserId: session.user.id },
+    where: {
+      threadUserId: session.user.id,
+      ...(threadSeq ? { threadSeq } : {}),
+    },
     include: messageInclude,
     orderBy: { createdAt: "asc" },
     take: 300,
   });
+  const visible = threadSeq
+    ? messages
+    : messages.filter((msg) => !hidden.has(msg.threadSeq));
 
   await markMemberInboxRead(session.user.id);
-
-  const unreadCount = await prisma.membershipMessage.count({
-    where: {
-      threadUserId: session.user.id,
-      readAt: null,
-      sender: { role: "ADMIN" },
-    },
-  });
 
   const me = await prisma.user.findUnique({
     where: { id: session.user.id },
@@ -176,7 +237,7 @@ export async function GET(request: NextRequest) {
   });
 
   return Response.json({
-    messages: messages.map(serializeMessage),
+    messages: visible.map(serializeMessage),
     member: me,
     isAdmin: false,
     unreadCount: 0,
@@ -237,6 +298,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Message cannot be empty" }, { status: 400 });
   }
 
+  const threadSeq = await nextMembershipThreadSeq(targetThreadUserId);
   const message = await prisma.membershipMessage.create({
     data: {
       threadUserId: targetThreadUserId,
@@ -244,6 +306,7 @@ export async function POST(request: NextRequest) {
       type: "TEXT",
       content: trimmedContent,
       attachments: attachments.length > 0 ? attachments : undefined,
+      threadSeq,
     },
     include: messageInclude,
   });

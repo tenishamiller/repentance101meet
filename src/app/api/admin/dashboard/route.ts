@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { activeMeetingFilter, purgeExpiredMeetings, visibleMeetingFilter } from "@/lib/meeting-deletion";
 import { activeUserFilter, purgeExpiredUsers } from "@/lib/user-deletion";
+import { purgeExpiredMessageThreads } from "@/lib/message-thread-deletion";
 
 export async function GET() {
   const session = await auth();
@@ -11,6 +12,7 @@ export async function GET() {
 
   await purgeExpiredMeetings();
   await purgeExpiredUsers();
+  await purgeExpiredMessageThreads();
 
   const meetingVisibility = activeMeetingFilter();
   const memberVisibility = activeUserFilter();

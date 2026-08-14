@@ -10,8 +10,8 @@ export default function GivingThankYouPage() {
       </span>
       <h1 className="mt-6 font-serif text-4xl font-bold text-burgundy">Thank you</h1>
       <p className="mt-4 text-lg leading-relaxed text-burgundy/75">
-        Your gift to {MINISTRY_NAME} is received with gratitude. It helps this
-        ministry keep teaching and walking with people in repentance.
+        Thank you for supporting {MINISTRY_NAME}. We ask God to bless you a
+        hundredfold for all that you have blessed this ministry.
       </p>
       <Link href="/livestream" className="btn-primary mt-8">
         Join the live meeting

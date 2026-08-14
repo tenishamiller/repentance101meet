@@ -6,6 +6,7 @@ import {
   questionnaireSchema,
 } from "@/lib/onboarding";
 import { memberHasOpenQuestionnaire } from "@/lib/questionnaire-retake";
+import { nextMembershipThreadSeq } from "@/lib/message-thread-deletion";
 import { z } from "zod";
 
 export async function POST(request: Request) {
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
           content: isRetake
             ? `${session.user.name} has completed the membership questionnaire (retake). Updated answers are ready in Admin → Survey Answers.`
             : `${session.user.name} has completed the membership questionnaire and is waiting for a personal one-on-one with Norman. Please review their answers and send an invite when ready.`,
+          threadSeq: await nextMembershipThreadSeq(session.user.id),
         },
       });
     }

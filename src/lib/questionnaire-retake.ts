@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { visibleUserFilter } from "@/lib/user-deletion";
+import { nextMembershipThreadSeq } from "@/lib/message-thread-deletion";
 import { QUESTIONNAIRE_RETAKE_MESSAGE } from "@/lib/onboarding";
 
 export async function memberHasOpenQuestionnaire(userId: string): Promise<boolean> {
@@ -35,6 +36,7 @@ export async function sendQuestionnaireRetakeRequest(adminId: string, userId: st
   }
 
   const now = new Date();
+  const threadSeq = await nextMembershipThreadSeq(userId);
 
   await prisma.$transaction([
     prisma.user.update({
@@ -51,6 +53,7 @@ export async function sendQuestionnaireRetakeRequest(adminId: string, userId: st
         senderId: adminId,
         type: "QUESTIONNAIRE_RETAKE",
         content: QUESTIONNAIRE_RETAKE_MESSAGE,
+        threadSeq,
       },
     }),
   ]);

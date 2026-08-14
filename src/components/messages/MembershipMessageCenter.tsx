@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Ban, ClipboardPaste, MessageCircle, Paperclip, SendHorizontal, UserMinus, X } from "lucide-react";
+import { Ban, ClipboardPaste, MessageCircle, Paperclip, Search, SendHorizontal, UserMinus, X } from "lucide-react";
+import { MemberSearchPicker } from "@/components/admin/MemberSearchPicker";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
 import { EmojiPicker } from "@/components/channels/EmojiPicker";
@@ -35,6 +36,8 @@ type Thread = {
   onboardingDueAt: string | null;
   questionnaireCompletedAt: string | null;
   unreadCount?: number;
+  seqFrom?: number;
+  seqTo?: number;
   lastMessage?: { content: string; createdAt: string; type: string };
 };
 
@@ -87,7 +90,6 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
   const [threads, setThreads] = useState<Thread[]>([]);
   const [allMembers, setAllMembers] = useState<MemberOption[]>([]);
-  const [memberSearch, setMemberSearch] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MembershipMessageData[]>([]);
   const [memberInfo, setMemberInfo] = useState<Record<string, unknown> | null>(null);
@@ -421,14 +423,18 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     void fetchInbox();
   }
 
-  async function peerAction(path: string, extra: Record<string, unknown> = {}) {
-    if (!peerId) return;
+  async function peerAction(
+    path: string,
+    extra: Record<string, unknown> = {},
+    userId = peerId,
+  ) {
+    if (!userId) return;
     setActionLoading(true);
     setActionError("");
     const res = await fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: peerId, ...extra }),
+      body: JSON.stringify({ userId, ...extra }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -441,19 +447,24 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   }
 
   const shellClass = embedded
-    ? "flex min-h-[min(70vh,720px)] flex-col"
+    ? "flex h-[min(72vh,760px)] max-h-[min(72vh,760px)] flex-col overflow-hidden"
     : inMobileShell
-      ? "mx-auto flex min-h-0 flex-1 flex-col px-3 py-4 sm:px-4"
-      : "mx-auto flex h-mobile-app min-h-0 max-w-6xl flex-col px-3 py-4 sm:px-4 lg:h-[calc(100vh-80px)]";
+      ? "mx-auto flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-4 sm:px-4"
+      : "mx-auto flex h-mobile-app min-h-0 max-w-6xl flex-col overflow-hidden px-3 py-4 sm:px-4 lg:h-[calc(100vh-80px)]";
 
-  const searchLower = memberSearch.trim().toLowerCase();
-  const filteredMembers = allMembers.filter((member) => {
-    if (!searchLower) return true;
-    return (
-      member.name.toLowerCase().includes(searchLower) ||
-      member.email.toLowerCase().includes(searchLower)
-    );
-  });
+  async function openPeerFromSearch(member: PeerMember) {
+    setPeerId(member.id);
+    setPeerSearch("");
+    if (
+      !member.canMessage &&
+      !member.pendingIncoming &&
+      !member.pendingOutgoing &&
+      !member.blockedByMe &&
+      !member.blockedMe
+    ) {
+      await peerAction("/api/member-messages/request", {}, member.id);
+    }
+  }
 
   const selectedMember =
     threads.find((thread) => thread.id === selectedUserId) ??
@@ -468,13 +479,21 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       : null);
 
   const peerSearchLower = peerSearch.trim().toLowerCase();
-  const filteredPeers = peerMembers.filter((member) => {
-    if (!peerSearchLower) return true;
-    return (
-      member.name.toLowerCase().includes(peerSearchLower) ||
-      member.email.toLowerCase().includes(peerSearchLower)
-    );
-  });
+  const peerSearchResults = peerSearchLower
+    ? peerMembers.filter(
+        (member) =>
+          member.name.toLowerCase().includes(peerSearchLower) ||
+          member.email.toLowerCase().includes(peerSearchLower),
+      )
+    : [];
+  const peerConversations = peerMembers.filter(
+    (member) =>
+      member.canMessage ||
+      member.pendingIncoming ||
+      member.pendingOutgoing ||
+      member.unreadCount > 0 ||
+      Boolean(member.lastMessage),
+  );
   const selectedPeer = peerMembers.find((member) => member.id === peerId) ?? null;
 
   return (
@@ -497,7 +516,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
         {isPeerMessaging && (
-          <aside className="card-brand flex max-h-64 flex-col overflow-hidden p-3 lg:max-h-none lg:w-72 lg:shrink-0">
+          <aside className="card-brand flex h-72 max-h-72 min-h-0 flex-col overflow-hidden p-3 lg:h-full lg:max-h-none lg:w-72 lg:shrink-0">
             <button
               type="button"
               onClick={() => setPeerId(null)}
@@ -508,21 +527,66 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
               Ministry leadership
             </button>
             <label className="text-xs font-semibold uppercase tracking-wide text-burgundy/55">
-              Members
+              Message a member
             </label>
-            <input
-              type="search"
-              value={peerSearch}
-              onChange={(e) => setPeerSearch(e.target.value)}
-              placeholder="Search members..."
-              className="input-field mt-2 mb-2 text-sm"
-            />
-            <div className="chat-scroll min-h-0 flex-1">
-              {filteredPeers.length === 0 ? (
-                <p className="text-sm text-burgundy/60">No members yet.</p>
+            <div className="relative mt-2 mb-3">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-burgundy/40" />
+              <input
+                type="search"
+                value={peerSearch}
+                onChange={(e) => setPeerSearch(e.target.value)}
+                placeholder="Search for a name..."
+                className="input-field !pl-10 text-sm"
+                autoComplete="off"
+              />
+              {peerSearchLower && (
+                <ul className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-xl border border-gold/30 bg-cream shadow-lg chat-scroll-gold">
+                  {peerSearchResults.length === 0 ? (
+                    <li className="px-4 py-3 text-sm text-burgundy/60">No members found.</li>
+                  ) : (
+                    peerSearchResults.map((member) => (
+                      <li key={member.id}>
+                        <button
+                          type="button"
+                          onClick={() => void openPeerFromSearch(member)}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-gold/10"
+                        >
+                          <UserAvatar
+                            userId={member.id}
+                            name={member.name}
+                            avatarUrl={member.avatarUrl}
+                            size="sm"
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium text-burgundy">
+                              {member.name}
+                            </span>
+                            <span className="block truncate text-xs text-burgundy/55">
+                              {member.canMessage
+                                ? "Open conversation"
+                                : member.pendingOutgoing
+                                  ? "Request already sent"
+                                  : member.pendingIncoming
+                                    ? "Wants to message you"
+                                    : "Send a message request"}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              )}
+            </div>
+            <h2 className="mb-2 shrink-0 text-sm font-semibold text-burgundy">Conversations</h2>
+            <div className="chat-scroll-gold min-h-0 flex-1">
+              {peerConversations.length === 0 ? (
+                <p className="text-sm text-burgundy/60">
+                  Search a name above to start a conversation.
+                </p>
               ) : (
                 <ul className="space-y-1">
-                  {filteredPeers.map((member) => (
+                  {peerConversations.map((member) => (
                     <li key={member.id}>
                       <button
                         type="button"
@@ -558,9 +622,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                               ? "Blocked"
                               : member.pendingOutgoing
                                 ? "Waiting for approval"
-                                : member.canMessage
-                                  ? member.lastMessage?.content || "Conversation open"
-                                  : "Tap to request"}
+                                : member.lastMessage?.content || "Conversation open"}
                           </span>
                         </span>
                       </button>
@@ -573,39 +635,23 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
         )}
 
         {isAdmin && (
-          <aside className="card-brand flex max-h-56 flex-col overflow-hidden p-3 lg:max-h-none lg:w-72 lg:shrink-0">
+          <aside className="card-brand flex h-72 max-h-72 min-h-0 flex-col overflow-hidden p-3 lg:h-full lg:max-h-none lg:w-72 lg:shrink-0">
             <div className="mb-3 shrink-0 space-y-2">
-              <label
-                htmlFor="admin-member-picker"
-                className="text-xs font-semibold uppercase tracking-wide text-burgundy/55"
-              >
+              <p className="text-xs font-semibold uppercase tracking-wide text-burgundy/55">
                 Message a member
-              </label>
-              <input
-                type="search"
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-                placeholder="Search by name or email..."
-                className="input-field text-sm"
+              </p>
+              <MemberSearchPicker
+                value={null}
+                onChange={(member) => {
+                  if (member) setSelectedUserId(member.id);
+                }}
+                placeholder="Search for a name..."
+                status="ALL"
               />
-              <select
-                id="admin-member-picker"
-                value={selectedUserId ?? ""}
-                onChange={(e) => setSelectedUserId(e.target.value || null)}
-                className="input-field text-sm"
-              >
-                <option value="">Choose a member...</option>
-                {filteredMembers.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name} · {member.email}
-                    {member.status !== "APPROVED" ? ` (${member.status})` : ""}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <h2 className="mb-2 shrink-0 text-sm font-semibold text-burgundy">Conversations</h2>
-            <div className="chat-scroll min-h-0 flex-1">
+            <div className="chat-scroll-gold min-h-0 flex-1">
               {threads.length === 0 ? (
                 <p className="text-sm text-burgundy/60">No conversations yet.</p>
               ) : (
@@ -812,13 +858,13 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                 onPageChange={messagePagination.setPage}
               />
 
-              <div ref={scrollRef} className="chat-scroll min-h-0 flex-1 space-y-4 p-4">
+              <div ref={scrollRef} className="chat-scroll-gold min-h-0 flex-1 space-y-4 p-4">
                 {messages.length === 0 && (
                   <div className="flex h-full flex-col items-center justify-center py-12 text-center">
                     <MessageCircle className="mb-3 h-10 w-10 text-gold-muted" />
                     <p className="text-burgundy/70">
                       {isAdmin
-                        ? "Choose a member from the dropdown or pick a conversation to start messaging."
+                        ? "Search a name or pick a conversation to start messaging."
                         : messagingPeer
                           ? peerRelation?.canMessage
                             ? "Send a first message, photo, GIF, or video."
