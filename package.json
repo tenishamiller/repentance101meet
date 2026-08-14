@@ -17,6 +17,7 @@
     "setup:supabase": "node scripts/setup-supabase.mjs",
     "storage:setup": "node scripts/ensure-storage-bucket.mjs",
     "deploy": "node scripts/deploy-vercel.mjs",
+    "coolify:env": "node scripts/coolify-env.mjs",
     "postinstall": "prisma generate"
   },
   "prisma": {

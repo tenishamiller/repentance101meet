@@ -148,4 +148,6 @@ Open [http://localhost:3000](http://localhost:3000)
 | **Vercel** | Next.js hosting |
 | **WebRTC (built-in)** | Host broadcasts live; members join in-browser — $0/month |
 
-No Docker required for production.
+No Docker required for production on Vercel.
+
+**Moving to your own VPS?** See [COOLIFY-MIGRATION.md](./COOLIFY-MIGRATION.md) — all four sites (Repentance 101, BraidAppt, Glory Goat, The Seers Connect) share one Coolify server. Run `npm run coolify:env` to print env vars for paste into Coolify.
