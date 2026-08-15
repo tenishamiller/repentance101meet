@@ -5,7 +5,9 @@ node_modules
 .env
 .env.*
 !.env.example
+!.env.vps.example
 docker-compose.yml
+Caddyfile
 livekit.yaml
 coverage
 *.md

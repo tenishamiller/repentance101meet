@@ -31,7 +31,7 @@ async function assertCanAttach(token: string, userId: string) {
   return { meeting };
 }
 
-/** Signed upload URL for chat attachments (bypasses Vercel body size limit). */
+/** Signed upload URL for chat attachments (direct to Supabase storage). */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const session = await auth();
   if (!session?.user) {

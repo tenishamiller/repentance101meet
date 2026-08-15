@@ -25,7 +25,7 @@ function allowedContentType(contentType: string) {
   ].includes(contentType);
 }
 
-/** Signed upload URL so GIFs and videos can skip the serverless body-size limit. */
+/** Signed upload URL so GIFs and videos go straight to Supabase storage. */
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {

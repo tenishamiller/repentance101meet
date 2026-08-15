@@ -22,6 +22,7 @@ function buildRemotePatterns() {
     pathname: "/uploads/**",
   });
 
+  // Legacy preview hosts (safe to keep while cutting over off Vercel).
   patterns.push({
     protocol: "https",
     hostname: "**.vercel.app",

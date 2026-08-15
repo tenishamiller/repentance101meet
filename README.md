@@ -2,7 +2,8 @@
 
 Ministry platform for **Repentance 101**: member approvals, channels, live meetings, and community chat.
 
-**Deploy stack:** GitHub → Vercel · Database & storage → Supabase · Livestream → built-in WebRTC (free, no third-party video)
+**Deploy stack:** GitHub → **OVH VPS (Docker + Caddy)** · Database & storage → Supabase · Livestream → LiveKit Cloud  
+👉 **VPS guide (no Vercel):** see [DEPLOY-VPS.md](./DEPLOY-VPS.md)
 
 **Completely separate from BraidAppt** — see [ISOLATION.md](./ISOLATION.md)
 
@@ -35,4 +36,4 @@ The host uses the private host portal (not linked on the public site):
 
 **https://repentance101ministry.com/host**
 
-Credentials come from `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your Vercel environment — never commit or display them on the site.
+Credentials come from `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your server `.env` — never commit or display them on the site.

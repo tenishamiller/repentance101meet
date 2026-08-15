@@ -1,0 +1,21 @@
+# TLS + reverse proxy for the ministry app on a VPS.
+# Change the hostname if you use a different domain.
+
+repentance101ministry.com, www.repentance101ministry.com {
+	encode gzip zstd
+
+	# Large teaching recordings / video attachments (no Vercel ~4.5 MB body cap).
+	request_body {
+		max_size 512MB
+	}
+
+	reverse_proxy app:3000 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+		# Livestream + uploads can take a while
+		transport http {
+			read_timeout 10m
+			write_timeout 10m
+		}
+	}
+}

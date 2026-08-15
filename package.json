@@ -17,6 +17,7 @@
     "setup:supabase": "node scripts/setup-supabase.mjs",
     "storage:setup": "node scripts/ensure-storage-bucket.mjs",
     "deploy": "node scripts/deploy-vercel.mjs",
+    "deploy:vps": "docker compose up -d --build",
     "postinstall": "prisma generate"
   },
   "prisma": {

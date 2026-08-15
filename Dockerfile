@@ -52,6 +52,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
 
+# Local upload fallback directory (named volume mounts here on VPS).
+RUN mkdir -p /app/public/uploads && chown nextjs:nodejs /app/public/uploads
+
 USER nextjs
 EXPOSE 3000
 CMD ["sh", "-c", "npx prisma migrate deploy && exec npx next start --hostname 0.0.0.0 --port ${PORT:-3000}"]

@@ -1,4 +1,7 @@
-# Supabase + Vercel + GitHub Setup
+# Supabase + GitHub Setup (legacy Vercel notes included)
+
+> **Preferred production host is now your VPS — see [DEPLOY-VPS.md](./DEPLOY-VPS.md).**  
+> This file still documents Supabase setup and the old Vercel path.
 
 > **Important:** This ministry site is **100% separate from BraidAppt**. See [ISOLATION.md](./ISOLATION.md).
 

@@ -31,7 +31,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return Response.json(
       {
         error:
-          "Video server credentials are invalid. Update LIVEKIT_API_KEY and LIVEKIT_API_SECRET in Vercel from your LiveKit Cloud project settings.",
+          "Video server credentials are invalid. Update LIVEKIT_API_KEY and LIVEKIT_API_SECRET on the server from your LiveKit Cloud project settings.",
         detail: message,
       },
       { status: 503 },

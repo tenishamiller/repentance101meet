@@ -32,8 +32,12 @@ export function buildRecordingFilename(title: string, _mimeType?: string) {
 
 export const RECORDING_CONTENT_TYPE = "video/webm";
 
-/** Vercel serverless request body limit — larger recordings must upload direct to Supabase. */
-const SERVER_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
+/**
+ * Fallback when signed Supabase upload fails.
+ * Sized for VPS hosting (no Vercel ~4.5 MB body cap). Signed upload is still preferred first.
+ */
+const SERVER_UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
+
 
 async function uploadViaServer(
   meetingToken: string,
@@ -139,7 +143,7 @@ export async function uploadRecordingBlob(
   blob: Blob,
   filename: string,
 ): Promise<{ downloadUrl: string; publicUrl: string }> {
-  // Direct-to-Supabase upload supports large teaching recordings (Vercel caps server uploads at ~4.5 MB).
+  // Prefer direct-to-Supabase signed upload for large teaching recordings.
   try {
     return await uploadViaSignedUrl(meetingToken, blob, filename);
   } catch (signedError) {

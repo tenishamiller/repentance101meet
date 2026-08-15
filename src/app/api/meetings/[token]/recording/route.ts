@@ -63,8 +63,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   });
 }
 
-/** Fallback upload through server (small recordings — Vercel body limit ~4.5 MB). */
-export const maxDuration = 60;
+/** Fallback upload through the app server (VPS has no Vercel body/time caps; maxDuration is ignored off-Vercel). */
+export const maxDuration = 300;
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   const session = await auth();
