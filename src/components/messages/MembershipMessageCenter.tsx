@@ -21,7 +21,7 @@ import {
 import { useAppBase } from "@/hooks/useAppBase";
 import { useMessagePagination } from "@/hooks/useMessagePagination";
 import { MessagePagination } from "@/components/messages/MessagePagination";
-import { MessageDeleteSection } from "@/components/messages/MessageDeleteSection";
+import { MessageDeleteSection, type DeletedThreadSummary } from "@/components/messages/MessageDeleteSection";
 import {
   MembershipMessageBubble,
   type MembershipMessageData,
@@ -30,6 +30,7 @@ import type { Member } from "@/components/admin/types";
 
 type Thread = {
   id: string;
+  conversationId?: string;
   name: string;
   email: string;
   avatarUrl: string | null;
@@ -53,6 +54,7 @@ type PeerMember = {
   name: string;
   email: string;
   avatarUrl: string | null;
+  conversationId?: string | null;
   blockedByMe: boolean;
   blockedMe: boolean;
   pendingOutgoing: boolean;
@@ -106,8 +108,9 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   const [peerId, setPeerId] = useState<string | null>(null);
   const [peerRelation, setPeerRelation] = useState<DmRelation | null>(null);
   const [peerSearch, setPeerSearch] = useState("");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deletingAll, setDeletingAll] = useState(false);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [deletedThreads, setDeletedThreads] = useState<DeletedThreadSummary[]>([]);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -123,6 +126,41 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
   const messagePagination = useMessagePagination(messages, messageThreadKey);
   const visibleMessages = messagePagination.paginatedMessages;
+
+  const fetchDeletedThreads = useCallback(async () => {
+    if (isAdmin) {
+      const res = await fetch("/api/messages?deleted=1");
+      if (res.ok) {
+        const data = await res.json();
+        setDeletedThreads((data.threads ?? []) as DeletedThreadSummary[]);
+      }
+      return;
+    }
+
+    if (isPeerMessaging) {
+      const [ministryRes, peerRes] = await Promise.all([
+        fetch("/api/messages?deleted=1"),
+        fetch("/api/member-messages?deleted=1"),
+      ]);
+      const threads: DeletedThreadSummary[] = [];
+      if (ministryRes.ok) {
+        const data = await ministryRes.json();
+        threads.push(...((data.threads ?? []) as DeletedThreadSummary[]));
+      }
+      if (peerRes.ok) {
+        const data = await peerRes.json();
+        threads.push(...((data.threads ?? []) as DeletedThreadSummary[]));
+      }
+      setDeletedThreads(threads);
+      return;
+    }
+
+    const res = await fetch("/api/messages?deleted=1");
+    if (res.ok) {
+      const data = await res.json();
+      setDeletedThreads((data.threads ?? []) as DeletedThreadSummary[]);
+    }
+  }, [isAdmin, isPeerMessaging]);
 
   const fetchInbox = useCallback(async () => {
     if (sessionStatus === "loading") return;
@@ -144,9 +182,12 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       }
     }
 
+    void fetchDeletedThreads();
+
     if (isAdmin && !selectedUserId) {
       setMessages([]);
       setMemberInfo(null);
+      setActiveConversationId(null);
       setLoading(false);
       return;
     }
@@ -166,12 +207,23 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
           setMessages(data.messages ?? []);
           setPeerRelation(data.relation ?? null);
           setMemberInfo(data.member ?? null);
+          setActiveConversationId(data.conversation?.id ?? null);
         }
         if (seq === fetchSeqRef.current) setLoading(false);
         return;
       }
 
       setPeerRelation(null);
+      const seq = ++fetchSeqRef.current;
+      const res = await fetch("/api/messages");
+      if (res.ok && seq === fetchSeqRef.current) {
+        const data = await res.json();
+        setMessages(data.messages ?? []);
+        setMemberInfo(data.member ?? null);
+        setActiveConversationId(data.conversation?.id ?? null);
+      }
+      if (seq === fetchSeqRef.current) setLoading(false);
+      return;
     }
 
     const url =
@@ -185,11 +237,20 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       const data = await res.json();
       setMessages(data.messages ?? []);
       setMemberInfo(data.member ?? null);
+      setActiveConversationId(data.conversation?.id ?? null);
     }
     if (seq === fetchSeqRef.current) {
       setLoading(false);
     }
-  }, [isAdmin, isPeerMessaging, onUnreadChange, peerId, selectedUserId, sessionStatus]);
+  }, [
+    fetchDeletedThreads,
+    isAdmin,
+    isPeerMessaging,
+    onUnreadChange,
+    peerId,
+    selectedUserId,
+    sessionStatus,
+  ]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -413,37 +474,55 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     void fetchInbox();
   }
 
-  async function deleteMessage(messageId: string, options?: { skipPrompt?: boolean }) {
-    if (!options?.skipPrompt) {
-      if (!window.confirm("Delete this message permanently? This cannot be undone.")) return;
-    }
+  async function softDeleteActiveThread() {
+    if (!activeConversationId) return;
     setActionError("");
-    setDeletingId(messageId);
-    const url = messagingPeer
-      ? `/api/member-messages/${messageId}`
-      : `/api/messages/${messageId}`;
-    const res = await fetch(url, { method: "DELETE" });
-    setDeletingId(null);
+    setBusyAction("soft-delete");
+    const res = await fetch(`/api/messages/conversations/${activeConversationId}`, {
+      method: "DELETE",
+    });
+    setBusyAction(null);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setActionError(typeof data.error === "string" ? data.error : "Could not delete message.");
+      setActionError(typeof data.error === "string" ? data.error : "Could not delete thread.");
+      return;
+    }
+    setMessages([]);
+    setActiveConversationId(null);
+    void fetchInbox();
+  }
+
+  async function restoreThread(conversationId: string) {
+    setActionError("");
+    setBusyAction(`restore:${conversationId}`);
+    const res = await fetch(`/api/messages/conversations/${conversationId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "restore" }),
+    });
+    setBusyAction(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setActionError(typeof data.error === "string" ? data.error : "Could not restore thread.");
       return;
     }
     void fetchInbox();
   }
 
-  async function deleteConversation() {
+  async function permanentlyDeleteThread(conversationId: string) {
     setActionError("");
-    const url = messagingPeer
-      ? `/api/member-messages?userId=${encodeURIComponent(peerId ?? "")}`
-      : `/api/messages?userId=${encodeURIComponent(threadUserId ?? "")}`;
-    if ((messagingPeer && !peerId) || (!messagingPeer && !threadUserId)) return;
-    setDeletingAll(true);
-    const res = await fetch(url, { method: "DELETE" });
-    setDeletingAll(false);
+    setBusyAction(`purge:${conversationId}`);
+    const res = await fetch(`/api/messages/conversations/${conversationId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "purge", confirmPermanent: true }),
+    });
+    setBusyAction(null);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setActionError(typeof data.error === "string" ? data.error : "Could not delete conversation.");
+      setActionError(
+        typeof data.error === "string" ? data.error : "Could not permanently delete thread.",
+      );
       return;
     }
     void fetchInbox();
@@ -528,11 +607,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       ? selectedPeer?.name ?? null
       : MINISTRY_LEADER;
 
-  const canDeleteConversation = isAdmin
-    ? Boolean(selectedUserId)
-    : messagingPeer
-      ? Boolean(peerId)
-      : true;
+  const canShowActiveDelete = Boolean(activeConversationId && deleteConversationName);
 
   return (
     <div className={shellClass}>
@@ -904,7 +979,6 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                       setEditContent("");
                     }}
                     onSaveEdit={() => void saveEdit(msg.id)}
-                    onDelete={() => void deleteMessage(msg.id)}
                     now={now}
                     allowEdit={!messagingPeer}
                     viewerIsAdmin={isAdmin}
@@ -1029,28 +1103,19 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
         <MessageDeleteSection
           isAdmin={isAdmin}
-          conversationName={deleteConversationName}
-          messages={messages}
-          currentUserId={session?.user?.id}
+          activeConversationId={canShowActiveDelete ? activeConversationId : null}
+          activeConversationName={canShowActiveDelete ? deleteConversationName : null}
           selectedMember={deletePickerMember}
           onSelectMember={
             isAdmin
               ? (member) => setSelectedUserId(member?.id ?? null)
               : undefined
           }
-          onDeleteMessage={(messageId) => deleteMessage(messageId, { skipPrompt: true })}
-          onDeleteConversation={deleteConversation}
-          canDeleteConversation={canDeleteConversation}
-          deletingId={deletingId}
-          deletingAll={deletingAll}
-          deleteAllLabel={
-            isAdmin || messagingPeer ? "Delete entire conversation" : "Delete all my messages"
-          }
-          deleteAllDescription={
-            isAdmin || messagingPeer
-              ? `Delete every message with ${deleteConversationName}? This cannot be undone.`
-              : `Delete every message you sent to ${MINISTRY_LEADER}? Invites from Norman will stay.`
-          }
+          deletedThreads={deletedThreads}
+          onSoftDeleteActive={softDeleteActiveThread}
+          onRestore={restoreThread}
+          onPermanentDelete={permanentlyDeleteThread}
+          busyAction={busyAction}
         />
         </div>
       </div>

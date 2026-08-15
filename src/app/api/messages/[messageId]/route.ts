@@ -67,67 +67,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     include: messageInclude,
   });
 
-  return Response.json({ message: serializeMessage(updated) });
-}
-
-function serializeMessage(message: {
-  id: string;
-  content: string;
-  attachments: unknown;
-  type: string;
-  createdAt: Date;
-  updatedAt: Date;
-  editedAt: Date | null;
-  sender: { id: string; name: string; avatarUrl: string | null; role: string };
-  meeting?: {
-    id: string;
-    linkToken: string;
-    title: string;
-    status: string;
-    isOnboardingApproval: boolean;
-  } | null;
-}) {
-  return {
-    ...message,
-    attachments: Array.isArray(message.attachments) ? message.attachments : null,
-    createdAt: message.createdAt.toISOString(),
-    updatedAt: message.updatedAt.toISOString(),
-    editedAt: message.editedAt?.toISOString() ?? null,
-  };
-}
-
-export async function DELETE(_request: Request, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { messageId } = await params;
-
-  const message = await prisma.membershipMessage.findUnique({
-    where: { id: messageId },
+  return Response.json({
+    message: {
+      ...updated,
+      attachments: Array.isArray(updated.attachments) ? updated.attachments : null,
+      createdAt: updated.createdAt.toISOString(),
+      updatedAt: updated.updatedAt.toISOString(),
+      editedAt: updated.editedAt?.toISOString() ?? null,
+    },
   });
-
-  if (!message) {
-    return Response.json({ error: "Not found" }, { status: 404 });
-  }
-
-  if (!(await canAccessMessage(message, session.user.id, session.user.role))) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const isAdmin = session.user.role === "ADMIN";
-  const isOwner = message.senderId === session.user.id;
-
-  if (!isAdmin && !isOwner) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  if (!isAdmin && message.type !== "TEXT") {
-    return Response.json({ error: "This message cannot be deleted" }, { status: 400 });
-  }
-
-  await prisma.membershipMessage.delete({ where: { id: messageId } });
-
-  return Response.json({ success: true });
 }

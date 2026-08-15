@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { visibleUserFilter } from "@/lib/user-deletion";
 import { QUESTIONNAIRE_RETAKE_MESSAGE } from "@/lib/onboarding";
+import { getOrCreateActiveAdminMemberConversation } from "@/lib/message-thread-deletion";
 
 export async function memberHasOpenQuestionnaire(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
@@ -35,6 +36,7 @@ export async function sendQuestionnaireRetakeRequest(adminId: string, userId: st
   }
 
   const now = new Date();
+  const conversation = await getOrCreateActiveAdminMemberConversation(userId);
 
   await prisma.$transaction([
     prisma.user.update({
@@ -47,6 +49,7 @@ export async function sendQuestionnaireRetakeRequest(adminId: string, userId: st
     }),
     prisma.membershipMessage.create({
       data: {
+        conversationId: conversation.id,
         threadUserId: userId,
         senderId: adminId,
         type: "QUESTIONNAIRE_RETAKE",

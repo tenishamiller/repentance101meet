@@ -1,6 +1,10 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { activeUserFilter } from "@/lib/user-deletion";
+import {
+  activeConversationFilter,
+  purgeExpiredConversations,
+} from "@/lib/message-thread-deletion";
 
 export async function GET() {
   const session = await auth();
@@ -8,12 +12,18 @@ export async function GET() {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  await purgeExpiredConversations();
+
   if (session.user.role === "ADMIN") {
     const unread = await prisma.membershipMessage.count({
       where: {
         readAt: null,
         sender: { role: "MEMBER" },
-        threadUser: { role: "MEMBER", ...activeUserFilter() },
+        conversation: {
+          kind: "ADMIN_MEMBER",
+          ...activeConversationFilter(),
+          memberUser: { role: "MEMBER", ...activeUserFilter() },
+        },
       },
     });
 
@@ -25,6 +35,7 @@ export async function GET() {
       threadUserId: session.user.id,
       readAt: null,
       sender: { role: "ADMIN" },
+      conversation: { ...activeConversationFilter() },
     },
   });
 
@@ -32,6 +43,7 @@ export async function GET() {
     where: {
       recipientId: session.user.id,
       readAt: null,
+      conversation: { ...activeConversationFilter() },
     },
   });
 

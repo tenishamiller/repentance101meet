@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2, Video, Copy, ClipboardList } from "lucide-react";
+import { Pencil, Video, Copy, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -38,7 +38,6 @@ type Props = {
   onStartEdit: () => void;
   onCancelEdit: () => void;
   onSaveEdit: () => void;
-  onDelete: () => void;
   now?: number;
   allowEdit?: boolean;
   viewerIsAdmin?: boolean;
@@ -53,7 +52,6 @@ export function MembershipMessageBubble({
   onStartEdit,
   onCancelEdit,
   onSaveEdit,
-  onDelete,
   now = Date.now(),
   allowEdit = true,
   viewerIsAdmin = false,
@@ -63,8 +61,6 @@ export function MembershipMessageBubble({
   const questionnairePath = useAppPath("/questionnaire");
   const isText = message.type === "TEXT";
   const canModify = allowEdit && isText && isOwn && canEditMessage(message.createdAt, now);
-  const canDelete =
-    isText && (viewerIsAdmin || (isOwn && allowEdit && canEditMessage(message.createdAt, now)));
   const isEditing = editingId === message.id;
   const edited = isMessageEdited(message.editedAt);
   const editRemaining = canModify ? getEditTimeRemaining(message.createdAt, now) : null;
@@ -188,7 +184,7 @@ export function MembershipMessageBubble({
           </div>
         </div>
 
-        {(canModify || canDelete || message.content.trim()) && !isEditing && (
+        {(canModify || message.content.trim()) && !isEditing && (
           <div className={cn("mt-1.5 flex gap-3", isOwn && "justify-end")}>
             {message.content.trim() && (
               <button
@@ -208,16 +204,6 @@ export function MembershipMessageBubble({
               >
                 <Pencil className="h-3 w-3" />
                 Edit
-              </button>
-            )}
-            {canDelete && (
-              <button
-                type="button"
-                onClick={onDelete}
-                className="inline-flex items-center gap-1 text-xs font-medium text-burgundy/60 hover:text-burgundy"
-              >
-                <Trash2 className="h-3 w-3" />
-                Delete
               </button>
             )}
           </div>

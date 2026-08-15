@@ -2,8 +2,8 @@ import { prisma } from "@/lib/db";
 import { getAppUrl } from "@/lib/app-url";
 import { logMemberActivity } from "@/lib/member-activity";
 import { softDeleteUser } from "@/lib/user-deletion";
+import { getOrCreateActiveAdminMemberConversation } from "@/lib/message-thread-deletion";
 import {
-  ONBOARDING_DUE_HOURS,
   ONBOARDING_INVITE_MESSAGE,
   ONBOARDING_INVITE_TITLE,
 } from "@/lib/onboarding";
@@ -52,9 +52,11 @@ export async function sendOnboardingInvite(adminId: string, userId: string) {
   });
 
   const joinUrl = `${getAppUrl()}/personal-ministry/${linkToken}`;
+  const conversation = await getOrCreateActiveAdminMemberConversation(userId);
 
   await prisma.membershipMessage.create({
     data: {
+      conversationId: conversation.id,
       threadUserId: userId,
       senderId: adminId,
       type: "ONBOARDING_INVITE",
@@ -88,8 +90,11 @@ export async function approvePendingMember(adminId: string, userId: string, meet
     label: "Approved after personal one-on-one with Norman",
   });
 
+  const conversation = await getOrCreateActiveAdminMemberConversation(userId);
+
   await prisma.membershipMessage.create({
     data: {
+      conversationId: conversation.id,
       threadUserId: userId,
       senderId: adminId,
       type: "SYSTEM",

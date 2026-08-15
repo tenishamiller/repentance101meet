@@ -6,6 +6,7 @@ import {
   questionnaireSchema,
 } from "@/lib/onboarding";
 import { memberHasOpenQuestionnaire } from "@/lib/questionnaire-retake";
+import { getOrCreateActiveAdminMemberConversation } from "@/lib/message-thread-deletion";
 import { z } from "zod";
 
 export async function POST(request: Request) {
@@ -81,8 +82,10 @@ export async function POST(request: Request) {
     });
 
     if (admin) {
+      const conversation = await getOrCreateActiveAdminMemberConversation(session.user.id);
       await prisma.membershipMessage.create({
         data: {
+          conversationId: conversation.id,
           threadUserId: session.user.id,
           senderId: session.user.id,
           type: "SYSTEM",

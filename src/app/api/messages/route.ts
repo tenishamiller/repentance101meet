@@ -4,6 +4,12 @@ import { prisma } from "@/lib/db";
 import { z } from "zod";
 import { activeUserFilter } from "@/lib/user-deletion";
 import { attachmentSchema } from "@/lib/message-attachments";
+import {
+  activeConversationFilter,
+  getOrCreateActiveAdminMemberConversation,
+  pendingDeletedConversationFilter,
+  purgeExpiredConversations,
+} from "@/lib/message-thread-deletion";
 
 const messageInclude = {
   sender: { select: { id: true, name: true, avatarUrl: true, role: true } },
@@ -18,10 +24,59 @@ const messageInclude = {
   },
 } as const;
 
-async function markThreadRead(threadUserId: string) {
+function serializeConversation(conversation: {
+  id: string;
+  kind: string;
+  memberUserId: string | null;
+  deletedAt: Date | null;
+  purgeAt: Date | null;
+  deletedById: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: conversation.id,
+    kind: conversation.kind,
+    memberUserId: conversation.memberUserId,
+    deletedAt: conversation.deletedAt?.toISOString() ?? null,
+    purgeAt: conversation.purgeAt?.toISOString() ?? null,
+    deletedById: conversation.deletedById,
+    createdAt: conversation.createdAt.toISOString(),
+    updatedAt: conversation.updatedAt.toISOString(),
+  };
+}
+
+function serializeMessage(message: {
+  id: string;
+  conversationId: string;
+  content: string;
+  attachments: unknown;
+  type: string;
+  createdAt: Date;
+  updatedAt: Date;
+  editedAt: Date | null;
+  sender: { id: string; name: string; avatarUrl: string | null; role: string };
+  meeting?: {
+    id: string;
+    linkToken: string;
+    title: string;
+    status: string;
+    isOnboardingApproval: boolean;
+  } | null;
+}) {
+  return {
+    ...message,
+    attachments: Array.isArray(message.attachments) ? message.attachments : null,
+    createdAt: message.createdAt.toISOString(),
+    updatedAt: message.updatedAt.toISOString(),
+    editedAt: message.editedAt?.toISOString() ?? null,
+  };
+}
+
+async function markThreadRead(conversationId: string) {
   await prisma.membershipMessage.updateMany({
     where: {
-      threadUserId,
+      conversationId,
       readAt: null,
       sender: { role: "MEMBER" },
     },
@@ -29,10 +84,10 @@ async function markThreadRead(threadUserId: string) {
   });
 }
 
-async function markMemberInboxRead(threadUserId: string) {
+async function markMemberInboxRead(conversationId: string) {
   await prisma.membershipMessage.updateMany({
     where: {
-      threadUserId,
+      conversationId,
       readAt: null,
       sender: { role: "ADMIN" },
     },
@@ -41,11 +96,14 @@ async function markMemberInboxRead(threadUserId: string) {
 }
 
 async function getAdminThreads() {
-  const latestMessages = await prisma.membershipMessage.findMany({
-    distinct: ["threadUserId"],
-    orderBy: { createdAt: "desc" },
+  const conversations = await prisma.messageConversation.findMany({
+    where: {
+      kind: "ADMIN_MEMBER",
+      ...activeConversationFilter(),
+      memberUser: { role: "MEMBER", ...activeUserFilter() },
+    },
     include: {
-      threadUser: {
+      memberUser: {
         select: {
           id: true,
           name: true,
@@ -56,52 +114,93 @@ async function getAdminThreads() {
           questionnaireCompletedAt: true,
         },
       },
+      membershipMessages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          content: true,
+          createdAt: true,
+          type: true,
+        },
+      },
     },
-    where: {
-      threadUser: { role: "MEMBER", ...activeUserFilter() },
-    },
+    orderBy: { updatedAt: "desc" },
   });
 
   const unreadGroups = await prisma.membershipMessage.groupBy({
-    by: ["threadUserId"],
+    by: ["conversationId"],
     where: {
       readAt: null,
       sender: { role: "MEMBER" },
-      threadUser: { role: "MEMBER", ...activeUserFilter() },
+      conversation: {
+        kind: "ADMIN_MEMBER",
+        ...activeConversationFilter(),
+        memberUser: { role: "MEMBER", ...activeUserFilter() },
+      },
     },
     _count: { id: true },
   });
 
-  const unreadByThread = new Map(
-    unreadGroups.map((row) => [row.threadUserId, row._count.id]),
+  const unreadByConversation = new Map(
+    unreadGroups.map((row) => [row.conversationId, row._count.id]),
   );
 
-  const threads = latestMessages
-    .map((msg) => ({
-      id: msg.threadUser.id,
-      name: msg.threadUser.name,
-      email: msg.threadUser.email,
-      avatarUrl: msg.threadUser.avatarUrl,
-      status: msg.threadUser.status,
-      onboardingDueAt: msg.threadUser.onboardingDueAt?.toISOString() ?? null,
-      questionnaireCompletedAt:
-        msg.threadUser.questionnaireCompletedAt?.toISOString() ?? null,
-      unreadCount: unreadByThread.get(msg.threadUserId) ?? 0,
-      lastMessage: {
-        content: msg.content,
-        createdAt: msg.createdAt.toISOString(),
-        type: msg.type,
-      },
-    }))
+  return conversations
+    .filter((conversation) => conversation.memberUser)
+    .map((conversation) => {
+      const member = conversation.memberUser!;
+      const last = conversation.membershipMessages[0];
+      return {
+        id: member.id,
+        conversationId: conversation.id,
+        name: member.name,
+        email: member.email,
+        avatarUrl: member.avatarUrl,
+        status: member.status,
+        onboardingDueAt: member.onboardingDueAt?.toISOString() ?? null,
+        questionnaireCompletedAt: member.questionnaireCompletedAt?.toISOString() ?? null,
+        unreadCount: unreadByConversation.get(conversation.id) ?? 0,
+        lastMessage: last
+          ? {
+              content: last.content,
+              createdAt: last.createdAt.toISOString(),
+              type: last.type,
+            }
+          : undefined,
+        conversation: serializeConversation(conversation),
+      };
+    })
     .sort((a, b) => {
       if (a.unreadCount !== b.unreadCount) return b.unreadCount - a.unreadCount;
-      return (
-        new Date(b.lastMessage.createdAt).getTime() -
-        new Date(a.lastMessage.createdAt).getTime()
-      );
+      const aTime = a.lastMessage?.createdAt ?? a.conversation.updatedAt;
+      const bTime = b.lastMessage?.createdAt ?? b.conversation.updatedAt;
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
     });
+}
 
-  return threads;
+async function listDeletedAdminMemberThreads(forMemberId?: string) {
+  await purgeExpiredConversations();
+
+  return prisma.messageConversation.findMany({
+    where: {
+      kind: "ADMIN_MEMBER",
+      ...pendingDeletedConversationFilter(),
+      ...(forMemberId ? { memberUserId: forMemberId } : {}),
+      memberUser: { role: "MEMBER", ...activeUserFilter() },
+    },
+    include: {
+      memberUser: {
+        select: { id: true, name: true, email: true, avatarUrl: true, status: true },
+      },
+      membershipMessages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { content: true, createdAt: true, type: true },
+      },
+      deletedBy: { select: { id: true, name: true } },
+    },
+    orderBy: { deletedAt: "desc" },
+  });
 }
 
 export async function GET(request: NextRequest) {
@@ -110,14 +209,121 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  await purgeExpiredConversations();
+
   const isAdmin = session.user.role === "ADMIN";
   const threadUserId = request.nextUrl.searchParams.get("userId");
+  const conversationId = request.nextUrl.searchParams.get("conversationId");
+  const deletedOnly = request.nextUrl.searchParams.get("deleted") === "1";
 
-  if (isAdmin && threadUserId) {
-    await markThreadRead(threadUserId);
+  if (deletedOnly) {
+    if (isAdmin) {
+      const deleted = await listDeletedAdminMemberThreads();
+      return Response.json({
+        threads: deleted.map((conversation) => ({
+          id: conversation.memberUser?.id ?? conversation.memberUserId,
+          conversationId: conversation.id,
+          name: conversation.memberUser?.name ?? "Member",
+          email: conversation.memberUser?.email ?? "",
+          avatarUrl: conversation.memberUser?.avatarUrl ?? null,
+          status: conversation.memberUser?.status,
+          lastMessage: conversation.membershipMessages[0]
+            ? {
+                content: conversation.membershipMessages[0].content,
+                createdAt: conversation.membershipMessages[0].createdAt.toISOString(),
+                type: conversation.membershipMessages[0].type,
+              }
+            : undefined,
+          conversation: serializeConversation(conversation),
+          deletedBy: conversation.deletedBy,
+        })),
+        isAdmin: true,
+      });
+    }
+
+    const deleted = await listDeletedAdminMemberThreads(session.user.id);
+    return Response.json({
+      threads: deleted.map((conversation) => ({
+        conversationId: conversation.id,
+        name: "Ministry leadership",
+        lastMessage: conversation.membershipMessages[0]
+          ? {
+              content: conversation.membershipMessages[0].content,
+              createdAt: conversation.membershipMessages[0].createdAt.toISOString(),
+              type: conversation.membershipMessages[0].type,
+            }
+          : undefined,
+        conversation: serializeConversation(conversation),
+        deletedBy: conversation.deletedBy,
+      })),
+      isAdmin: false,
+    });
+  }
+
+  if (conversationId) {
+    const conversation = await prisma.messageConversation.findUnique({
+      where: { id: conversationId },
+    });
+    if (!conversation || conversation.kind !== "ADMIN_MEMBER") {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const canAccess =
+      isAdmin || conversation.memberUserId === session.user.id;
+    if (!canAccess) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const isPendingDelete =
+      conversation.deletedAt &&
+      conversation.purgeAt &&
+      conversation.purgeAt > new Date();
+    if (conversation.deletedAt && !isPendingDelete) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (!conversation.deletedAt) {
+      if (isAdmin) await markThreadRead(conversation.id);
+      else await markMemberInboxRead(conversation.id);
+    }
 
     const messages = await prisma.membershipMessage.findMany({
-      where: { threadUserId },
+      where: { conversationId: conversation.id },
+      include: messageInclude,
+      orderBy: { createdAt: "asc" },
+      take: 300,
+    });
+
+    const member = conversation.memberUserId
+      ? await prisma.user.findUnique({
+          where: { id: conversation.memberUserId },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+            status: true,
+            questionnaireCompletedAt: true,
+            onboardingDueAt: true,
+            questionnaireAnswers: true,
+          },
+        })
+      : null;
+
+    return Response.json({
+      messages: messages.map(serializeMessage),
+      member,
+      conversation: serializeConversation(conversation),
+      isAdmin,
+    });
+  }
+
+  if (isAdmin && threadUserId) {
+    const conversation = await getOrCreateActiveAdminMemberConversation(threadUserId);
+    await markThreadRead(conversation.id);
+
+    const messages = await prisma.membershipMessage.findMany({
+      where: { conversationId: conversation.id },
       include: messageInclude,
       orderBy: { createdAt: "asc" },
       take: 300,
@@ -140,6 +346,7 @@ export async function GET(request: NextRequest) {
     return Response.json({
       messages: messages.map(serializeMessage),
       member,
+      conversation: serializeConversation(conversation),
       isAdmin: true,
     });
   }
@@ -149,21 +356,14 @@ export async function GET(request: NextRequest) {
     return Response.json({ threads, isAdmin: true });
   }
 
+  const conversation = await getOrCreateActiveAdminMemberConversation(session.user.id);
+  await markMemberInboxRead(conversation.id);
+
   const messages = await prisma.membershipMessage.findMany({
-    where: { threadUserId: session.user.id },
+    where: { conversationId: conversation.id },
     include: messageInclude,
     orderBy: { createdAt: "asc" },
     take: 300,
-  });
-
-  await markMemberInboxRead(session.user.id);
-
-  const unreadCount = await prisma.membershipMessage.count({
-    where: {
-      threadUserId: session.user.id,
-      readAt: null,
-      sender: { role: "ADMIN" },
-    },
   });
 
   const me = await prisma.user.findUnique({
@@ -178,6 +378,7 @@ export async function GET(request: NextRequest) {
   return Response.json({
     messages: messages.map(serializeMessage),
     member: me,
+    conversation: serializeConversation(conversation),
     isAdmin: false,
     unreadCount: 0,
   });
@@ -209,10 +410,7 @@ export async function POST(request: NextRequest) {
   }
 
   const isAdmin = session.user.role === "ADMIN";
-
-  const targetThreadUserId = isAdmin
-    ? body.threadUserId ?? null
-    : session.user.id;
+  const targetThreadUserId = isAdmin ? body.threadUserId ?? null : session.user.id;
 
   if (!targetThreadUserId) {
     return Response.json({ error: "threadUserId required" }, { status: 400 });
@@ -237,8 +435,11 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Message cannot be empty" }, { status: 400 });
   }
 
+  const conversation = await getOrCreateActiveAdminMemberConversation(targetThreadUserId);
+
   const message = await prisma.membershipMessage.create({
     data: {
+      conversationId: conversation.id,
       threadUserId: targetThreadUserId,
       senderId: session.user.id,
       type: "TEXT",
@@ -248,67 +449,13 @@ export async function POST(request: NextRequest) {
     include: messageInclude,
   });
 
-  return Response.json({ message: serializeMessage(message) });
-}
-
-export async function DELETE(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const threadUserId = request.nextUrl.searchParams.get("userId")?.trim();
-  if (!threadUserId) {
-    return Response.json({ error: "userId required" }, { status: 400 });
-  }
-
-  const isAdmin = session.user.role === "ADMIN";
-  if (!isAdmin && threadUserId !== session.user.id) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const threadUser = await prisma.user.findUnique({
-    where: { id: threadUserId },
-    select: { id: true, role: true },
+  await prisma.messageConversation.update({
+    where: { id: conversation.id },
+    data: { updatedAt: new Date() },
   });
 
-  if (!threadUser || threadUser.role !== "MEMBER") {
-    return Response.json({ error: "Member not found" }, { status: 404 });
-  }
-
-  if (isAdmin) {
-    const result = await prisma.membershipMessage.deleteMany({ where: { threadUserId } });
-    return Response.json({ success: true, deleted: result.count });
-  }
-
-  const result = await prisma.membershipMessage.deleteMany({
-    where: { threadUserId, senderId: session.user.id, type: "TEXT" },
+  return Response.json({
+    message: serializeMessage(message),
+    conversation: serializeConversation(conversation),
   });
-  return Response.json({ success: true, deleted: result.count });
-}
-
-function serializeMessage(message: {
-  id: string;
-  content: string;
-  attachments: unknown;
-  type: string;
-  createdAt: Date;
-  updatedAt: Date;
-  editedAt: Date | null;
-  sender: { id: string; name: string; avatarUrl: string | null; role: string };
-  meeting?: {
-    id: string;
-    linkToken: string;
-    title: string;
-    status: string;
-    isOnboardingApproval: boolean;
-  } | null;
-}) {
-  return {
-    ...message,
-    attachments: Array.isArray(message.attachments) ? message.attachments : null,
-    createdAt: message.createdAt.toISOString(),
-    updatedAt: message.updatedAt.toISOString(),
-    editedAt: message.editedAt?.toISOString() ?? null,
-  };
 }

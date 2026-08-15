@@ -75,6 +75,11 @@ enum MemberDmRequestStatus {
   REMOVED
 }
 
+enum MessageConversationKind {
+  ADMIN_MEMBER
+  MEMBER_DM
+}
+
 model User {
   id           String        @id @default(cuid())
   email        String        @unique
@@ -113,6 +118,34 @@ model User {
   dmBlocksReceived    MemberDmBlock[]       @relation("DmBlocked")
   dmMessagesSent      MemberDirectMessage[] @relation("DmSender")
   dmMessagesReceived  MemberDirectMessage[] @relation("DmRecipient")
+  adminMemberConversations MessageConversation[] @relation("ConversationMember")
+  conversationsDeleted     MessageConversation[] @relation("ConversationDeletedBy")
+  dmConversationsAsA       MessageConversation[] @relation("ConversationParticipantA")
+  dmConversationsAsB       MessageConversation[] @relation("ConversationParticipantB")
+}
+
+model MessageConversation {
+  id               String                  @id @default(cuid())
+  kind             MessageConversationKind
+  memberUserId     String?
+  participantAId   String?
+  participantBId   String?
+  deletedAt        DateTime?
+  purgeAt          DateTime?
+  deletedById      String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  memberUser   User?  @relation("ConversationMember", fields: [memberUserId], references: [id], onDelete: Cascade)
+  participantA User?  @relation("ConversationParticipantA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantB User?  @relation("ConversationParticipantB", fields: [participantBId], references: [id], onDelete: Cascade)
+  deletedBy    User?  @relation("ConversationDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  membershipMessages MembershipMessage[]
+  directMessages     MemberDirectMessage[]
+
+  @@index([kind, memberUserId, deletedAt])
+  @@index([participantAId, participantBId, deletedAt])
+  @@index([purgeAt])
 }
 
 model MemberActivityLog {
@@ -135,23 +168,26 @@ model MemberActivityLog {
 }
 
 model MembershipMessage {
-  id           String                @id @default(cuid())
-  threadUserId String
-  senderId     String
-  content      String                @db.Text
-  attachments  Json?
-  type         MembershipMessageType @default(TEXT)
-  meetingId    String?
-  readAt       DateTime?
-  editedAt     DateTime?
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
+  id             String                @id @default(cuid())
+  conversationId String
+  threadUserId   String
+  senderId       String
+  content        String                @db.Text
+  attachments    Json?
+  type           MembershipMessageType @default(TEXT)
+  meetingId      String?
+  readAt         DateTime?
+  editedAt       DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 
-  threadUser User     @relation("MembershipThread", fields: [threadUserId], references: [id], onDelete: Cascade)
-  sender     User     @relation("MembershipMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  meeting    Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  conversation MessageConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  threadUser   User                @relation("MembershipThread", fields: [threadUserId], references: [id], onDelete: Cascade)
+  sender       User                @relation("MembershipMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  meeting      Meeting?            @relation(fields: [meetingId], references: [id], onDelete: SetNull)
 
   @@index([threadUserId, createdAt])
+  @@index([conversationId, createdAt])
 }
 
 model MemberDmRequest {
@@ -182,21 +218,24 @@ model MemberDmBlock {
 }
 
 model MemberDirectMessage {
-  id          String    @id @default(cuid())
-  senderId    String
-  recipientId String
-  content     String    @db.Text
-  attachments Json?
-  readAt      DateTime?
-  editedAt    DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String
+  recipientId    String
+  content        String    @db.Text
+  attachments    Json?
+  readAt         DateTime?
+  editedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  sender    User @relation("DmSender", fields: [senderId], references: [id], onDelete: Cascade)
-  recipient User @relation("DmRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  conversation MessageConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User                @relation("DmSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient    User                @relation("DmRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@index([senderId, recipientId, createdAt])
   @@index([recipientId, readAt])
+  @@index([conversationId, createdAt])
 }
 
 model BlockList {
