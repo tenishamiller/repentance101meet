@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { BrandDivider } from "@/components/BrandDivider";
 import {
   JESUS_LOVE_OPTIONS,
   SPIRITUAL_STAGE_OPTIONS,
 } from "@/lib/onboarding";
+import {
+  clearLocalQuestionnaireDraft,
+  draftHasProgress,
+  emptyQuestionnaireDraft,
+  loadLocalQuestionnaireDraft,
+  saveLocalQuestionnaireDraft,
+  type QuestionnaireDraft,
+} from "@/lib/questionnaire-draft";
 
 type Props = {
   submitLabel?: string;
@@ -20,6 +29,8 @@ export function MembershipQuestionnaireForm({
   subheading = "All questions are required",
   onSuccess,
 }: Props) {
+  const { data: session } = useSession();
+  const userId = session?.user?.id ?? "";
   const [spiritualStage, setSpiritualStage] = useState("");
   const [location, setLocation] = useState("");
   const [witchcraft, setWitchcraft] = useState("");
@@ -30,6 +41,112 @@ export function MembershipQuestionnaireForm({
   const [baptism, setBaptism] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const saveTimerRef = useRef<number | null>(null);
+  const skipNextSaveRef = useRef(true);
+
+  function applyDraft(draft: QuestionnaireDraft) {
+    setSpiritualStage(draft.spiritualStage);
+    setLocation(draft.location);
+    setWitchcraft(draft.witchcraft);
+    setJesusLoveSelections(draft.jesusLoveSelections);
+    setJesusLoveCustom(draft.jesusLoveCustom);
+    setRelationshipWithJesus(draft.relationshipWithJesus);
+    setBitterness(draft.bitterness);
+    setBaptism(draft.baptism);
+  }
+
+  function currentDraft(): QuestionnaireDraft {
+    return {
+      spiritualStage,
+      location,
+      witchcraft,
+      jesusLoveSelections,
+      jesusLoveCustom,
+      relationshipWithJesus,
+      bitterness,
+      baptism,
+    };
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function restoreDraft() {
+      if (!userId) {
+        setDraftReady(true);
+        return;
+      }
+
+      const local = loadLocalQuestionnaireDraft(userId);
+      let remote: QuestionnaireDraft | null = null;
+      try {
+        const res = await fetch("/api/onboarding/questionnaire/draft");
+        if (res.ok) {
+          const data = await res.json();
+          remote = data.draft ?? null;
+        }
+      } catch {
+        /* use local only */
+      }
+
+      if (cancelled) return;
+
+      const chosen =
+        remote && draftHasProgress(remote)
+          ? remote
+          : local && draftHasProgress(local)
+            ? local
+            : emptyQuestionnaireDraft();
+
+      skipNextSaveRef.current = true;
+      applyDraft(chosen);
+      setDraftRestored(draftHasProgress(chosen));
+      setDraftReady(true);
+    }
+
+    void restoreDraft();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!draftReady || !userId) return;
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      return;
+    }
+
+    const draft = currentDraft();
+    saveLocalQuestionnaireDraft(userId, draft);
+
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      void fetch("/api/onboarding/questionnaire/draft", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      }).catch(() => undefined);
+    }, 600);
+
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- persist whenever any answer field changes
+  }, [
+    baptism,
+    bitterness,
+    draftReady,
+    jesusLoveCustom,
+    jesusLoveSelections,
+    location,
+    relationshipWithJesus,
+    spiritualStage,
+    userId,
+    witchcraft,
+  ]);
 
   function toggleJesusLove(option: string) {
     setJesusLoveSelections((prev) =>
@@ -96,13 +213,25 @@ export function MembershipQuestionnaireForm({
       return;
     }
 
+    if (userId) clearLocalQuestionnaireDraft(userId);
     await onSuccess();
+  }
+
+  if (!draftReady) {
+    return (
+      <p className="py-8 text-center text-burgundy/70">Loading your saved answers…</p>
+    );
   }
 
   return (
     <>
       <h1 className="font-serif text-3xl font-bold text-burgundy">{heading}</h1>
       <p className="mt-2 text-burgundy/70">{subheading}</p>
+      {draftRestored && (
+        <p className="mt-3 rounded-lg border border-gold/30 bg-gold/10 px-3 py-2 text-sm text-burgundy">
+          Your previous answers were restored. You can keep editing, then submit when finished.
+        </p>
+      )}
       <BrandDivider className="my-6 max-w-xs" />
 
       <form onSubmit={handleSubmit} className="space-y-8">
@@ -222,8 +351,9 @@ export function MembershipQuestionnaireForm({
           {loading ? "Submitting..." : submitLabel}
         </button>
         <p className="text-center text-xs text-burgundy/55">
-          Tip: the relationship-with-Jesus answer needs at least 100 characters, and the Jesus-love
-          question needs two or more selections.
+          Your answers save as you type. You can leave and open this link again to continue where you
+          left off. The relationship-with-Jesus answer needs at least 100 characters, and the
+          Jesus-love question needs two or more selections.
         </p>
       </form>
     </>

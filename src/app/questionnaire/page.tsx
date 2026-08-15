@@ -79,7 +79,7 @@ export default function QuestionnaireRetakePage() {
     <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
       <MembershipQuestionnaireForm
         heading="Membership Questionnaire"
-        subheading="All questions are required. Scroll through every section before submitting."
+        subheading="All questions are required. You can leave and reopen this link anytime to finish where you left off."
         submitLabel="Submit Questionnaire"
         onSuccess={handleSuccess}
       />

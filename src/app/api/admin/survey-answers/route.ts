@@ -123,6 +123,7 @@ export async function GET() {
     missingReason: string;
     missingReasonLabel: string;
     retakeRequested: boolean;
+    hasDraft: boolean;
   }> = [];
 
   for (const member of members) {
@@ -131,7 +132,8 @@ export async function GET() {
     const hasAnswers = member.questionnaireAnswers != null;
     const completed = Boolean(member.questionnaireCompletedAt);
 
-    if (completed || hasAnswers) {
+    // Only finished surveys belong in the completed list. In-progress drafts stay "still needed".
+    if (completed) {
       if (entriesOrCompleted(hasAnswers, completed, member.questionnaireAnswers)) {
         submissions.push(buildSubmission(member));
       }
@@ -154,6 +156,7 @@ export async function GET() {
       missingReason: missingReasonFor(member),
       missingReasonLabel: missingReasonLabel[missingReasonFor(member)],
       retakeRequested: Boolean(member.questionnaireRetakeRequestedAt),
+      hasDraft: hasAnswers,
     });
   }
 

@@ -48,7 +48,10 @@ export const ONBOARDING_INVITE_MESSAGE =
 export const QUESTIONNAIRE_RETAKE_TITLE = "Membership Questionnaire — Please Complete Again";
 
 export const QUESTIONNAIRE_RETAKE_MESSAGE =
-  "Norman has asked you to complete the membership questionnaire again. Tap the button below to open the survey — your updated answers will be saved for review.";
+  "Norman has asked you to complete the membership questionnaire. Tap the button below to open the survey — you can return to this link anytime to finish where you left off.";
+
+export const QUESTIONNAIRE_REMINDER_MESSAGE =
+  "Reminder: please finish your membership questionnaire. Tap the button below to continue where you left off — your progress is saved until you submit.";
 
 export const ONBOARDING_DUE_HOURS = 24;
 

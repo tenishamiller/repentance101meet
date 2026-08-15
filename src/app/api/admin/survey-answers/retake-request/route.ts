@@ -4,6 +4,7 @@ import { sendQuestionnaireRetakeRequest } from "@/lib/questionnaire-retake";
 
 const bodySchema = z.object({
   userId: z.string().min(1),
+  resend: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -20,7 +21,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await sendQuestionnaireRetakeRequest(session.user.id, body.userId);
+    const result = await sendQuestionnaireRetakeRequest(session.user.id, body.userId, {
+      resend: body.resend === true,
+    });
     return Response.json({ success: true, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not send retake request";

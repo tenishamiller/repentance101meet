@@ -32,6 +32,7 @@ type IncompleteSignup = {
   missingReason: string;
   missingReasonLabel: string;
   retakeRequested: boolean;
+  hasDraft: boolean;
 };
 
 export function AdminSurveyAnswersPanel() {
@@ -94,24 +95,31 @@ export function AdminSurveyAnswersPanel() {
     setSubmissions((prev) => prev.filter((entry) => entry.id !== userId));
   }
 
-  async function requestRetake(userId: string, memberName: string) {
+  async function requestRetake(userId: string, memberName: string, resend = false) {
     setRetakeSendingId(userId);
     setError("");
     setSuccessMessage("");
     const res = await fetch("/api/admin/survey-answers/retake-request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
+      body: JSON.stringify({ userId, resend }),
     });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      resent?: boolean;
+    };
     setRetakeSendingId(null);
 
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(typeof data.error === "string" ? data.error : "Could not send retake request.");
+      setError(typeof data.error === "string" ? data.error : "Could not send survey request.");
       return;
     }
 
-    setSuccessMessage(`Survey retake sent to ${memberName} in their membership messages.`);
+    setSuccessMessage(
+      data.resent || resend
+        ? `Survey reminder resent to ${memberName} in their membership messages.`
+        : `Survey sent to ${memberName} in their membership messages.`,
+    );
     void fetchSubmissions();
   }
 
@@ -148,21 +156,27 @@ export function AdminSurveyAnswersPanel() {
                       <p className="font-medium text-burgundy">{member.name}</p>
                       <p className="text-xs text-burgundy/60">
                         {member.retakeRequested
-                          ? "Survey sent — waiting on them"
+                          ? member.hasDraft
+                            ? "Survey started — waiting on them to finish"
+                            : "Survey sent — waiting on them"
                           : member.missingReasonLabel}
                       </p>
                     </div>
                     <button
                       type="button"
-                      disabled={retakeSendingId === member.id || member.retakeRequested}
-                      onClick={() => void requestRetake(member.id, member.name)}
+                      disabled={retakeSendingId === member.id}
+                      onClick={() =>
+                        void requestRetake(member.id, member.name, member.retakeRequested)
+                      }
                       className="inline-flex items-center gap-1 rounded-lg border border-burgundy/25 bg-cream px-3 py-1.5 text-xs font-semibold text-burgundy hover:bg-burgundy/5 disabled:opacity-60"
                     >
                       <Mail className="h-3.5 w-3.5" />
-                      {member.retakeRequested
-                        ? "Sent"
-                        : retakeSendingId === member.id
-                          ? "Sending..."
+                      {retakeSendingId === member.id
+                        ? member.retakeRequested
+                          ? "Resending..."
+                          : "Sending..."
+                        : member.retakeRequested
+                          ? "Resend"
                           : "Send"}
                     </button>
                   </div>

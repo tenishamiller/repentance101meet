@@ -169,7 +169,7 @@ export function MembershipMessageBubble({
                 className="mt-3 inline-flex items-center gap-2 rounded-lg bg-burgundy px-4 py-2 text-sm font-semibold text-cream hover:bg-burgundy-dark"
               >
                 <ClipboardList className="h-4 w-4" />
-                Open Membership Questionnaire
+                Continue Membership Questionnaire
               </Link>
             ))}
 
