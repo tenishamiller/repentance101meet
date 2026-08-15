@@ -44,7 +44,6 @@ export function LiveKitBackgroundAudio({ meetingTitle }: Props) {
     document.addEventListener("visibilitychange", resumePlayback);
     window.addEventListener("focus", resumePlayback);
     window.addEventListener("pageshow", resumePlayback);
-    navigator.mediaDevices?.addEventListener("devicechange", resumePlayback);
 
     let wakeLock: WakeLockSentinel | null = null;
     const requestWakeLock = async () => {
@@ -90,7 +89,6 @@ export function LiveKitBackgroundAudio({ meetingTitle }: Props) {
       document.removeEventListener("visibilitychange", onVisibilityForWakeLock);
       window.removeEventListener("focus", resumePlayback);
       window.removeEventListener("pageshow", resumePlayback);
-      navigator.mediaDevices?.removeEventListener("devicechange", resumePlayback);
       void wakeLock?.release().catch(() => undefined);
       if ("mediaSession" in navigator) {
         navigator.mediaSession.playbackState = "none";

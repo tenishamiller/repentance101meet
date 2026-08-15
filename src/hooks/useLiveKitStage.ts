@@ -96,8 +96,16 @@ export function useLiveKitStage({
   } = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
 
-  const [cameraOffByUser, setCameraOffByUser] = useState(false);
-  const cameraOffByUserRef = useRef(false);
+  const [cameraOffByUser, setCameraOffByUser] = useState(
+    () => !(isHost || mode === "private") && !(memberVideoEnabled && initialMemberCameraOn),
+  );
+  const cameraOffByUserRef = useRef(cameraOffByUser);
+  /** User (or join) mute preference — must survive reconnect / screen lock. */
+  const [micOffByUser, setMicOffByUser] = useState(() => {
+    if (isHost || mode === "private") return false;
+    return !(memberMicEnabled && initialMemberMicOn);
+  });
+  const micOffByUserRef = useRef(micOffByUser);
   const [videoInputDevices, setVideoInputDevices] = useState<MediaDeviceInfo[]>([]);
   const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedVideoDeviceId, setSelectedVideoDeviceId] = useState("");
@@ -110,6 +118,9 @@ export function useLiveKitStage({
   const sessionVideoDeviceIdRef = useRef("");
   const sessionAudioDeviceIdRef = useRef("");
   const reconcilingDevicesRef = useRef(false);
+  const memberMicEnabledRef = useRef(memberMicEnabled);
+  const isHostRef = useRef(isHost);
+  const modeRef = useRef(mode);
 
   const isLive = connectionState === ConnectionState.Connected;
   const isConnecting =
@@ -284,6 +295,13 @@ export function useLiveKitStage({
     async (enabled: boolean) => {
       if (!enabled) {
         await localParticipant.setMicrophoneEnabled(false);
+        // Fully release the capture device so mobile OS mic indicators turn off.
+        if (isMobileLiveKitClient()) {
+          const publication = localParticipant.getTrackPublication(Track.Source.Microphone);
+          if (publication?.track) {
+            publication.track.stop();
+          }
+        }
         return;
       }
       const deviceId = preferredAudioDeviceIdRef.current;
@@ -298,6 +316,22 @@ export function useLiveKitStage({
   useEffect(() => {
     cameraOffByUserRef.current = cameraOffByUser;
   }, [cameraOffByUser]);
+
+  useEffect(() => {
+    micOffByUserRef.current = micOffByUser;
+  }, [micOffByUser]);
+
+  useEffect(() => {
+    memberMicEnabledRef.current = memberMicEnabled;
+  }, [memberMicEnabled]);
+
+  useEffect(() => {
+    isHostRef.current = isHost;
+  }, [isHost]);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   useEffect(() => {
     if (isHost || mode !== "livestream") return;
@@ -321,31 +355,29 @@ export function useLiveKitStage({
     void (async () => {
       try {
         if (isHost || mode === "private") {
-          if (isHost && mode === "livestream") {
-            await enableHostCamera(true);
+          if (!cameraOffByUserRef.current) {
+            if (isHost && mode === "livestream") {
+              await enableHostCamera(true);
+            } else {
+              await localParticipant.setCameraEnabled(
+                true,
+                withExactDeviceId({}, preferredVideoDeviceIdRef.current),
+              );
+            }
           } else {
-            await localParticipant.setCameraEnabled(
-              true,
-              withExactDeviceId({}, preferredVideoDeviceIdRef.current),
-            );
+            await localParticipant.setCameraEnabled(false);
           }
-          await enableMicrophone(true);
-          cameraOffByUserRef.current = false;
-          setCameraOffByUser(false);
+          await enableMicrophone(!micOffByUserRef.current);
           return;
         }
 
-        if (memberVideoEnabled && initialMemberCameraOn) {
+        if (memberVideoEnabled && !cameraOffByUserRef.current) {
           await enableMemberCamera(true);
-          cameraOffByUserRef.current = false;
-          setCameraOffByUser(false);
         } else {
-          cameraOffByUserRef.current = true;
-          setCameraOffByUser(true);
           await enableMemberCamera(false);
         }
 
-        if (memberMicEnabled && initialMemberMicOn) {
+        if (memberMicEnabled && !micOffByUserRef.current) {
           await enableMicrophone(true);
         } else {
           await enableMicrophone(false);
@@ -359,14 +391,57 @@ export function useLiveKitStage({
     enableHostCamera,
     enableMemberCamera,
     enableMicrophone,
-    initialMemberCameraOn,
-    initialMemberMicOn,
     isHost,
     localParticipant,
     memberMicEnabled,
     memberVideoEnabled,
     mode,
   ]);
+
+  /**
+   * Locking the phone / switching apps must not leave (or re-open) the microphone.
+   * Stop capture while hidden; restore only if the user still wants the mic on.
+   */
+  useEffect(() => {
+    if (!isMobileLiveKitClient()) return;
+    if (connectionState !== ConnectionState.Connected) return;
+
+    const releaseMic = async () => {
+      try {
+        await localParticipant.setMicrophoneEnabled(false);
+        const publication = localParticipant.getTrackPublication(Track.Source.Microphone);
+        publication?.track?.stop();
+      } catch {
+        /* ignore */
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        void releaseMic();
+        return;
+      }
+      if (micOffByUserRef.current) return;
+      if (
+        !isHostRef.current &&
+        modeRef.current === "livestream" &&
+        !memberMicEnabledRef.current
+      ) {
+        return;
+      }
+      void enableMicrophone(true);
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    const onPageHide = () => {
+      void releaseMic();
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [connectionState, enableMicrophone, localParticipant]);
 
   useEffect(() => {
     if (isHost || mode !== "livestream" || connectionState !== ConnectionState.Connected) return;
@@ -489,7 +564,11 @@ export function useLiveKitStage({
           sessionAudioDeviceIdRef.current = nextAudio;
         }
         setSelectedAudioDeviceId(nextAudio);
-        await ensureKindDevice("audioinput", nextAudio);
+        // Switching the active audio input can open the mic hardware even while muted.
+        // Only switch when the user currently wants the microphone on.
+        if (!micOffByUserRef.current) {
+          await ensureKindDevice("audioinput", nextAudio);
+        }
       }
     } finally {
       reconcilingDevicesRef.current = false;
@@ -529,6 +608,10 @@ export function useLiveKitStage({
       }
       if (kind === "audioinput") {
         const preferred = preferredAudioDeviceIdRef.current;
+        if (micOffByUserRef.current) {
+          if (deviceId) setSelectedAudioDeviceId(deviceId);
+          return;
+        }
         if (preferred && deviceId !== preferred) {
           void ensureKindDevice("audioinput", preferred);
         } else if (deviceId) {
@@ -595,7 +678,10 @@ export function useLiveKitStage({
 
   const toggleMute = useCallback(async () => {
     if (!canUseMic || (!isHost && mode === "livestream" && !memberMicEnabled)) return;
-    await enableMicrophone(!isMicrophoneEnabled);
+    const nextEnabled = !isMicrophoneEnabled;
+    micOffByUserRef.current = !nextEnabled;
+    setMicOffByUser(!nextEnabled);
+    await enableMicrophone(nextEnabled);
   }, [canUseMic, enableMicrophone, isHost, isMicrophoneEnabled, memberMicEnabled, mode]);
 
   const toggleCamera = useCallback(async () => {
