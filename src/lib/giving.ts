@@ -5,7 +5,7 @@ export const GIVING_PRESETS = [10, 25, 50, 100] as const;
 
 /** Shown on the Give page and sent as the PayPal donation item/message. */
 export const GIVING_BLESSING_MESSAGE =
-  "Lord Jesus, bless those who bless this ministry a hundredfold.";
+  "Lord Jesus, bless those who bless this ministry a hundredfold. In Jesus name I pray, Amen.";
 
 export function givingItemName() {
   return GIVING_BLESSING_MESSAGE;
