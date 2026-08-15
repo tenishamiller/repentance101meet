@@ -37,6 +37,7 @@ yarn-error.log*
 .env.*.local
 !.env.example
 !.env.local.example
+!.env.vps.example
 
 # vercel
 .vercel
@@ -49,8 +50,7 @@ AGENTS.md
 CLAUDE.md
 skills-lock.json
 
-# optional local docker (production uses Supabase)
-docker-compose.yml
+# optional local LiveKit config (self-host later)
 livekit.yaml
 
 # typescript
@@ -64,4 +64,3 @@ next-env.d.ts
 !/public/uploads/.gitkeep
 
 .vercel
-.env*
