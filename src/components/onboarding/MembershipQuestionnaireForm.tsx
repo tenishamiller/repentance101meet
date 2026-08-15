@@ -37,20 +37,35 @@ export function MembershipQuestionnaireForm({
     );
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function validationMessages(): string[] {
+    const messages: string[] = [];
+    if (!spiritualStage) messages.push("Select where you are in the spiritual stages list.");
+    if (!location.trim()) messages.push("Enter your country or state.");
+    if (!witchcraft.trim()) messages.push("Answer the witchcraft question.");
     if (jesusLoveSelections.length < 2) {
-      setError("Please pick at least two options for the Jesus love question.");
-      return;
+      messages.push("Pick at least two options for the Jesus love question.");
+    }
+    if (
+      jesusLoveSelections.includes("(Write your answer)") &&
+      !jesusLoveCustom.trim()
+    ) {
+      messages.push("Write your custom answer for the Jesus love question.");
     }
     if (relationshipWithJesus.trim().length < 100) {
-      setError(
-        `Please write at least 100 characters about your relationship with Jesus (${100 - relationshipWithJesus.trim().length} more needed).`,
+      messages.push(
+        `Write at least 100 characters about your relationship with Jesus (${Math.max(0, 100 - relationshipWithJesus.trim().length)} more needed).`,
       );
-      return;
     }
-    if (!spiritualStage || !location.trim() || !witchcraft.trim() || !bitterness.trim() || !baptism.trim()) {
-      setError("Please answer every required question.");
+    if (!bitterness.trim()) messages.push("Answer the bitterness / unforgiveness question.");
+    if (!baptism.trim()) messages.push("Answer the baptism question.");
+    return messages;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const messages = validationMessages();
+    if (messages.length > 0) {
+      setError(messages.join(" "));
       return;
     }
 
@@ -71,11 +86,13 @@ export function MembershipQuestionnaireForm({
         baptism,
       }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     setLoading(false);
 
     if (!res.ok) {
-      setError(data.error ?? "Could not save questionnaire");
+      setError(
+        typeof data.error === "string" ? data.error : "Could not save questionnaire",
+      );
       return;
     }
 
@@ -89,8 +106,6 @@ export function MembershipQuestionnaireForm({
       <BrandDivider className="my-6 max-w-xs" />
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {error && <ErrorBox message={error} />}
-
         <QuestionBlock
           title="This is a Bloodline Repentance Group, and each of us are on a journey through the following stages. In this journey, there is the requirement to participate in all stages. Where are you in this list?"
           required
@@ -197,22 +212,19 @@ export function MembershipQuestionnaireForm({
           <CharCount current={baptism.length} max={100} />
         </QuestionBlock>
 
+        {error && <ErrorBox message={error} />}
+
         <button
           type="submit"
-          disabled={
-            loading ||
-            jesusLoveSelections.length < 2 ||
-            relationshipWithJesus.trim().length < 100 ||
-            !spiritualStage ||
-            !location.trim() ||
-            !witchcraft.trim() ||
-            !bitterness.trim() ||
-            !baptism.trim()
-          }
+          disabled={loading}
           className="btn-primary w-full disabled:opacity-60"
         >
           {loading ? "Submitting..." : submitLabel}
         </button>
+        <p className="text-center text-xs text-burgundy/55">
+          Tip: the relationship-with-Jesus answer needs at least 100 characters, and the Jesus-love
+          question needs two or more selections.
+        </p>
       </form>
     </>
   );

@@ -32,13 +32,14 @@ export default function QuestionnaireRetakePage() {
           setReady(true);
           return;
         }
-        if (data.questionnaireRetakeRequested) {
-          setAllowed(true);
-          setReady(true);
-          return;
-        }
         if (data.status === "PENDING" && !data.questionnaireCompleted) {
           router.replace(`${base}/signup`);
+          return;
+        }
+        // Retakes, or anyone who still has no survey on file (including approved members).
+        if (data.questionnaireRetakeRequested || !data.questionnaireCompleted) {
+          setAllowed(true);
+          setReady(true);
           return;
         }
         setError("There is no questionnaire waiting for you right now.");
@@ -78,8 +79,8 @@ export default function QuestionnaireRetakePage() {
     <div className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
       <MembershipQuestionnaireForm
         heading="Membership Questionnaire"
-        subheading="Norman asked you to complete this survey again. All questions are required."
-        submitLabel="Submit Updated Questionnaire"
+        subheading="All questions are required. Scroll through every section before submitting."
+        submitLabel="Submit Questionnaire"
         onSuccess={handleSuccess}
       />
     </div>
