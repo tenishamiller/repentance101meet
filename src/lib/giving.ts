@@ -1,12 +1,14 @@
-import { MINISTRY_NAME } from "@/lib/brand";
-
-/** Host PayPal account for one-time gifts (popup stays on this site). */
+/** Host PayPal account for one-time gifts. */
 export const GIVING_PAYPAL_EMAIL = "morewretch@gmail.com";
 
 export const GIVING_PRESETS = [10, 25, 50, 100] as const;
 
+/** Shown on the Give page and sent as the PayPal donation item/message. */
+export const GIVING_BLESSING_MESSAGE =
+  "Bless those who bless this ministry a hundredfold.";
+
 export function givingItemName() {
-  return `Gift to ${MINISTRY_NAME}`;
+  return GIVING_BLESSING_MESSAGE;
 }
 
 export function formatGivingAmount(dollars: number) {

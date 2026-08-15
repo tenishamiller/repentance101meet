@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { PayPalDonateButton } from "@/components/giving/PayPalDonateButton";
-import { GIVING_PRESETS } from "@/lib/giving";
+import { GIVING_BLESSING_MESSAGE, GIVING_PRESETS } from "@/lib/giving";
 
 export function GivingForm() {
   const [amount, setAmount] = useState<number | "custom">(25);
@@ -53,6 +53,15 @@ export function GivingForm() {
           />
         </div>
       </label>
+
+      <div className="mt-5 rounded-xl border border-gold/25 bg-cream-dark/80 px-4 py-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-burgundy/55">
+          Donation message
+        </p>
+        <p className="mt-1 font-serif text-base leading-relaxed text-burgundy">
+          {GIVING_BLESSING_MESSAGE}
+        </p>
+      </div>
 
       <PayPalDonateButton dollars={dollars} />
     </div>

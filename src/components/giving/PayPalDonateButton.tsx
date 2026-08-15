@@ -116,10 +116,6 @@ export function PayPalDonateButton({ dollars, disabled = false }: Props) {
           Choose an amount of at least $1 to enable PayPal.
         </p>
       )}
-
-      <p className="mt-3 text-center text-xs text-burgundy/50">
-        PayPal opens in a popup on this page — you are not sent to another website.
-      </p>
     </>
   );
 }
