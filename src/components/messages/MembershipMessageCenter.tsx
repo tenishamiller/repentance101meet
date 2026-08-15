@@ -21,12 +21,14 @@ import {
 import { useAppBase } from "@/hooks/useAppBase";
 import { useMessagePagination } from "@/hooks/useMessagePagination";
 import { MessagePagination } from "@/components/messages/MessagePagination";
-import { MessageDeleteSection, type DeletedThreadSummary } from "@/components/messages/MessageDeleteSection";
+import {
+  ThreadOverflowMenu,
+  type DeletedThreadSummary,
+} from "@/components/messages/ThreadOverflowMenu";
 import {
   MembershipMessageBubble,
   type MembershipMessageData,
 } from "@/components/messages/MembershipMessageBubble";
-import type { Member } from "@/components/admin/types";
 
 type Thread = {
   id: string;
@@ -474,11 +476,10 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     void fetchInbox();
   }
 
-  async function softDeleteActiveThread() {
-    if (!activeConversationId) return;
+  async function softDeleteThread(conversationId: string) {
     setActionError("");
-    setBusyAction("soft-delete");
-    const res = await fetch(`/api/messages/conversations/${activeConversationId}`, {
+    setBusyAction(`soft-delete:${conversationId}`);
+    const res = await fetch(`/api/messages/conversations/${conversationId}`, {
       method: "DELETE",
     });
     setBusyAction(null);
@@ -487,8 +488,10 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       setActionError(typeof data.error === "string" ? data.error : "Could not delete thread.");
       return;
     }
-    setMessages([]);
-    setActiveConversationId(null);
+    if (activeConversationId === conversationId) {
+      setMessages([]);
+      setActiveConversationId(null);
+    }
     void fetchInbox();
   }
 
@@ -584,30 +587,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   });
   const selectedPeer = peerMembers.find((member) => member.id === peerId) ?? null;
 
-  const deletePickerMember: Member | null = selectedMember
-    ? {
-        id: selectedMember.id,
-        name: selectedMember.name,
-        email: selectedMember.email,
-        avatarUrl: selectedMember.avatarUrl,
-        status:
-          "status" in selectedMember &&
-          (selectedMember.status === "PENDING" ||
-            selectedMember.status === "APPROVED" ||
-            selectedMember.status === "REJECTED")
-            ? selectedMember.status
-            : "APPROVED",
-        createdAt: "",
-      }
-    : null;
-
-  const deleteConversationName = isAdmin
-    ? selectedMember?.name ?? null
-    : messagingPeer
-      ? selectedPeer?.name ?? null
-      : MINISTRY_LEADER;
-
-  const canShowActiveDelete = Boolean(activeConversationId && deleteConversationName);
+  const deletedForSidebar = deletedThreads;
 
   return (
     <div className={shellClass}>
@@ -655,11 +635,11 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
               ) : (
                 <ul className="space-y-1">
                   {filteredPeers.map((member) => (
-                    <li key={member.id}>
+                    <li key={member.id} className="flex items-stretch gap-1">
                       <button
                         type="button"
                         onClick={() => setPeerId(member.id)}
-                        className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition ${
+                        className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-2 text-left transition ${
                           peerId === member.id
                             ? "bg-burgundy text-cream"
                             : "hover:bg-cream-dark"
@@ -696,9 +676,54 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                           </span>
                         </span>
                       </button>
+                      {member.conversationId && (
+                        <div className="flex items-center pr-1">
+                          <ThreadOverflowMenu
+                            mode="active"
+                            conversationName={member.name}
+                            busy={busyAction === `soft-delete:${member.conversationId}`}
+                            onDeleteThread={() => softDeleteThread(member.conversationId!)}
+                          />
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
+              )}
+              {deletedForSidebar.length > 0 && (
+                <div className="mt-4 border-t border-gold/20 pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-burgundy/55">
+                    Deleted threads
+                  </p>
+                  <ul className="space-y-1">
+                    {deletedForSidebar.map((thread) => (
+                      <li
+                        key={thread.conversationId}
+                        className="flex items-center gap-1 rounded-xl bg-cream-dark/80 px-2 py-1.5"
+                      >
+                        <div className="min-w-0 flex-1 px-1">
+                          <p className="truncate text-sm font-semibold text-burgundy/80">
+                            {thread.name}
+                          </p>
+                          <p className="truncate text-[11px] text-burgundy/50">
+                            {thread.lastMessage?.content?.trim() || "Deleted conversation"}
+                          </p>
+                        </div>
+                        <ThreadOverflowMenu
+                          mode="deleted"
+                          conversationName={thread.name}
+                          purgeAt={thread.conversation.purgeAt}
+                          busy={
+                            busyAction === `restore:${thread.conversationId}` ||
+                            busyAction === `purge:${thread.conversationId}`
+                          }
+                          onRestore={() => restoreThread(thread.conversationId)}
+                          onPermanentDelete={() => permanentlyDeleteThread(thread.conversationId)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           </aside>
@@ -743,11 +768,11 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
               ) : (
                 <ul className="space-y-2">
                   {threads.map((thread) => (
-                    <li key={thread.id}>
+                    <li key={thread.id} className="flex items-stretch gap-1">
                       <button
                         type="button"
                         onClick={() => setSelectedUserId(thread.id)}
-                        className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition ${
+                        className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-2 text-left transition ${
                           selectedUserId === thread.id
                             ? "bg-burgundy text-cream"
                             : "hover:bg-cream-dark"
@@ -778,16 +803,60 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                           )}
                         </span>
                       </button>
+                      {thread.conversationId && (
+                        <div className="flex items-center pr-1">
+                          <ThreadOverflowMenu
+                            mode="active"
+                            conversationName={thread.name}
+                            busy={busyAction === `soft-delete:${thread.conversationId}`}
+                            onDeleteThread={() => softDeleteThread(thread.conversationId!)}
+                          />
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
+              )}
+              {deletedForSidebar.length > 0 && (
+                <div className="mt-4 border-t border-gold/20 pt-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-burgundy/55">
+                    Deleted threads
+                  </p>
+                  <ul className="space-y-1">
+                    {deletedForSidebar.map((thread) => (
+                      <li
+                        key={thread.conversationId}
+                        className="flex items-center gap-1 rounded-xl bg-cream-dark/80 px-2 py-1.5"
+                      >
+                        <div className="min-w-0 flex-1 px-1">
+                          <p className="truncate text-sm font-semibold text-burgundy/80">
+                            {thread.name}
+                          </p>
+                          <p className="truncate text-[11px] text-burgundy/50">
+                            {thread.lastMessage?.content?.trim() || "Deleted conversation"}
+                          </p>
+                        </div>
+                        <ThreadOverflowMenu
+                          mode="deleted"
+                          conversationName={thread.name}
+                          purgeAt={thread.conversation.purgeAt}
+                          busy={
+                            busyAction === `restore:${thread.conversationId}` ||
+                            busyAction === `purge:${thread.conversationId}`
+                          }
+                          onRestore={() => restoreThread(thread.conversationId)}
+                          onPermanentDelete={() => permanentlyDeleteThread(thread.conversationId)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           </aside>
         )}
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-        <div className="card-brand flex min-h-[50vh] flex-1 flex-col overflow-hidden lg:min-h-0">
+        <div className="card-brand flex min-h-0 flex-1 flex-col overflow-hidden">
           {loading ? (
             <p className="p-6 text-center text-burgundy/60">Loading messages...</p>
           ) : (
@@ -819,7 +888,15 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                         </p>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {activeConversationId && (
+                        <ThreadOverflowMenu
+                          mode="active"
+                          conversationName={selectedPeer.name}
+                          busy={busyAction === `soft-delete:${activeConversationId}`}
+                          onDeleteThread={() => softDeleteThread(activeConversationId)}
+                        />
+                      )}
                       {peerRelation?.pendingIncoming && (
                         <>
                           <button
@@ -889,20 +966,104 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                 </div>
               )}
 
+              {isPeerMessaging && !selectedPeer && (
+                <div className="shrink-0 border-b border-gold/20 bg-cream-dark/80 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-burgundy">Ministry leadership</p>
+                      <p className="truncate text-xs text-burgundy/60">
+                        Messages with Norman
+                      </p>
+                    </div>
+                    {activeConversationId && (
+                      <ThreadOverflowMenu
+                        mode="active"
+                        conversationName={MINISTRY_LEADER}
+                        busy={busyAction === `soft-delete:${activeConversationId}`}
+                        onDeleteThread={() => softDeleteThread(activeConversationId)}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!isAdmin && !isPeerMessaging && (
+                <div className="shrink-0 border-b border-gold/20 bg-cream-dark/80 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-burgundy">Ministry leadership</p>
+                      <p className="truncate text-xs text-burgundy/60">Membership messages</p>
+                    </div>
+                    {activeConversationId && (
+                      <ThreadOverflowMenu
+                        mode="active"
+                        conversationName={MINISTRY_LEADER}
+                        busy={busyAction === `soft-delete:${activeConversationId}`}
+                        onDeleteThread={() => softDeleteThread(activeConversationId)}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
               {isAdmin && selectedMember && (
                 <div className="shrink-0 border-b border-gold/20 bg-cream-dark/80 px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <UserAvatar
-                      userId={selectedMember.id}
-                      name={selectedMember.name}
-                      avatarUrl={selectedMember.avatarUrl}
-                      size="sm"
-                    />
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-burgundy">{selectedMember.name}</p>
-                      <p className="truncate text-xs text-burgundy/60">{selectedMember.email}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <UserAvatar
+                        userId={selectedMember.id}
+                        name={selectedMember.name}
+                        avatarUrl={selectedMember.avatarUrl}
+                        size="sm"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-burgundy">{selectedMember.name}</p>
+                        <p className="truncate text-xs text-burgundy/60">{selectedMember.email}</p>
+                      </div>
                     </div>
+                    {activeConversationId && (
+                      <ThreadOverflowMenu
+                        mode="active"
+                        conversationName={selectedMember.name}
+                        busy={busyAction === `soft-delete:${activeConversationId}`}
+                        onDeleteThread={() => softDeleteThread(activeConversationId)}
+                      />
+                    )}
                   </div>
+                </div>
+              )}
+
+              {!isAdmin && !isPeerMessaging && deletedThreads.length > 0 && (
+                <div className="shrink-0 border-b border-gold/20 bg-cream-dark/50 px-4 py-3">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-burgundy/55">
+                    Deleted threads
+                  </p>
+                  <ul className="space-y-1">
+                    {deletedThreads.map((thread) => (
+                      <li
+                        key={thread.conversationId}
+                        className="flex items-center gap-2 rounded-xl border border-gold/20 bg-cream px-2 py-1.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-burgundy">{thread.name}</p>
+                          <p className="truncate text-[11px] text-burgundy/50">
+                            {thread.lastMessage?.content?.trim() || "Deleted conversation"}
+                          </p>
+                        </div>
+                        <ThreadOverflowMenu
+                          mode="deleted"
+                          conversationName={thread.name}
+                          purgeAt={thread.conversation.purgeAt}
+                          busy={
+                            busyAction === `restore:${thread.conversationId}` ||
+                            busyAction === `purge:${thread.conversationId}`
+                          }
+                          onRestore={() => restoreThread(thread.conversationId)}
+                          onPermanentDelete={() => permanentlyDeleteThread(thread.conversationId)}
+                        />
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
@@ -1099,24 +1260,6 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
               )}
             </>
           )}
-        </div>
-
-        <MessageDeleteSection
-          isAdmin={isAdmin}
-          activeConversationId={canShowActiveDelete ? activeConversationId : null}
-          activeConversationName={canShowActiveDelete ? deleteConversationName : null}
-          selectedMember={deletePickerMember}
-          onSelectMember={
-            isAdmin
-              ? (member) => setSelectedUserId(member?.id ?? null)
-              : undefined
-          }
-          deletedThreads={deletedThreads}
-          onSoftDeleteActive={softDeleteActiveThread}
-          onRestore={restoreThread}
-          onPermanentDelete={permanentlyDeleteThread}
-          busyAction={busyAction}
-        />
         </div>
       </div>
     </div>
