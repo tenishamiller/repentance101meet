@@ -3,7 +3,10 @@ import { v4 as uuidv4 } from "uuid";
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { createSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  createSignedUpload,
+  isCloudStorageConfigured,
+} from "@/lib/object-storage";
 import {
   meetingChatFileSizeError,
   meetingChatFileTooLarge,
@@ -31,7 +34,7 @@ async function assertCanAttach(token: string, userId: string) {
   return { meeting };
 }
 
-/** Signed upload URL for chat attachments (direct to Supabase storage). */
+/** Signed upload URL for chat attachments (direct to MinIO or Supabase). */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const session = await auth();
   if (!session?.user) {
@@ -61,26 +64,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const ext = path.extname(filename) || "";
   const storagePath = `chat/${ctx.meeting.id}/${session.user.id}/${uuidv4()}${ext}`;
 
-  if (!isSupabaseConfigured()) {
-    return Response.json({ error: "File storage is not configured", status: 503 });
+  if (!isCloudStorageConfigured()) {
+    return Response.json({ error: "File storage is not configured" }, { status: 503 });
   }
 
-  const supabase = createSupabaseAdmin()!;
-  const { data, error } = await supabase.storage
-    .from("uploads")
-    .createSignedUploadUrl(storagePath, { upsert: false });
-
-  if (error || !data) {
-    return Response.json({ error: error?.message ?? "Upload sign failed" }, { status: 500 });
+  try {
+    const signed = await createSignedUpload({
+      storagePath,
+      contentType,
+      upsert: false,
+    });
+    return Response.json({
+      signedUrl: signed.signedUrl,
+      path: signed.path,
+      publicUrl: signed.publicUrl,
+      token: signed.token,
+      contentType,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Upload sign failed";
+    return Response.json({ error: message }, { status: 500 });
   }
-
-  const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(storagePath);
-
-  return Response.json({
-    signedUrl: data.signedUrl,
-    path: storagePath,
-    publicUrl: urlData.publicUrl,
-    token: data.token,
-    contentType,
-  });
 }

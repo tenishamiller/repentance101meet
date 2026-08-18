@@ -1,7 +1,10 @@
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { auth } from "@/lib/auth";
-import { createSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  createSignedUpload,
+  isCloudStorageConfigured,
+} from "@/lib/object-storage";
 import {
   MESSAGE_MAX_FILE_BYTES,
   MESSAGE_MAX_VIDEO_BYTES,
@@ -25,14 +28,14 @@ function allowedContentType(contentType: string) {
   ].includes(contentType);
 }
 
-/** Signed upload URL so GIFs and videos go straight to Supabase storage. */
+/** Signed upload URL so GIFs and videos go straight to MinIO or Supabase. */
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!isSupabaseConfigured()) {
+  if (!isCloudStorageConfigured()) {
     return Response.json({ error: "File storage is not configured" }, { status: 503 });
   }
 
@@ -60,22 +63,22 @@ export async function POST(request: Request) {
 
   const ext = path.extname(filename).slice(0, 12);
   const storagePath = `messages/${session.user.id}/${uuidv4()}${ext}`;
-  const supabase = createSupabaseAdmin()!;
-  const { data, error } = await supabase.storage
-    .from("uploads")
-    .createSignedUploadUrl(storagePath, { upsert: false });
 
-  if (error || !data) {
-    return Response.json({ error: error?.message ?? "Upload sign failed" }, { status: 500 });
+  try {
+    const signed = await createSignedUpload({
+      storagePath,
+      contentType,
+      upsert: false,
+    });
+    return Response.json({
+      signedUrl: signed.signedUrl,
+      path: signed.path,
+      publicUrl: signed.publicUrl,
+      token: signed.token,
+      contentType,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Upload sign failed";
+    return Response.json({ error: message }, { status: 500 });
   }
-
-  const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(storagePath);
-
-  return Response.json({
-    signedUrl: data.signedUrl,
-    path: storagePath,
-    publicUrl: urlData.publicUrl,
-    token: data.token,
-    contentType,
-  });
 }

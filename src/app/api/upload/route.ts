@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { auth } from "@/lib/auth";
-import { createSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { isCloudStorageConfigured, uploadObjectBuffer } from "@/lib/object-storage";
 import { saveUserImage } from "@/lib/upload-image";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -13,18 +13,19 @@ async function saveGenericFile(userId: string, file: File): Promise<{ url: strin
   const ext = path.extname(file.name) || "";
   const filename = `${userId}/${uuidv4()}${ext}`;
 
-  if (isSupabaseConfigured()) {
-    const supabase = createSupabaseAdmin()!;
-    const { error } = await supabase.storage
-      .from("uploads")
-      .upload(filename, buffer, { contentType: file.type || "application/octet-stream", upsert: false });
-
-    if (error) {
-      return { error: error.message, status: 500 };
+  if (isCloudStorageConfigured()) {
+    try {
+      const { publicUrl } = await uploadObjectBuffer({
+        storagePath: filename,
+        buffer,
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+      return { url: publicUrl };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload failed";
+      return { error: message, status: 500 };
     }
-
-    const { data } = supabase.storage.from("uploads").getPublicUrl(filename);
-    return { url: data.publicUrl };
   }
 
   const localName = `${uuidv4()}${ext}`;

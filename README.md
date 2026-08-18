@@ -2,7 +2,7 @@
 
 Ministry platform for **Repentance 101**: member approvals, channels, live meetings, and community chat.
 
-**Deploy stack:** GitHub → **OVH VPS (Docker + Caddy)** · Database & storage → Supabase · Livestream → LiveKit Cloud  
+**Deploy stack:** GitHub → **DreamHost VPS (Docker: app + Postgres + MinIO + Caddy)** · Backups → restic / Cloudflare R2 · Livestream → LiveKit Cloud  
 👉 **VPS guide (no Vercel):** see [DEPLOY-VPS.md](./DEPLOY-VPS.md)
 
 **Completely separate from BraidAppt** — see [ISOLATION.md](./ISOLATION.md)
@@ -28,7 +28,7 @@ Ministry platform for **Repentance 101**: member approvals, channels, live meeti
 - Public channels: Guidelines & Livestream info (editable by the host)
 - Private channels: Resource, Accountability, Tough Q&A, General Chat
 - Custom WebRTC livestream (host broadcasts, members participate) with chat, raise hand, block list
-- Profiles with avatars (Supabase Storage)
+- Profiles with avatars (MinIO on the VPS, or Supabase until cutover)
 
 ## Host admin login
 

@@ -9,13 +9,27 @@ repentance101ministry.com, www.repentance101ministry.com {
 		max_size 512MB
 	}
 
-	reverse_proxy app:3000 {
-		header_up X-Forwarded-Proto {scheme}
-		header_up X-Forwarded-Host {host}
-		# Livestream + uploads can take a while
-		transport http {
-			read_timeout 10m
-			write_timeout 10m
+	# Path-style MinIO: https://repentance101ministry.com/media/<key>
+	# Host must stay the public hostname so browser signed PUTs verify.
+	handle /media* {
+		reverse_proxy minio:9000 {
+			header_up Host {host}
+			transport http {
+				read_timeout 10m
+				write_timeout 10m
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy app:3000 {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+			# Livestream + uploads can take a while
+			transport http {
+				read_timeout 10m
+				write_timeout 10m
+			}
 		}
 	}
 }

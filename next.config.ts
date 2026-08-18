@@ -22,6 +22,18 @@ function buildRemotePatterns() {
     pathname: "/uploads/**",
   });
 
+  patterns.push({
+    protocol: "https",
+    hostname: "repentance101ministry.com",
+    pathname: "/media/**",
+  });
+
+  patterns.push({
+    protocol: "https",
+    hostname: "www.repentance101ministry.com",
+    pathname: "/media/**",
+  });
+
   // Legacy preview hosts (safe to keep while cutting over off Vercel).
   patterns.push({
     protocol: "https",

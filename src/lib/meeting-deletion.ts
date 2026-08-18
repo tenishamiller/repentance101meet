@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { createSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { deleteStoredObject, storagePathFromPublicUrl } from "@/lib/object-storage";
 import { MEETING_DELETE_GRACE_MS } from "@/lib/meeting-deletion-shared";
 
 export { MEETING_DELETE_GRACE_MS } from "@/lib/meeting-deletion-shared";
@@ -20,29 +20,15 @@ export function visibleMeetingFilter(now = new Date()) {
   };
 }
 
-function storagePathFromRecordingUrl(recordingUrl: string) {
-  try {
-    const pathname = new URL(recordingUrl).pathname;
-    const marker = "/storage/v1/object/public/uploads/";
-    const idx = pathname.indexOf(marker);
-    if (idx >= 0) return decodeURIComponent(pathname.slice(idx + marker.length));
-    if (recordingUrl.startsWith("/recordings/")) {
-      return null;
-    }
-  } catch {
-    /* ignore */
-  }
-  return null;
-}
-
 async function deleteRecordingFromStorage(recordingUrl: string | null) {
-  if (!recordingUrl || !isSupabaseConfigured()) return;
-
-  const storagePath = storagePathFromRecordingUrl(recordingUrl);
+  const storagePath = storagePathFromPublicUrl(recordingUrl);
   if (!storagePath) return;
 
-  const supabase = createSupabaseAdmin()!;
-  await supabase.storage.from("uploads").remove([storagePath]);
+  try {
+    await deleteStoredObject(storagePath);
+  } catch {
+    /* ignore missing files / unconfigured storage */
+  }
 }
 
 export async function permanentlyDeleteMeeting(

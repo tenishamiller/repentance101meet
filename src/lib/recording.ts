@@ -58,7 +58,7 @@ async function uploadViaServer(
   return { downloadUrl: data.publicUrl, publicUrl: data.publicUrl };
 }
 
-/** Upload using Supabase signed URL (raw PUT body — required by storage API). */
+/** Upload using a signed URL (raw PUT body — MinIO or Supabase). */
 async function uploadToSupabaseSignedUrl(signedUrl: string, blob: Blob): Promise<void> {
   const res = await fetch(signedUrl, {
     method: "PUT",
@@ -143,7 +143,7 @@ export async function uploadRecordingBlob(
   blob: Blob,
   filename: string,
 ): Promise<{ downloadUrl: string; publicUrl: string }> {
-  // Prefer direct-to-Supabase signed upload for large teaching recordings.
+  // Prefer direct-to-storage signed upload for large teaching recordings.
   try {
     return await uploadViaSignedUrl(meetingToken, blob, filename);
   } catch (signedError) {

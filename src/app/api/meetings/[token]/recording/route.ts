@@ -3,7 +3,11 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { createSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  createSignedUpload,
+  isCloudStorageConfigured,
+  uploadObjectBuffer,
+} from "@/lib/object-storage";
 import { RECORDING_CONTENT_TYPE } from "@/lib/recording";
 
 type RouteParams = { params: Promise<{ token: string }> };
@@ -18,7 +22,7 @@ async function assertHost(token: string, userId: string, role: string) {
   return { meeting };
 }
 
-/** Prepare signed upload URL for large recordings (direct to Supabase). */
+/** Prepare signed upload URL for large recordings (direct to MinIO or Supabase). */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const session = await auth();
   if (!session?.user) {
@@ -31,28 +35,28 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return Response.json({ error: ctx.error }, { status: ctx.status });
   }
 
-  const { filename, contentType } = await request.json();
+  await request.json().catch(() => ({}));
   const ext = ".webm";
   const storagePath = `recordings/${ctx.meeting.id}/${Date.now()}${ext}`;
 
-  if (isSupabaseConfigured()) {
-    const supabase = createSupabaseAdmin()!;
-    const { data, error } = await supabase.storage
-      .from("uploads")
-      .createSignedUploadUrl(storagePath, { upsert: true });
-
-    if (error || !data) {
-      return Response.json({ error: error?.message ?? "Upload sign failed" }, { status: 500 });
+  if (isCloudStorageConfigured()) {
+    try {
+      const signed = await createSignedUpload({
+        storagePath,
+        contentType: RECORDING_CONTENT_TYPE,
+        upsert: true,
+      });
+      return Response.json({
+        signedUrl: signed.signedUrl,
+        path: signed.path,
+        publicUrl: signed.publicUrl,
+        token: signed.token,
+        contentType: RECORDING_CONTENT_TYPE,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload sign failed";
+      return Response.json({ error: message }, { status: 500 });
     }
-
-    const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(storagePath);
-
-    return Response.json({
-      signedUrl: data.signedUrl,
-      path: storagePath,
-      publicUrl: urlData.publicUrl,
-      token: data.token,
-    });
   }
 
   return Response.json({
@@ -89,23 +93,23 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   const ext = ".webm";
   const storagePath = `recordings/${ctx.meeting.id}/${Date.now()}${ext}`;
 
-  if (isSupabaseConfigured()) {
-    const supabase = createSupabaseAdmin()!;
-    const { error } = await supabase.storage
-      .from("uploads")
-      .upload(storagePath, buffer, { contentType: RECORDING_CONTENT_TYPE, upsert: true });
-
-    if (error) {
-      return Response.json({ error: error.message }, { status: 500 });
+  if (isCloudStorageConfigured()) {
+    try {
+      const { publicUrl } = await uploadObjectBuffer({
+        storagePath,
+        buffer,
+        contentType: RECORDING_CONTENT_TYPE,
+        upsert: true,
+      });
+      await prisma.meeting.update({
+        where: { id: ctx.meeting.id },
+        data: { recordingUrl: publicUrl },
+      });
+      return Response.json({ publicUrl, path: storagePath });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload failed";
+      return Response.json({ error: message }, { status: 500 });
     }
-
-    const { data } = supabase.storage.from("uploads").getPublicUrl(storagePath);
-    await prisma.meeting.update({
-      where: { id: ctx.meeting.id },
-      data: { recordingUrl: data.publicUrl },
-    });
-
-    return Response.json({ publicUrl: data.publicUrl, path: storagePath });
   }
 
   const localName = `${ctx.meeting.id}-${Date.now()}${ext}`;

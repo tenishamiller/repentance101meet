@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import { createSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { isCloudStorageConfigured, isS3Configured, uploadObjectBuffer } from "@/lib/object-storage";
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5 MB
 const MAX_UPLOAD_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB (screenshots, GIFs)
@@ -30,21 +30,23 @@ export async function saveUserImage(
       ? `avatars/${userId}/${uuidv4()}${ext}`
       : `${userId}/${uuidv4()}${ext}`;
 
-  if (isSupabaseConfigured()) {
-    const supabase = createSupabaseAdmin()!;
-    const { error } = await supabase.storage
-      .from("uploads")
-      .upload(filename, buffer, { contentType: file.type, upsert: false });
-
-    if (error) {
-      const message = error.message?.toLowerCase().includes("bucket not found")
-        ? "Storage is not set up yet. Ask your admin to run: npm run storage:setup"
-        : error.message || "Upload failed. Check Supabase storage bucket.";
-      return { error: message, status: 500 };
+  if (isCloudStorageConfigured()) {
+    try {
+      const { publicUrl } = await uploadObjectBuffer({
+        storagePath: filename,
+        buffer,
+        contentType: file.type,
+        upsert: false,
+      });
+      return { url: publicUrl };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Upload failed";
+      const friendly =
+        !isS3Configured() && message.toLowerCase().includes("bucket not found")
+          ? "Storage is not set up yet. Ask your admin to run: npm run storage:setup"
+          : message || "Upload failed. Check storage configuration.";
+      return { error: friendly, status: 500 };
     }
-
-    const { data } = supabase.storage.from("uploads").getPublicUrl(filename);
-    return { url: data.publicUrl };
   }
 
   const localName = `${uuidv4()}${ext}`;

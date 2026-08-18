@@ -1,34 +1,99 @@
-# Repentance 101 — self-host on OVH / DreamHost / any VPS (no Vercel).
+# Repentance 101 — DreamHost VPS (no Vercel, no Supabase billing).
 # Usage:
 #   cp .env.vps.example .env
 #   # fill secrets, then:
 #   docker compose up -d --build
 #
 # Requires DNS A/AAAA for the domain pointing at this VPS before Caddy can issue TLS.
+# Do not publish Postgres 5432 or MinIO 9000/9001 to the internet.
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: repentance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: repentance101
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U repentance -d repentance101"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_SERVER_URL: ${NEXT_PUBLIC_APP_URL:-https://repentance101ministry.com}
+    volumes:
+      - minio_data:/data
+    expose:
+      - "9000"
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    restart: "no"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./docker/minio-cors.json:/cors.json:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      set -e
+      i=0
+      until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+        i=$$((i+1))
+        [ $$i -gt 30 ] && exit 1
+        sleep 2
+      done
+      mc mb -p local/media || true
+      mc anonymous set download local/media
+      mc cors set local/media /cors.json || true
+      echo "minio bucket media ready"
+
   app:
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://repentance101ministry.com}
         NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Repentance 101}
         NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     env_file:
       - .env
     environment:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: 0.0.0.0
-      # Long-running Node process — no Vercel 10s/60s function caps.
       NEXTAUTH_URL: ${NEXTAUTH_URL:-https://repentance101ministry.com}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://repentance101ministry.com}
+      DATABASE_URL: postgresql://repentance:${POSTGRES_PASSWORD}@postgres:5432/repentance101?schema=public
+      DIRECT_URL: postgresql://repentance:${POSTGRES_PASSWORD}@postgres:5432/repentance101?schema=public
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_ENDPOINT: ${NEXT_PUBLIC_APP_URL:-https://repentance101ministry.com}
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: media
+      S3_REGION: us-east-1
     volumes:
-      # Local upload fallback if Supabase is temporarily unavailable
       - app_uploads:/app/public/uploads
     expose:
       - "3000"
@@ -51,6 +116,8 @@ services:
     depends_on:
       app:
         condition: service_healthy
+      minio:
+        condition: service_started
     ports:
       - "80:80"
       - "443:443"
@@ -60,7 +127,36 @@ services:
       - caddy_data:/data
       - caddy_config:/config
 
+  backup:
+    build:
+      context: .
+      dockerfile: docker/backup.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: repentance
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: repentance101
+      BACKUP_KEEP_DAYS: "7"
+      BACKUP_INTERVAL_SECONDS: "86400"
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      AWS_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: auto
+    volumes:
+      - minio_data:/minio-data:ro
+      - backup_local:/backups
+
 volumes:
+  postgres_data:
+  minio_data:
+  backup_local:
   app_uploads:
   caddy_data:
   caddy_config:

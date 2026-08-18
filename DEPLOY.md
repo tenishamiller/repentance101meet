@@ -1,7 +1,7 @@
 # Supabase + GitHub Setup (legacy Vercel notes included)
 
-> **Preferred production host is now your VPS — see [DEPLOY-VPS.md](./DEPLOY-VPS.md).**  
-> This file still documents Supabase setup and the old Vercel path.
+> **Preferred production host is the DreamHost VPS (Postgres + MinIO in Docker) — see [DEPLOY-VPS.md](./DEPLOY-VPS.md).**  
+> This file still documents the old Supabase + Vercel path.
 
 > **Important:** This ministry site is **100% separate from BraidAppt**. See [ISOLATION.md](./ISOLATION.md).
 
