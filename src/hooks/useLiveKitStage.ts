@@ -29,6 +29,8 @@ import {
   hostPresentingCameraPublish,
 } from "@/lib/livekit-capture";
 import { isLiveKitPermissionError } from "@/lib/livekit-errors";
+import { lockPlayAndRecordAudioSession } from "@/lib/livekit-audio-session";
+import { swallowStraySharePickerClick } from "@/lib/swallow-share-picker-click";
 import {
   ensureRemoteVideoSubscribed,
   hasLiveVideoPublication,
@@ -251,14 +253,24 @@ export function useLiveKitStage({
   const micWantedRef = useRef(false);
   const memberMicEnabledRef = useRef(memberMicEnabled);
   memberMicEnabledRef.current = memberMicEnabled;
+  const micRestoreTimersRef = useRef<number[]>([]);
+
+  const clearMicRestoreTimers = useCallback(() => {
+    for (const timer of micRestoreTimersRef.current) window.clearTimeout(timer);
+    micRestoreTimersRef.current = [];
+  }, []);
 
   const restoreMicrophoneIfNeeded = useCallback(
-    async (wasOn: boolean) => {
+    async (wasOn: boolean, retry = false) => {
       if (!wasOn) return;
       if (!isHost && !memberMicEnabledRef.current) return;
+      if (!isHost && !micWantedRef.current) return;
 
       const enable = async () => {
+        if (!isHost && !micWantedRef.current) return;
+        if (!isHost && !memberMicEnabledRef.current) return;
         if (localParticipant.isMicrophoneEnabled) return;
+        lockPlayAndRecordAudioSession();
         const deviceId = preferredAudioDeviceIdRef.current;
         try {
           if (isMobileLiveKitClient() || !deviceId) {
@@ -274,15 +286,16 @@ export function useLiveKitStage({
       };
 
       await enable();
-      if (!isMobileLiveKitClient() || localParticipant.isMicrophoneEnabled) return;
-      window.setTimeout(() => {
-        void enable();
-      }, 400);
-      window.setTimeout(() => {
-        void enable();
-      }, 1400);
+      if (!retry) return;
+      clearMicRestoreTimers();
+      for (const delay of [300, 900, 1800, 3200]) {
+        const timer = window.setTimeout(() => {
+          void enable();
+        }, delay);
+        micRestoreTimersRef.current.push(timer);
+      }
     },
-    [isHost, localParticipant],
+    [clearMicRestoreTimers, isHost, localParticipant],
   );
 
   const enableHostCamera = useCallback(
@@ -346,6 +359,15 @@ export function useLiveKitStage({
   );
 
   const appliedJoinMediaRef = useRef(false);
+
+  useEffect(() => {
+    return () => clearMicRestoreTimers();
+  }, [clearMicRestoreTimers]);
+
+  useEffect(() => {
+    if (connectionState !== ConnectionState.Connected) return;
+    lockPlayAndRecordAudioSession();
+  }, [connectionState]);
 
   useEffect(() => {
     cameraOffByUserRef.current = cameraOffByUser;
@@ -662,30 +684,63 @@ export function useLiveKitStage({
   useEffect(() => {
     if (isHost || mode !== "livestream") return;
 
-    const restoreDroppedMic = (publication: LocalTrackPublication) => {
+    const restoreDroppedMic = (publication: TrackPublication, participant?: Participant) => {
+      if (participant && !participant.isLocal) return;
       if (publication.source !== Track.Source.Microphone) return;
       if (!micWantedRef.current || !memberMicEnabledRef.current) return;
-      void restoreMicrophoneIfNeeded(true);
+      lockPlayAndRecordAudioSession();
+      void restoreMicrophoneIfNeeded(true, true);
     };
 
-    room.on(RoomEvent.LocalTrackUnpublished, restoreDroppedMic);
-    return () => {
-      room.off(RoomEvent.LocalTrackUnpublished, restoreDroppedMic);
+    const onLocalUnpublished = (publication: LocalTrackPublication) => {
+      restoreDroppedMic(publication, localParticipant);
     };
-  }, [isHost, mode, restoreMicrophoneIfNeeded, room]);
+
+    const onTrackMuted = (publication: TrackPublication, participant: Participant) => {
+      restoreDroppedMic(publication, participant);
+    };
+
+    const onShareAudio = (
+      _track: unknown,
+      publication: TrackPublication,
+    ) => {
+      if (
+        publication.source !== Track.Source.ScreenShare &&
+        publication.source !== Track.Source.ScreenShareAudio
+      ) {
+        return;
+      }
+      lockPlayAndRecordAudioSession();
+      if (!micWantedRef.current || !memberMicEnabledRef.current) return;
+      void restoreMicrophoneIfNeeded(true, true);
+    };
+
+    room.on(RoomEvent.LocalTrackUnpublished, onLocalUnpublished);
+    room.on(RoomEvent.TrackMuted, onTrackMuted);
+    room.on(RoomEvent.TrackSubscribed, onShareAudio);
+    room.on(RoomEvent.TrackUnsubscribed, onShareAudio);
+    return () => {
+      room.off(RoomEvent.LocalTrackUnpublished, onLocalUnpublished);
+      room.off(RoomEvent.TrackMuted, onTrackMuted);
+      room.off(RoomEvent.TrackSubscribed, onShareAudio);
+      room.off(RoomEvent.TrackUnsubscribed, onShareAudio);
+    };
+  }, [isHost, localParticipant, mode, restoreMicrophoneIfNeeded, room]);
 
   useEffect(() => {
     if (isHost || mode !== "livestream") return;
+    lockPlayAndRecordAudioSession();
     if (!micWantedRef.current || !memberMicEnabled) return;
-    void restoreMicrophoneIfNeeded(true);
+    void restoreMicrophoneIfNeeded(true, true);
   }, [isHost, isRemoteScreenSharing, memberMicEnabled, mode, restoreMicrophoneIfNeeded]);
 
   const toggleMute = useCallback(async () => {
     if (!canUseMic || (!isHost && mode === "livestream" && !memberMicEnabled)) return;
     const nextOn = !isMicrophoneEnabled;
     micWantedRef.current = nextOn;
+    if (!nextOn) clearMicRestoreTimers();
     await enableMicrophone(nextOn);
-  }, [canUseMic, enableMicrophone, isHost, isMicrophoneEnabled, memberMicEnabled, mode]);
+  }, [canUseMic, clearMicRestoreTimers, enableMicrophone, isHost, isMicrophoneEnabled, memberMicEnabled, mode]);
 
   const toggleCamera = useCallback(async () => {
     if (!canUseCamera) return;
@@ -715,29 +770,33 @@ export function useLiveKitStage({
   const toggleScreenShare = useCallback(async () => {
     if (!isHost) return;
     const micWasOn = localParticipant.isMicrophoneEnabled || micWantedRef.current;
-    if (isScreenShareEnabled) {
-      await localParticipant.setScreenShareEnabled(false);
-      if (!cameraOffByUser && mode === "livestream") {
-        await enableHostCamera(true);
-      }
-      await restoreMicrophoneIfNeeded(micWasOn);
-      return;
-    }
-
-    const publishOptions = getHostScreenSharePublish();
-
-    for (const options of getScreenShareCaptureAttempts()) {
-      try {
-        await localParticipant.setScreenShareEnabled(true, options, publishOptions);
-        await restoreMicrophoneIfNeeded(micWasOn);
+    try {
+      if (isScreenShareEnabled) {
+        await localParticipant.setScreenShareEnabled(false);
+        if (!cameraOffByUser && mode === "livestream") {
+          await enableHostCamera(true);
+        }
+        await restoreMicrophoneIfNeeded(micWasOn, true);
         return;
-      } catch {
-        /* try the next capture profile */
       }
-    }
 
-    await localParticipant.setScreenShareEnabled(true, undefined, publishOptions);
-    await restoreMicrophoneIfNeeded(micWasOn);
+      const publishOptions = getHostScreenSharePublish();
+
+      for (const options of getScreenShareCaptureAttempts()) {
+        try {
+          await localParticipant.setScreenShareEnabled(true, options, publishOptions);
+          await restoreMicrophoneIfNeeded(micWasOn, true);
+          return;
+        } catch {
+          /* try the next capture profile */
+        }
+      }
+
+      await localParticipant.setScreenShareEnabled(true, undefined, publishOptions);
+      await restoreMicrophoneIfNeeded(micWasOn, true);
+    } finally {
+      swallowStraySharePickerClick();
+    }
   }, [
     cameraOffByUser,
     enableHostCamera,

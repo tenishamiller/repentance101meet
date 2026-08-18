@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Hand,
@@ -93,6 +93,24 @@ function LivestreamRoomContent({
     name: string;
     avatarUrl: string | null;
   } | null>(null);
+
+  const [sharePickerArmedUntil, setSharePickerArmedUntil] = useState(0);
+  const sharePickerArmedUntilRef = useRef(0);
+
+  function armSharePickerGuard() {
+    const until = Date.now() + 2000;
+    sharePickerArmedUntilRef.current = until;
+    setSharePickerArmedUntil(until);
+    window.setTimeout(() => {
+      if (sharePickerArmedUntilRef.current !== until) return;
+      sharePickerArmedUntilRef.current = 0;
+      setSharePickerArmedUntil(0);
+    }, 2000);
+  }
+
+  function ignoreSharePickerClick() {
+    return Date.now() < sharePickerArmedUntilRef.current;
+  }
 
   const liveKitMeeting = useLiveKitMeeting();
 
@@ -363,7 +381,11 @@ function LivestreamRoomContent({
                   )}
                   <HostPolicyToggle
                     active={memberVideoEnabled}
-                    onClick={toggleMemberVideo}
+                    onClick={() => {
+                      if (ignoreSharePickerClick()) return;
+                      toggleMemberVideo();
+                    }}
+                    disabled={sharePickerArmedUntil > 0}
                     enabledLabel="Cams On"
                     disabledLabel="Cams Off"
                     title={
@@ -376,7 +398,11 @@ function LivestreamRoomContent({
                   />
                   <HostPolicyToggle
                     active={memberMicEnabled}
-                    onClick={toggleMemberMic}
+                    onClick={() => {
+                      if (ignoreSharePickerClick()) return;
+                      toggleMemberMic();
+                    }}
+                    disabled={sharePickerArmedUntil > 0}
                     enabledLabel="Mics On"
                     disabledLabel="Mics Off"
                     title={
@@ -418,7 +444,10 @@ function LivestreamRoomContent({
                   <button
                     type="button"
                     title="Share a window, screen, or browser tab. For tab audio, pick a Chrome tab and check “Share tab audio”."
-                    onClick={() => void toggleScreenShare()}
+                    onClick={() => {
+                      armSharePickerGuard();
+                      void toggleScreenShare().finally(() => armSharePickerGuard());
+                    }}
                     className={`inline-flex min-h-10 items-center gap-2 rounded-lg border px-3.5 py-2 text-xs font-bold transition sm:px-4 sm:text-sm ${
                       isScreenSharing
                         ? "border-gold bg-gold text-burgundy-deep shadow-md"
@@ -846,6 +875,7 @@ function HostPolicyToggle({
   title,
   enabledIcon: EnabledIcon,
   disabledIcon: DisabledIcon,
+  disabled = false,
 }: {
   active: boolean;
   onClick: () => void;
@@ -854,6 +884,7 @@ function HostPolicyToggle({
   title?: string;
   enabledIcon: React.ComponentType<{ className?: string }>;
   disabledIcon: React.ComponentType<{ className?: string }>;
+  disabled?: boolean;
 }) {
   const label = active ? enabledLabel : disabledLabel;
   const Icon = active ? EnabledIcon : DisabledIcon;
@@ -861,8 +892,9 @@ function HostPolicyToggle({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       title={title ?? label}
-      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold leading-none transition sm:px-2.5 sm:text-xs ${
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[11px] font-bold leading-none transition sm:px-2.5 sm:text-xs disabled:pointer-events-none disabled:opacity-50 ${
         active
           ? "border-gold/50 bg-burgundy-dark text-gold-light hover:border-gold"
           : "border-gold bg-gold/20 text-cream"
