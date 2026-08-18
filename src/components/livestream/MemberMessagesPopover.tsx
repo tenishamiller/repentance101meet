@@ -46,7 +46,18 @@ export function MemberMessagesPopover({ userId, onUnreadChange }: Props) {
     if (!res.ok) return;
     const data = await res.json();
     const list = (data.messages ?? []) as MembershipMessageData[];
-    setMessages(list);
+    setMessages((prev) => {
+      if (prev.length === list.length) {
+        const same = prev.every(
+          (message, index) =>
+            message.id === list[index]?.id &&
+            message.content === list[index]?.content &&
+            message.editedAt === list[index]?.editedAt,
+        );
+        if (same) return prev;
+      }
+      return list;
+    });
     if (open) {
       void refreshUnread();
     }
@@ -54,15 +65,19 @@ export function MemberMessagesPopover({ userId, onUnreadChange }: Props) {
 
   useEffect(() => {
     void refreshUnread();
-    const interval = setInterval(() => void refreshUnread(), 5000);
+    const interval = setInterval(() => void refreshUnread(), 10000);
     return () => clearInterval(interval);
   }, [refreshUnread]);
 
   useEffect(() => {
+    if (!open) return;
     void fetchMessages();
-    const interval = setInterval(() => void fetchMessages(), 5000);
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void fetchMessages();
+    }, 8000);
     return () => clearInterval(interval);
-  }, [fetchMessages]);
+  }, [fetchMessages, open]);
 
   useEffect(() => {
     if (!open) return;

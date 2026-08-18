@@ -3,7 +3,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { assertApprovedMember, getDmRelation } from "@/lib/member-dm";
 
-const schema = z.object({ userId: z.string().min(1) });
+const schema = z.object({
+  userId: z.string().min(1),
+  action: z.enum(["cancel"]).optional(),
+});
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -21,6 +24,16 @@ export async function POST(request: Request) {
   const meId = session.user.id;
   if (body.userId === meId) {
     return Response.json({ error: "Invalid member" }, { status: 400 });
+  }
+
+  if (body.action === "cancel") {
+    const result = await prisma.memberDmRequest.deleteMany({
+      where: { fromUserId: meId, toUserId: body.userId, status: "PENDING" },
+    });
+    if (result.count === 0) {
+      return Response.json({ error: "No pending request to cancel." }, { status: 400 });
+    }
+    return Response.json({ ok: true, cancelled: true });
   }
 
   const other = await assertApprovedMember(body.userId);

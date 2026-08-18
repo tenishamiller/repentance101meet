@@ -82,6 +82,20 @@ type Props = {
   onUnreadChange?: (count: number) => void;
 };
 
+function sameMessages(a: MembershipMessageData[], b: MembershipMessageData[]) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (
+      a[i].id !== b[i].id ||
+      a[i].content !== b[i].content ||
+      a[i].editedAt !== b[i].editedAt
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Props) {
   const { data: session, status: sessionStatus } = useSession();
   const appBase = useAppBase();
@@ -117,6 +131,8 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const fetchSeqRef = useRef(0);
+  const onUnreadChangeRef = useRef(onUnreadChange);
+  onUnreadChangeRef.current = onUnreadChange;
 
   const threadUserId = isAdmin ? selectedUserId : session?.user?.id;
   const messagingPeer = isPeerMessaging && Boolean(peerId);
@@ -164,7 +180,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     }
   }, [isAdmin, isPeerMessaging]);
 
-  const fetchInbox = useCallback(async () => {
+  const fetchInbox = useCallback(async (poll = false) => {
     if (sessionStatus === "loading") return;
 
     if (isAdmin) {
@@ -174,17 +190,19 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
         const list: Thread[] = data.threads ?? [];
         setThreads(list);
         const totalUnread = list.reduce((sum, t) => sum + (t.unreadCount ?? 0), 0);
-        onUnreadChange?.(totalUnread);
+        onUnreadChangeRef.current?.(totalUnread);
       }
 
       const unreadRes = await fetch("/api/messages/unread-count");
       if (unreadRes.ok) {
         const unreadData = await unreadRes.json();
-        onUnreadChange?.(unreadData.unread ?? 0);
+        onUnreadChangeRef.current?.(unreadData.unread ?? 0);
       }
     }
 
-    void fetchDeletedThreads();
+    if (!poll) {
+      void fetchDeletedThreads();
+    }
 
     if (isAdmin && !selectedUserId) {
       setMessages([]);
@@ -195,7 +213,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     }
 
     if (isPeerMessaging) {
-      const dirRes = await fetch("/api/member-messages");
+      const dirRes = await fetch(`/api/member-messages${poll ? "?poll=1" : ""}`);
       if (dirRes.ok) {
         const data = await dirRes.json();
         setPeerMembers(data.members ?? []);
@@ -203,10 +221,13 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
 
       if (peerId) {
         const seq = ++fetchSeqRef.current;
-        const res = await fetch(`/api/member-messages?userId=${encodeURIComponent(peerId)}`);
+        const res = await fetch(
+          `/api/member-messages?userId=${encodeURIComponent(peerId)}${poll ? "&poll=1" : ""}`,
+        );
         if (res.ok && seq === fetchSeqRef.current) {
           const data = await res.json();
-          setMessages(data.messages ?? []);
+          const nextMessages = (data.messages ?? []) as MembershipMessageData[];
+          setMessages((prev) => (sameMessages(prev, nextMessages) ? prev : nextMessages));
           setPeerRelation(data.relation ?? null);
           setMemberInfo(data.member ?? null);
           setActiveConversationId(data.conversation?.id ?? null);
@@ -220,7 +241,8 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       const res = await fetch("/api/messages");
       if (res.ok && seq === fetchSeqRef.current) {
         const data = await res.json();
-        setMessages(data.messages ?? []);
+        const nextMessages = (data.messages ?? []) as MembershipMessageData[];
+        setMessages((prev) => (sameMessages(prev, nextMessages) ? prev : nextMessages));
         setMemberInfo(data.member ?? null);
         setActiveConversationId(data.conversation?.id ?? null);
       }
@@ -237,7 +259,8 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     const res = await fetch(url);
     if (res.ok && seq === fetchSeqRef.current) {
       const data = await res.json();
-      setMessages(data.messages ?? []);
+      const nextMessages = (data.messages ?? []) as MembershipMessageData[];
+      setMessages((prev) => (sameMessages(prev, nextMessages) ? prev : nextMessages));
       setMemberInfo(data.member ?? null);
       setActiveConversationId(data.conversation?.id ?? null);
     }
@@ -245,19 +268,19 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       setLoading(false);
     }
   }, [
-    fetchDeletedThreads,
     isAdmin,
     isPeerMessaging,
-    onUnreadChange,
     peerId,
     selectedUserId,
     sessionStatus,
+    fetchDeletedThreads,
   ]);
 
   useEffect(() => {
+    if (!editingId) return;
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [editingId]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -269,26 +292,15 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   }, [isAdmin]);
 
   useEffect(() => {
-    void fetchInbox();
-    const interval = setInterval(() => void fetchInbox(), 4000);
+    setLoading(true);
+    setEditingId(null);
+    void fetchInbox(false);
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void fetchInbox(true);
+    }, 8000);
     return () => clearInterval(interval);
   }, [fetchInbox]);
-
-  useEffect(() => {
-    if (isAdmin && selectedUserId) {
-      setLoading(true);
-      setEditingId(null);
-      void fetchInbox();
-    }
-  }, [isAdmin, selectedUserId, fetchInbox]);
-
-  useEffect(() => {
-    if (isPeerMessaging) {
-      setLoading(true);
-      setEditingId(null);
-      void fetchInbox();
-    }
-  }, [isPeerMessaging, peerId, fetchInbox]);
 
   useEffect(() => {
     if (!messagePagination.onLatestPage) return;
@@ -421,10 +433,21 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       setSending(false);
       return;
     }
+    const data = await res.json().catch(() => ({}));
+    if (data.message) {
+      setMessages((prev) =>
+        prev.some((message) => message.id === data.message.id)
+          ? prev
+          : [...prev, data.message as MembershipMessageData],
+      );
+      if (data.conversation?.id) {
+        setActiveConversationId(data.conversation.id);
+      }
+    }
     setContent("");
     clearPendingFiles();
     setSending(false);
-    void fetchInbox();
+    void fetchInbox(true);
   }
 
   async function adminAction(action: string, extra: Record<string, unknown> = {}) {
@@ -443,7 +466,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       return;
     }
     setActionLoading(false);
-    void fetchInbox();
+    void fetchInbox(false);
   }
 
   async function denyMember() {
@@ -473,7 +496,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     }
     setEditingId(null);
     setEditContent("");
-    void fetchInbox();
+    void fetchInbox(false);
   }
 
   async function softDeleteThread(conversationId: string) {
@@ -492,7 +515,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       setMessages([]);
       setActiveConversationId(null);
     }
-    void fetchInbox();
+    void fetchInbox(false);
   }
 
   async function restoreThread(conversationId: string) {
@@ -509,7 +532,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       setActionError(typeof data.error === "string" ? data.error : "Could not restore thread.");
       return;
     }
-    void fetchInbox();
+    void fetchInbox(false);
   }
 
   async function permanentlyDeleteThread(conversationId: string) {
@@ -528,7 +551,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       );
       return;
     }
-    void fetchInbox();
+    void fetchInbox(false);
   }
 
   async function peerAction(path: string, extra: Record<string, unknown> = {}) {
@@ -547,10 +570,18 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       return;
     }
     setActionLoading(false);
-    void fetchInbox();
+    if (extra.action === "cancel") {
+      setPeerRelation((current) =>
+        current ? { ...current, pendingOutgoing: false } : current,
+      );
+      setPeerMembers((members) =>
+        members.map((member) =>
+          member.id === peerId ? { ...member, pendingOutgoing: false } : member,
+        ),
+      );
+    }
+    void fetchInbox(false);
   }
-
-  const shellClass = embedded
     ? "flex min-h-[min(70vh,720px)] flex-col"
     : inMobileShell
       ? "mx-auto flex min-h-0 flex-1 flex-col px-3 py-4 sm:px-4"
@@ -676,6 +707,50 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                           </span>
                         </span>
                       </button>
+                      {member.pendingOutgoing && (
+                        <button
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={() => {
+                            setPeerId(member.id);
+                            void (async () => {
+                              setActionLoading(true);
+                              setActionError("");
+                              const res = await fetch("/api/member-messages/request", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ userId: member.id, action: "cancel" }),
+                              });
+                              setActionLoading(false);
+                              if (!res.ok) {
+                                const data = await res.json().catch(() => ({}));
+                                setActionError(
+                                  typeof data.error === "string"
+                                    ? data.error
+                                    : "Could not cancel request.",
+                                );
+                                return;
+                              }
+                              setPeerRelation((current) =>
+                                current && peerId === member.id
+                                  ? { ...current, pendingOutgoing: false }
+                                  : current,
+                              );
+                              setPeerMembers((list) =>
+                                list.map((item) =>
+                                  item.id === member.id
+                                    ? { ...item, pendingOutgoing: false }
+                                    : item,
+                                ),
+                              );
+                            })();
+                          }}
+                          className="self-center rounded-lg px-2 py-1 text-[11px] font-semibold text-burgundy hover:bg-burgundy/10 disabled:opacity-50"
+                          aria-label={`Cancel message request to ${member.name}`}
+                        >
+                          Cancel
+                        </button>
+                      )}
                       {member.conversationId && (
                         <div className="flex items-center pr-1">
                           <ThreadOverflowMenu
@@ -931,6 +1006,19 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                             Request to message
                           </button>
                         )}
+                      {peerRelation?.pendingOutgoing && (
+                        <button
+                          type="button"
+                          disabled={actionLoading}
+                          onClick={() =>
+                            void peerAction("/api/member-messages/request", { action: "cancel" })
+                          }
+                          className="inline-flex items-center gap-1 rounded-xl border border-burgundy/30 px-3 py-2 text-xs font-semibold text-burgundy hover:bg-burgundy/10 sm:text-sm"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Cancel request
+                        </button>
+                      )}
                       {peerRelation?.canMessage && (
                         <button
                           type="button"

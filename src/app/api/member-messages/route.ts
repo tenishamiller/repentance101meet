@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { activeUserFilter } from "@/lib/user-deletion";
 import { assertApprovedMember, getDmRelation } from "@/lib/member-dm";
 import { attachmentSchema } from "@/lib/message-attachments";
+import { sortedParticipantIds } from "@/lib/message-thread-deletion-shared";
 import {
   activeConversationFilter,
   getOrCreateActiveMemberDmConversation,
@@ -72,7 +73,10 @@ export async function GET(request: NextRequest) {
   const authz = await requireApprovedMember();
   if (authz.error) return authz.error;
   const meId = authz.session.user.id;
-  await purgeExpiredConversations();
+  const poll = request.nextUrl.searchParams.get("poll") === "1";
+  if (!poll) {
+    await purgeExpiredConversations();
+  }
 
   const otherId = request.nextUrl.searchParams.get("userId");
   const conversationId = request.nextUrl.searchParams.get("conversationId");
@@ -191,9 +195,18 @@ export async function GET(request: NextRequest) {
     }
 
     const relation = await getDmRelation(meId, otherId);
-    const conversation = await getOrCreateActiveMemberDmConversation(meId, otherId);
+    const [participantAId, participantBId] = sortedParticipantIds(meId, otherId);
+    const conversation = await prisma.messageConversation.findFirst({
+      where: {
+        kind: "MEMBER_DM",
+        participantAId,
+        participantBId,
+        ...activeConversationFilter(),
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-    if (relation.canMessage) {
+    if (conversation && relation.canMessage && !poll) {
       await prisma.memberDirectMessage.updateMany({
         where: {
           conversationId: conversation.id,
@@ -205,21 +218,22 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const messages = relation.canMessage
-      ? await prisma.memberDirectMessage.findMany({
-          where: { conversationId: conversation.id },
-          include: {
-            sender: { select: { id: true, name: true, avatarUrl: true, role: true } },
-          },
-          orderBy: { createdAt: "asc" },
-          take: 300,
-        })
-      : [];
+    const messages =
+      conversation && relation.canMessage
+        ? await prisma.memberDirectMessage.findMany({
+            where: { conversationId: conversation.id },
+            include: {
+              sender: { select: { id: true, name: true, avatarUrl: true, role: true } },
+            },
+            orderBy: { createdAt: "asc" },
+            take: 300,
+          })
+        : [];
 
     return Response.json({
       member: other,
       relation,
-      conversation: serializeConversation(conversation),
+      conversation: conversation ? serializeConversation(conversation) : null,
       messages: messages.map(serializeMessage),
     });
   }
