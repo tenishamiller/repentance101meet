@@ -16,8 +16,8 @@
     "generate:favicons": "node scripts/generate-favicons.mjs",
     "setup:supabase": "node scripts/setup-supabase.mjs",
     "storage:setup": "node scripts/ensure-storage-bucket.mjs",
-    "deploy": "node scripts/deploy-vercel.mjs",
-    "deploy:vps": "docker compose up -d --build",
+    "deploy": "bash scripts/deploy-dreamhost.sh",
+    "deploy:vps": "bash scripts/deploy-dreamhost.sh",
     "postinstall": "prisma generate"
   },
   "prisma": {

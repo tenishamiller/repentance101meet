@@ -7,7 +7,7 @@ Repentance 101 is a **completely separate product** from BraidAppt. Nothing is s
 | Area | Repentance 101 | BraidAppt |
 |------|----------------|-----------|
 | **GitHub repo** | `tenishamiller/repentance101meet` | `tenishamiller/braidappt` |
-| **Vercel project** | `repentance101meet` (personal account) | `braidappt` (braid-appt team) |
+| **Host** | DreamHost VPS (`repentance101ministry.com`) | Vercel (`braidappt.com`) |
 | **Domain** | `repentance101ministry.com` | `braidappt.com` |
 | **Supabase project** | `repentance101meet` (dedicated DB) | separate project |
 | **Database tables** | Own Prisma schema, own users | unrelated |
@@ -19,6 +19,7 @@ Repentance 101 is a **completely separate product** from BraidAppt. Nothing is s
 ## What we do NOT do
 
 - Read credentials from `braidbook/` or any BraidAppt folder
+- Deploy Repentance 101 to Vercel (DreamHost VPS only)
 - Deploy to the `braid-appt` Vercel team
 - Reuse BraidAppt's Supabase database or storage
 - Share admin accounts, API keys, or domains
@@ -41,12 +42,14 @@ npm run db:seed
 # 4. Preview locally
 npm run dev
 
-# 5. Deploy to your personal Vercel (not BraidAppt)
-npm run deploy
+# 5. Deploy on the DreamHost VPS only (never Vercel)
+# SSH into the VPS, then:
+#   cd ~/repentance101meet && git pull origin master && docker compose up -d --build
+# Or on the VPS: npm run deploy
 ```
 
 ## GitHub
 
 Repo: **https://github.com/tenishamiller/repentance101meet**
 
-Connect this repo to the **repentance101meet** Vercel project only — not the BraidAppt project.
+This repo deploys on the **DreamHost VPS** only — never Vercel, never the BraidAppt project.
