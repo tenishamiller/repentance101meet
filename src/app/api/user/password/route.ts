@@ -9,7 +9,22 @@ export async function PATCH(request: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { currentPassword, newPassword } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
+  const newPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+  const confirmPassword = typeof body.confirmPassword === "string" ? body.confirmPassword : "";
+
+  if (!currentPassword || !newPassword) {
+    return Response.json({ error: "Current and new password are required" }, { status: 400 });
+  }
+
+  if (newPassword.length < 8) {
+    return Response.json({ error: "New password must be at least 8 characters" }, { status: 400 });
+  }
+
+  if (confirmPassword && confirmPassword !== newPassword) {
+    return Response.json({ error: "New password and confirmation do not match" }, { status: 400 });
+  }
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) {
@@ -21,8 +36,12 @@ export async function PATCH(request: NextRequest) {
     return Response.json({ error: "Current password is incorrect" }, { status: 400 });
   }
 
-  if (!newPassword || newPassword.length < 8) {
-    return Response.json({ error: "New password must be at least 8 characters" }, { status: 400 });
+  const samePassword = await bcrypt.compare(newPassword, user.passwordHash);
+  if (samePassword) {
+    return Response.json(
+      { error: "New password must be different from your current password" },
+      { status: 400 },
+    );
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 12);

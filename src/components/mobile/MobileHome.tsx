@@ -72,6 +72,12 @@ export async function MobileHome() {
           desc: "Membership updates from Norman",
           icon: MessageCircle,
         },
+        {
+          href: `${base}/settings`,
+          label: "Settings",
+          desc: "Password, photo & account",
+          icon: Settings,
+        },
       ]
     : [
         {
@@ -95,7 +101,7 @@ export async function MobileHome() {
         {
           href: `${base}/settings`,
           label: "Settings",
-          desc: "Profile & account",
+          desc: "Password, photo & account",
           icon: Settings,
         },
         ...(isAdmin

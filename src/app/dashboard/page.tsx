@@ -115,6 +115,24 @@ export default async function DashboardPage() {
           </div>
           <span className="btn-outline-gold shrink-0">Open →</span>
         </Link>
+
+        <Link
+          href="/settings#change-password"
+          className="card-brand flex flex-col items-center justify-between gap-4 rounded-2xl border-2 border-gold/40 p-6 sm:flex-row"
+        >
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-gold-muted">
+              Account Settings
+            </p>
+            <p className="mt-1 font-serif text-xl font-bold text-burgundy">
+              Change your password
+            </p>
+            <p className="mt-1 text-sm text-burgundy/70">
+              Update your login password, profile photo, name, and email
+            </p>
+          </div>
+          <span className="btn-outline-gold shrink-0">Open settings →</span>
+        </Link>
       </section>
 
       {privateInvite && (

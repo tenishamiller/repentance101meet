@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import { Camera, Loader2 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { BrandDivider } from "@/components/BrandDivider";
+import { ChangePasswordForm } from "@/components/settings/ChangePasswordForm";
 import { isMobileAppPath } from "@/lib/mobile-paths";
 
 export default function SettingsPage() {
@@ -16,8 +17,6 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(session?.user?.name ?? "");
   const [email, setEmail] = useState(session?.user?.email ?? "");
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -44,28 +43,6 @@ export default function SettingsPage() {
     await update({ name, avatarUrl: data.user.avatarUrl });
     setAvatarUrl(data.user.avatarUrl ?? "");
     setMessage("Profile updated!");
-  }
-
-  async function handlePasswordUpdate(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setMessage("");
-
-    const res = await fetch("/api/user/password", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      setError(data.error);
-      return;
-    }
-
-    setCurrentPassword("");
-    setNewPassword("");
-    setMessage("Password changed!");
   }
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -125,8 +102,8 @@ export default function SettingsPage() {
       <h1 className="font-serif text-3xl font-bold text-burgundy">Account Settings</h1>
       <BrandDivider className="my-4 max-w-xs" />
       <p className="text-burgundy/70">
-        Upload a profile photo so members and Norman can recognize you in live meetings, chat, and
-        channels.
+        Update your profile photo, name, email, and password. Members and admins use this same
+        page.
       </p>
 
       {message && (
@@ -196,31 +173,7 @@ export default function SettingsPage() {
         </button>
       </form>
 
-      <form onSubmit={handlePasswordUpdate} className="card-brand mt-6 space-y-4 p-6">
-        <h2 className="font-serif font-semibold text-burgundy">Change Password</h2>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-burgundy">Current Password</label>
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            className="input-field"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-burgundy">New Password</label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            minLength={8}
-            className="input-field"
-          />
-        </div>
-        <button type="submit" className="btn-burgundy">
-          Change Password
-        </button>
-      </form>
+      <ChangePasswordForm />
 
       <section className="mt-6 rounded-2xl border-2 border-burgundy/30 bg-burgundy/5 p-6">
         <h2 className="font-serif font-semibold text-burgundy">Delete Account</h2>

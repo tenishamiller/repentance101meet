@@ -46,7 +46,7 @@ export default async function ProfilePage({ params }: Props) {
       </p>
       {isOwnProfile && (
         <Link href="/settings" className="btn-outline-gold mt-8 inline-block">
-          Edit your profile photo
+          Account settings
         </Link>
       )}
     </div>

@@ -85,7 +85,7 @@ export function AdminShell({ activeTab, onTabChange, badges, children }: Props) 
               ← Member View
             </Link>
             <Link href="/settings" className="btn-secondary inline-flex items-center gap-2 !px-5 !py-2.5 text-sm">
-              Profile Photo
+              Account Settings
             </Link>
           </div>
         </div>
