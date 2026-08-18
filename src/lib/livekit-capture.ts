@@ -141,7 +141,7 @@ export const hostPresentingCameraPublish: TrackPublishOptions = {
   simulcast: false,
 };
 
-/** Member camera when host is not presenting (pip / split layout). */
+/** Member camera when the host is presenting — same profile as normal so share toggles do not republish. */
 export const memberLivestreamCameraCapture: VideoCaptureOptions = {
   resolution: VideoPresets.h360.resolution,
   frameRate: 24,
@@ -157,26 +157,9 @@ export const memberLivestreamCameraPublish: TrackPublishOptions = {
   videoSimulcastLayers: [VideoPresets.h180],
 };
 
-/** Sidebar tiles while host screen share is primary — still 360p for smoother motion. */
-export const memberPresentingCameraCapture: VideoCaptureOptions = {
-  resolution: VideoPresets.h360.resolution,
-  frameRate: 24,
-};
-
-export const memberPresentingCameraPublish: TrackPublishOptions = {
-  videoEncoding: VideoPresets.h360.encoding,
-  degradationPreference: "maintain-framerate",
-  simulcast: false,
-};
-
-export function getMemberCameraPublishOptions(isRemoteScreenSharing: boolean) {
-  return isRemoteScreenSharing
-    ? {
-        capture: memberPresentingCameraCapture,
-        publish: memberPresentingCameraPublish,
-      }
-    : {
-        capture: memberLivestreamCameraCapture,
-        publish: memberLivestreamCameraPublish,
-      };
+export function getMemberCameraPublishOptions() {
+  return {
+    capture: memberLivestreamCameraCapture,
+    publish: memberLivestreamCameraPublish,
+  };
 }
