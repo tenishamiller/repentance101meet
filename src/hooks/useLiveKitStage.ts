@@ -29,6 +29,10 @@ import {
   hostPresentingCameraPublish,
 } from "@/lib/livekit-capture";
 import { isLiveKitPermissionError } from "@/lib/livekit-errors";
+import {
+  ensureRemoteVideoSubscribed,
+  hasLiveVideoPublication,
+} from "@/lib/livekit-latency";
 
 function withExactDeviceId<T extends { deviceId?: ConstrainDOMString }>(
   options: T,
@@ -158,14 +162,13 @@ export function useLiveKitStage({
     [privatePeer, publishedTracks],
   );
 
-  const hasLocalScreenTrack = !!localScreenTrack?.publication?.track;
+  const hasLocalScreenTrack = hasLiveVideoPublication(localScreenTrack?.publication);
   const isScreenSharing =
-    isHost && mode === "livestream" && isScreenShareEnabled;
+    isHost && mode === "livestream" && isScreenShareEnabled && hasLocalScreenTrack;
   const isRemoteScreenSharing =
     mode === "livestream" &&
     !isHost &&
-    (!!hostScreenFromRoom?.publication?.track ||
-      (!!hostParticipant && hostParticipant.isScreenShareEnabled));
+    hasLiveVideoPublication(hostScreenFromRoom?.publication);
 
   const hostMainTrack =
     mode === "private"
@@ -204,9 +207,14 @@ export function useLiveKitStage({
   const isRemoteMuted = remoteParticipant ? !remoteParticipant.isMicrophoneEnabled : false;
 
   const hasHostVideoTrack =
-    !!hostMainTrack?.publication?.track ||
-    !!hostScreenFromRoom?.publication?.track ||
-    !!hostCameraFromRoom?.publication?.track;
+    hasLiveVideoPublication(hostMainTrack?.publication) ||
+    hasLiveVideoPublication(hostScreenFromRoom?.publication) ||
+    hasLiveVideoPublication(hostCameraFromRoom?.publication);
+
+  useEffect(() => {
+    ensureRemoteVideoSubscribed(hostCameraFromRoom?.publication);
+    ensureRemoteVideoSubscribed(hostScreenFromRoom?.publication);
+  }, [hostCameraFromRoom?.publication, hostScreenFromRoom?.publication]);
 
   const isRemoteCameraOff =
     mode === "private"

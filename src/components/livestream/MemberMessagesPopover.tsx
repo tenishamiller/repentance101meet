@@ -7,8 +7,6 @@ import { scrollContainerToBottom } from "@/lib/chat-scroll";
 import { formatRequestDateTime } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useMembershipUnreadCount } from "@/hooks/useMembershipUnreadCount";
-import { useMessagePagination } from "@/hooks/useMessagePagination";
-import { MessagePagination } from "@/components/messages/MessagePagination";
 import { UnreadCountBadge } from "@/components/messages/UnreadCountBadge";
 import type { MembershipMessageData } from "@/components/messages/MembershipMessageBubble";
 
@@ -29,8 +27,6 @@ export function MemberMessagesPopover({ userId, onUnreadChange }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const pagination = useMessagePagination(messages, userId);
-  const visibleMessages = pagination.paginatedMessages;
   const displayUnread = open ? 0 : unread;
 
   useEffect(() => {
@@ -82,8 +78,8 @@ export function MemberMessagesPopover({ userId, onUnreadChange }: Props) {
   useEffect(() => {
     if (!open) return;
     const node = scrollRef.current;
-    if (node && pagination.onLatestPage) scrollContainerToBottom(node);
-  }, [messages, open, pagination.onLatestPage]);
+    if (node) scrollContainerToBottom(node);
+  }, [messages, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -154,15 +150,6 @@ export function MemberMessagesPopover({ userId, onUnreadChange }: Props) {
         </button>
       </div>
 
-      <MessagePagination
-        page={pagination.page}
-        totalPages={pagination.totalPages}
-        total={pagination.total}
-        pageSize={pagination.pageSize}
-        onPageChange={pagination.setPage}
-        compact
-      />
-
       <div
         ref={scrollRef}
         className="chat-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 touch-pan-y"
@@ -173,7 +160,7 @@ export function MemberMessagesPopover({ userId, onUnreadChange }: Props) {
           </p>
         ) : (
           <ul className="space-y-3">
-            {visibleMessages.map((msg) => {
+            {messages.map((msg) => {
               const isOwn = msg.sender.id === userId;
               return (
                 <li

@@ -5,8 +5,6 @@ import { SendHorizontal, X } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
 import { scrollContainerToBottom } from "@/lib/chat-scroll";
 import { formatRequestDateTime } from "@/lib/utils";
-import { useMessagePagination } from "@/hooks/useMessagePagination";
-import { MessagePagination } from "@/components/messages/MessagePagination";
 import type { MembershipMessageData } from "@/components/messages/MembershipMessageBubble";
 
 type Member = {
@@ -27,9 +25,6 @@ export function HostPrivateMessagePanel({ member, hostId, onClose }: Props) {
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const pagination = useMessagePagination(messages, member.id);
-  const visibleMessages = pagination.paginatedMessages;
-
   const fetchMessages = useCallback(async () => {
     const res = await fetch(`/api/messages?userId=${encodeURIComponent(member.id)}`);
     if (!res.ok) return;
@@ -44,10 +39,9 @@ export function HostPrivateMessagePanel({ member, hostId, onClose }: Props) {
   }, [fetchMessages]);
 
   useEffect(() => {
-    if (!pagination.onLatestPage) return;
     const node = scrollRef.current;
     if (node) scrollContainerToBottom(node, "auto");
-  }, [messages, pagination.onLatestPage]);
+  }, [messages]);
 
   async function sendMessage(event: React.FormEvent) {
     event.preventDefault();
@@ -92,16 +86,6 @@ export function HostPrivateMessagePanel({ member, hostId, onClose }: Props) {
         </button>
       </div>
 
-      <MessagePagination
-        page={pagination.page}
-        totalPages={pagination.totalPages}
-        total={pagination.total}
-        pageSize={pagination.pageSize}
-        onPageChange={pagination.setPage}
-        variant="dark"
-        compact
-      />
-
       <div
         ref={scrollRef}
         className="livestream-panel-scroll chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-2"
@@ -112,7 +96,7 @@ export function HostPrivateMessagePanel({ member, hostId, onClose }: Props) {
           </p>
         ) : (
           <ul className="space-y-2">
-            {visibleMessages.map((msg) => {
+            {messages.map((msg) => {
               const isHostMsg = msg.sender.id === hostId;
               return (
                 <li

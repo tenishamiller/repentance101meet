@@ -11,6 +11,20 @@ const MAIN_STAGE_SOURCES = new Set<Track.Source>([
   Track.Source.ScreenShare,
 ]);
 
+/** True when a camera/screen publication is subscribed and sending. */
+export function hasLiveVideoPublication(publication?: TrackPublication | null) {
+  if (!publication || publication.isMuted) return false;
+  const media = publication.track?.mediaStreamTrack;
+  return !!media && media.readyState === "live" && media.enabled;
+}
+
+export function ensureRemoteVideoSubscribed(publication?: TrackPublication | null) {
+  if (!(publication instanceof RemoteTrackPublication)) return;
+  if (!publication.isSubscribed) {
+    publication.setSubscribed(true);
+  }
+}
+
 function asMainStageRemote(
   publication?: TrackPublication,
 ): RemoteTrackPublication | undefined {

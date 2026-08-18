@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { VideoTrack } from "@livekit/components-react";
 import type { TrackReference } from "@livekit/components-core";
 import {
   CameraOffOverlay,
   VideoLoadingOverlay,
 } from "@/components/livestream/CameraOffOverlay";
-import { applyMainStageLowLatency, applyPanelRemoteVideo } from "@/lib/livekit-latency";
+import {
+  applyMainStageLowLatency,
+  applyPanelRemoteVideo,
+  ensureRemoteVideoSubscribed,
+} from "@/lib/livekit-latency";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -42,6 +46,7 @@ export function LiveKitVideoTile({
   pipLayout = false,
   lowLatency = false,
 }: Props) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const hasTrack = !!trackRef?.publication?.track;
   const showVideo = hasTrack && !cameraOff;
   const resolvedVideoClassName = panelLayout || pipLayout
@@ -52,6 +57,10 @@ export function LiveKitVideoTile({
   const videoKey = trackRef
     ? `${trackRef.source}-${trackRef.publication?.trackSid ?? trackRef.publication?.trackName ?? "pending"}`
     : "no-track";
+
+  useEffect(() => {
+    ensureRemoteVideoSubscribed(trackRef?.publication);
+  }, [trackRef?.publication]);
 
   useEffect(() => {
     if (!trackRef?.publication) return;
@@ -76,8 +85,33 @@ export function LiveKitVideoTile({
     };
   }, [lowLatency, panelLayout, trackRef]);
 
+  useEffect(() => {
+    if (!showVideo) return;
+    const root = rootRef.current;
+    if (!root) return;
+
+    const bind = (video: HTMLVideoElement) => {
+      video.controls = false;
+      video.playsInline = true;
+      video.autoplay = true;
+      void video.play().catch(() => {
+        /* autoplay can be blocked until a click; LiveKit retries on attach */
+      });
+    };
+
+    const videos = root.querySelectorAll("video");
+    videos.forEach((video) => bind(video));
+
+    const observer = new MutationObserver(() => {
+      root.querySelectorAll("video").forEach((video) => bind(video));
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [showVideo, videoKey]);
+
   return (
     <div
+      ref={rootRef}
       className={cn(
         "relative h-full min-h-0 w-full overflow-hidden bg-black",
         lowLatency && "livekit-main-stage-low-latency",
@@ -85,7 +119,15 @@ export function LiveKitVideoTile({
       )}
     >
       {showVideo && trackRef ? (
-        <VideoTrack key={videoKey} trackRef={trackRef} className={resolvedVideoClassName} />
+        <VideoTrack
+          key={videoKey}
+          trackRef={trackRef}
+          className={resolvedVideoClassName}
+          playsInline
+          controls={false}
+          disablePictureInPicture
+          manageSubscription
+        />
       ) : cameraOff ? (
         <CameraOffOverlay
           userId={userId}
