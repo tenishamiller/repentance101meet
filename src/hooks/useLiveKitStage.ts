@@ -169,6 +169,8 @@ export function useLiveKitStage({
     mode === "livestream" &&
     !isHost &&
     hasLiveVideoPublication(hostScreenFromRoom?.publication);
+  const isRemoteScreenSharingRef = useRef(isRemoteScreenSharing);
+  isRemoteScreenSharingRef.current = isRemoteScreenSharing;
 
   const hostMainTrack =
     mode === "private"
@@ -248,8 +250,21 @@ export function useLiveKitStage({
     return isLiveKitPermissionError(message) ? "" : message;
   })();
 
+  const restoreMicrophoneIfNeeded = useCallback(
+    async (wasOn: boolean) => {
+      if (!wasOn || localParticipant.isMicrophoneEnabled) return;
+      const deviceId = preferredAudioDeviceIdRef.current;
+      await localParticipant.setMicrophoneEnabled(
+        true,
+        deviceId ? { deviceId: { exact: deviceId } } : undefined,
+      );
+    },
+    [localParticipant],
+  );
+
   const enableHostCamera = useCallback(
     async (enabled: boolean) => {
+      const micWasOn = localParticipant.isMicrophoneEnabled;
       if (enabled) {
         await localParticipant.setCameraEnabled(
           true,
@@ -259,33 +274,38 @@ export function useLiveKitStage({
           ),
           hostLivestreamCameraPublish,
         );
-        return;
+      } else {
+        await localParticipant.setCameraEnabled(false);
       }
-      await localParticipant.setCameraEnabled(false);
+      await restoreMicrophoneIfNeeded(micWasOn);
     },
-    [localParticipant],
+    [localParticipant, restoreMicrophoneIfNeeded],
   );
 
   const enableMemberCamera = useCallback(
     async (enabled: boolean) => {
+      const micWasOn = localParticipant.isMicrophoneEnabled;
       if (enabled) {
-        const { capture, publish } = getMemberCameraPublishOptions(isRemoteScreenSharing);
+        const { capture, publish } = getMemberCameraPublishOptions(
+          isRemoteScreenSharingRef.current,
+        );
         await localParticipant.setCameraEnabled(
           true,
           withExactDeviceId(capture, preferredVideoDeviceIdRef.current),
           publish,
         );
-        return;
-      }
-      await localParticipant.setCameraEnabled(false);
-      if (isMobileLiveKitClient()) {
-        const publication = localParticipant.getTrackPublication(Track.Source.Camera);
-        if (publication?.track) {
-          publication.track.stop();
+      } else {
+        await localParticipant.setCameraEnabled(false);
+        if (isMobileLiveKitClient()) {
+          const publication = localParticipant.getTrackPublication(Track.Source.Camera);
+          if (publication?.track) {
+            publication.track.stop();
+          }
         }
       }
+      await restoreMicrophoneIfNeeded(micWasOn);
     },
-    [isRemoteScreenSharing, localParticipant],
+    [localParticipant, restoreMicrophoneIfNeeded],
   );
 
   const enableMicrophone = useCallback(
@@ -302,6 +322,8 @@ export function useLiveKitStage({
     },
     [localParticipant],
   );
+
+  const appliedJoinMediaRef = useRef(false);
 
   useEffect(() => {
     cameraOffByUserRef.current = cameraOffByUser;
@@ -324,7 +346,13 @@ export function useLiveKitStage({
   }, [enableMemberCamera, isHost, memberVideoEnabled, mode]);
 
   useEffect(() => {
+    if (connectionState === ConnectionState.Disconnected) {
+      appliedJoinMediaRef.current = false;
+      return;
+    }
     if (connectionState !== ConnectionState.Connected) return;
+    if (appliedJoinMediaRef.current) return;
+    appliedJoinMediaRef.current = true;
 
     void (async () => {
       try {
@@ -379,7 +407,9 @@ export function useLiveKitStage({
   useEffect(() => {
     if (isHost || mode !== "livestream" || connectionState !== ConnectionState.Connected) return;
     if (!memberVideoEnabled || cameraOffByUserRef.current) {
-      void enableMemberCamera(false);
+      if (isCameraEnabled || localCameraPublication?.track) {
+        void enableMemberCamera(false);
+      }
       return;
     }
     if (!isCameraEnabled && !localCameraPublication?.track) return;
@@ -560,6 +590,7 @@ export function useLiveKitStage({
     if (cameraOffByUser) return;
 
     void (async () => {
+      const micWasOn = localParticipant.isMicrophoneEnabled;
       try {
         if (isScreenSharing) {
           await localParticipant.setCameraEnabled(
@@ -570,9 +601,10 @@ export function useLiveKitStage({
             ),
             hostPresentingCameraPublish,
           );
-          return;
+        } else {
+          await enableHostCamera(true);
         }
-        await enableHostCamera(true);
+        await restoreMicrophoneIfNeeded(micWasOn);
       } catch {
         /* surfaced via lastCameraError */
       }
@@ -585,6 +617,7 @@ export function useLiveKitStage({
     isScreenSharing,
     localParticipant,
     mode,
+    restoreMicrophoneIfNeeded,
   ]);
 
   useEffect(() => {
@@ -633,11 +666,13 @@ export function useLiveKitStage({
 
   const toggleScreenShare = useCallback(async () => {
     if (!isHost) return;
+    const micWasOn = localParticipant.isMicrophoneEnabled;
     if (isScreenShareEnabled) {
       await localParticipant.setScreenShareEnabled(false);
       if (!cameraOffByUser && mode === "livestream") {
         await enableHostCamera(true);
       }
+      await restoreMicrophoneIfNeeded(micWasOn);
       return;
     }
 
@@ -646,6 +681,7 @@ export function useLiveKitStage({
     for (const options of getScreenShareCaptureAttempts()) {
       try {
         await localParticipant.setScreenShareEnabled(true, options, publishOptions);
+        await restoreMicrophoneIfNeeded(micWasOn);
         return;
       } catch {
         /* try the next capture profile */
@@ -653,7 +689,16 @@ export function useLiveKitStage({
     }
 
     await localParticipant.setScreenShareEnabled(true, undefined, publishOptions);
-  }, [cameraOffByUser, enableHostCamera, isHost, isScreenShareEnabled, localParticipant, mode]);
+    await restoreMicrophoneIfNeeded(micWasOn);
+  }, [
+    cameraOffByUser,
+    enableHostCamera,
+    isHost,
+    isScreenShareEnabled,
+    localParticipant,
+    mode,
+    restoreMicrophoneIfNeeded,
+  ]);
 
   const switchVideoDevice = useCallback(
     async (deviceId: string) => {
