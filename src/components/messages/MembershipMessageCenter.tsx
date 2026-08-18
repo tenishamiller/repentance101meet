@@ -587,7 +587,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     ? "flex min-h-[min(70vh,720px)] flex-col"
     : inMobileShell
       ? "mx-auto flex min-h-0 flex-1 flex-col px-3 py-4 sm:px-4"
-      : "mx-auto flex h-mobile-app min-h-0 max-w-6xl flex-col px-3 py-4 sm:px-4 lg:h-[calc(100vh-80px)]";
+      : "mx-auto flex h-mobile-app min-h-0 max-w-[90rem] flex-col px-3 py-4 sm:px-4 lg:h-[calc(100vh-80px)]";
 
   const searchLower = memberSearch.trim().toLowerCase();
   const filteredMembers = allMembers.filter((member) => {

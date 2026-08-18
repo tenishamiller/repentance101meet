@@ -80,7 +80,7 @@ export function MembershipMessageBubble({
         avatarUrl={message.sender.avatarUrl}
         size="md"
       />
-      <div className={cn("max-w-[min(100%,36rem)]", isOwn && "items-end")}>
+      <div className={cn("max-w-[min(100%,56rem)]", isOwn && "items-end")}>
         <div
           className={cn(
             "rounded-2xl px-4 py-3",

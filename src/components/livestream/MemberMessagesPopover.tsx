@@ -136,7 +136,7 @@ export function MemberMessagesPopover({ userId, onUnreadChange }: Props) {
       className={
         isMobile
           ? "fixed inset-x-2 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] z-[100] flex max-h-[min(46dvh,15.5rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl"
-          : "absolute bottom-full right-0 z-50 mb-2 flex max-h-[min(52vh,17.5rem)] w-[min(calc(100vw-1rem),26rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl sm:w-[26rem]"
+          : "absolute bottom-full right-0 z-50 mb-2 flex max-h-[min(52vh,17.5rem)] w-[min(calc(100vw-1rem),36rem)] flex-col overflow-hidden rounded-2xl border border-gold/30 bg-cream shadow-2xl sm:w-[36rem]"
       }
     >
       <div className="flex shrink-0 items-center justify-between border-b border-gold/20 px-4 py-3">
