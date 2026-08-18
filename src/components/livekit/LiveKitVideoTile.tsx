@@ -92,8 +92,10 @@ export function LiveKitVideoTile({
 
     const bind = (video: HTMLVideoElement) => {
       video.controls = false;
+      video.removeAttribute("controls");
       video.playsInline = true;
       video.autoplay = true;
+      video.disablePictureInPicture = true;
       void video.play().catch(() => {
         /* autoplay can be blocked until a click; LiveKit retries on attach */
       });

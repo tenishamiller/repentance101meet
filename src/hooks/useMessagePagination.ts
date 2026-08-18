@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-export const MESSAGE_PAGE_SIZE = 25;
+export const MESSAGE_PAGE_SIZE = 80;
 
 export function useMessagePagination<T>(messages: T[], threadKey: string | null) {
   const total = messages.length;

@@ -30,9 +30,11 @@ export function MeetingChat({
     onUnreadChange,
   });
 
+  // Meeting Chat must show the full scrolling thread — never page it.
+  // Pagination left a 2-message last page and a black empty hole in the panel.
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden bg-burgundy-dark">
-      <div className="shrink-0 border-b border-gold/20 px-3 py-2">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-burgundy-dark">
+      <div className="shrink-0 border-b border-gold/20 bg-burgundy-dark px-3 py-2">
         <h3 className="font-serif text-sm font-semibold text-cream lg:text-base">
           Meeting Chat
         </h3>
@@ -41,7 +43,7 @@ export function MeetingChat({
       <div
         ref={chat.scrollRef}
         onScroll={chat.handleScroll}
-        className="livestream-panel-scroll chat-scroll chat-scroll-dark min-h-0 overflow-y-auto overscroll-y-contain p-3"
+        className="livestream-panel-scroll chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-y-auto overscroll-y-contain bg-burgundy-dark p-3"
       >
         {chat.messages.length === 0 && (
           <p className="text-center text-sm text-gold-light/60">

@@ -113,7 +113,7 @@ export function LivestreamHostStage({
   const videoStage = (
     <div
       className={cn(
-        "relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black",
+        "livestream-stage-clip relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black",
         showCameraOff && "bg-burgundy-deep",
         mobilePresenting && "flex flex-col items-stretch justify-start",
       )}

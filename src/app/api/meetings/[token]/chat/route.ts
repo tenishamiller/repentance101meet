@@ -46,7 +46,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   const sinceDate = sinceParam ? new Date(sinceParam) : null;
   const sinceValid = sinceDate && !Number.isNaN(sinceDate.getTime());
 
-  const messages = await prisma.meetingMessage.findMany({
+  const rows = await prisma.meetingMessage.findMany({
     where: {
       meetingId: meeting.id,
       ...(canModerate ? {} : { deletedAt: null }),
@@ -61,9 +61,10 @@ export async function GET(request: Request, { params }: RouteParams) {
         : {}),
     },
     include: messageInclude,
-    orderBy: { createdAt: "asc" },
-    take: sinceValid ? 100 : 200,
+    orderBy: { createdAt: sinceValid ? "asc" : "desc" },
+    take: sinceValid ? 100 : 500,
   });
+  const messages = sinceValid ? rows : [...rows].reverse();
 
   return Response.json({ messages, canModerate });
 }

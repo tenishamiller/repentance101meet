@@ -356,7 +356,7 @@ function PrivateMinistryRoomContent({
         </div>
 
         <div
-          className={`flex min-h-0 w-full flex-col overflow-hidden border-t border-gold/20 lg:h-auto lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0 xl:w-96 ${
+          className={`relative z-30 isolate flex min-h-0 w-full flex-col overflow-hidden border-t border-gold/20 bg-burgundy-dark lg:h-auto lg:w-80 lg:shrink-0 lg:border-l lg:border-t-0 xl:w-96 ${
             isMobile
               ? mobileTab === "video"
                 ? "hidden lg:flex"

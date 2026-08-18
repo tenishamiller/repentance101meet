@@ -60,6 +60,8 @@ export function useMeetingChat({
   const lastMessageIdRef = useRef<string | null>(null);
   const lastMessageAtRef = useRef<string | null>(null);
   const lastViewedMessageIdRef = useRef<string | null>(null);
+  const initialLoadedRef = useRef(false);
+  const pollCountRef = useRef(0);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const canSend = content.trim().length > 0 || pendingFiles.length > 0;
@@ -78,7 +80,9 @@ export function useMeetingChat({
   }
 
   const fetchMessages = useCallback(async () => {
-    const since = lastMessageAtRef.current;
+    pollCountRef.current += 1;
+    const reconcile = !initialLoadedRef.current || pollCountRef.current % 24 === 0;
+    const since = reconcile ? null : lastMessageAtRef.current;
     const url = since
       ? `/api/meetings/${meetingToken}/chat?since=${encodeURIComponent(since)}`
       : `/api/meetings/${meetingToken}/chat`;
@@ -86,22 +90,38 @@ export function useMeetingChat({
     if (!res.ok) return;
 
     const data = await res.json();
-    const incoming = data.messages as MeetingChatMessage[];
-
-    if (since && incoming.length > 0) {
-      setMessages((prev) => mergeMessages(prev, incoming));
-    } else if (!since) {
-      setMessages(incoming);
-    }
-
-    const latest = incoming.at(-1);
-    if (latest) {
-      lastMessageAtRef.current = latest.createdAt;
-    }
+    const incoming = Array.isArray(data.messages)
+      ? (data.messages as MeetingChatMessage[])
+      : [];
 
     if (typeof data.canModerate === "boolean") {
       setCanModerate(data.canModerate);
     }
+
+    if (since && incoming.length === 0) return;
+
+    setMessages((prev) => {
+      let next: MeetingChatMessage[];
+      if (since) {
+        next = mergeMessages(prev, incoming);
+      } else if (prev.length === 0) {
+        next = incoming;
+      } else {
+        const snapshotNewest = incoming.at(-1)?.createdAt;
+        const extras = snapshotNewest
+          ? prev.filter(
+              (message) =>
+                new Date(message.createdAt).getTime() >
+                new Date(snapshotNewest).getTime(),
+            )
+          : [];
+        next = extras.length ? mergeMessages(incoming, extras) : incoming;
+      }
+      const latest = next.at(-1);
+      if (latest) lastMessageAtRef.current = latest.createdAt;
+      return next;
+    });
+    initialLoadedRef.current = true;
   }, [meetingToken]);
 
   useVisibilityPolling(
@@ -228,7 +248,9 @@ export function useMeetingChat({
       const data = (await res.json()) as { message?: MeetingChatMessage };
       if (!data.message) return;
       setMessages((prev) => mergeMessages(prev, [data.message!]));
-      lastMessageAtRef.current = data.message.createdAt;
+      if (initialLoadedRef.current) {
+        lastMessageAtRef.current = data.message.createdAt;
+      }
     });
 
     setContent("");

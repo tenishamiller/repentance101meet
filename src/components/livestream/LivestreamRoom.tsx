@@ -621,7 +621,7 @@ function LivestreamRoomContent({
 
       {/* Mobile sidebar */}
       <aside
-        className={`lg:hidden min-h-0 overflow-hidden border-t border-gold/20 bg-burgundy-dark ${
+        className={`relative z-30 isolate lg:hidden min-h-0 overflow-hidden border-t border-gold/20 bg-burgundy-dark ${
           mobileTab === "video"
             ? "hidden"
             : "flex min-h-0 flex-1 basis-0 flex-col w-full border-t-0"
@@ -771,8 +771,8 @@ function LivestreamRoomContent({
         )}
       </aside>
 
-      {/* Desktop sidebar — same height trick as private ministry chat (h-0 flex-1) */}
-      <aside className="hidden min-h-0 w-80 shrink-0 flex-col overflow-hidden border-l border-gold/20 bg-burgundy-dark lg:flex xl:w-96">
+      {/* Desktop sidebar — isolate so stage video cannot paint over chat */}
+      <aside className="relative z-30 isolate hidden min-h-0 w-80 shrink-0 flex-col overflow-hidden border-l border-gold/20 bg-burgundy-dark lg:flex xl:w-96">
         {isHost && (
           <>
             <LivestreamViewersPanel

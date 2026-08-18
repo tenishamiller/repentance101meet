@@ -25,7 +25,15 @@ export function MessageAttachments({ attachments }: { attachments: Attachment[] 
             </>
           ) : att.type === "video" ? (
             <>
-              <video src={att.url} controls playsInline className="max-h-40 rounded-lg" />
+              <video
+                src={att.url}
+                controls
+                playsInline
+                preload="metadata"
+                controlsList="nofullscreen nodownload noremoteplayback"
+                disablePictureInPicture
+                className="mt-1 max-h-40 w-full max-w-full rounded-lg bg-burgundy-deep object-contain"
+              />
               <AttachmentCopyButton
                 label="Copy video link"
                 onCopy={() => copyTextToClipboard(att.url)}

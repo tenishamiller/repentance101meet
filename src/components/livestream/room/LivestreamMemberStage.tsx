@@ -164,7 +164,7 @@ export function LivestreamMemberStage({
   const hostMainVideo = (
     <div
       className={cn(
-        "relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black",
+        "livestream-stage-clip relative min-h-0 min-w-0 flex-1 overflow-hidden bg-black",
         mobilePresentShare && "mobile-livestream-screen-share mx-auto w-full shrink-0",
       )}
     >
