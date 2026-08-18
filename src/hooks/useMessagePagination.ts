@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export const MESSAGE_PAGE_SIZE = 25;
 
@@ -8,15 +8,28 @@ export function useMessagePagination<T>(messages: T[], threadKey: string | null)
   const total = messages.length;
   const totalPages = Math.max(1, Math.ceil(total / MESSAGE_PAGE_SIZE));
 
-  const [page, setPage] = useState(1);
+  const [page, setPageState] = useState(totalPages);
+  const followLatestRef = useRef(true);
+  const threadKeyRef = useRef(threadKey);
+
+  if (threadKey !== threadKeyRef.current) {
+    threadKeyRef.current = threadKey;
+    followLatestRef.current = true;
+  }
 
   useEffect(() => {
-    setPage(totalPages);
-  }, [threadKey, totalPages]);
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
+    if (followLatestRef.current) {
+      setPageState(totalPages);
+      return;
+    }
+    if (page > totalPages) setPageState(totalPages);
   }, [page, totalPages]);
+
+  function setPage(next: number) {
+    const clamped = Math.min(totalPages, Math.max(1, next));
+    followLatestRef.current = clamped >= totalPages;
+    setPageState(clamped);
+  }
 
   const paginatedMessages = useMemo(() => {
     const start = (page - 1) * MESSAGE_PAGE_SIZE;
