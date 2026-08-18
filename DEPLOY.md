@@ -1,7 +1,7 @@
-# Supabase + GitHub Setup (legacy Vercel notes included)
+# Setup notes (legacy)
 
-> **Preferred production host is the DreamHost VPS (Postgres + MinIO in Docker) — see [DEPLOY-VPS.md](./DEPLOY-VPS.md).**  
-> This file still documents the old Supabase + Vercel path.
+> **Production is the DreamHost VPS only. Do not deploy to Vercel.**  
+> See [DEPLOY-VPS.md](./DEPLOY-VPS.md) for the deploy command.
 
 > **Important:** This ministry site is **100% separate from BraidAppt**. See [ISOLATION.md](./ISOLATION.md).
 
@@ -79,48 +79,17 @@ npm run db:seed
 
 ---
 
-## 3. Vercel (separate project — NOT braid-appt team)
+## 3. Vercel — retired
 
-### Option A: CLI (personal account)
+Do **not** deploy here. Production is the DreamHost VPS.
 
 ```bash
-npx vercel login
-npm run deploy
+cd ~/repentance101meet
+git pull origin master
+docker compose up -d --build
 ```
 
-This creates/links project **repentance101meet** under your **personal** Vercel account.
-
-### Option B: Dashboard
-
-1. [vercel.com/new](https://vercel.com/new) → Import **repentance101meet** from GitHub
-2. Do **not** import into the BraidAppt project or braid-appt team
-3. Framework: **Next.js** (auto-detected)
-
-### Environment variables (Vercel → Settings → Environment Variables)
-
-Add all of these for **Production**, **Preview**, and **Development**:
-
-```
-DATABASE_URL          = (Supabase transaction pooler URL)
-DIRECT_URL            = (Supabase direct URL)
-NEXT_PUBLIC_SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY
-AUTH_SECRET           = (run: openssl rand -base64 32)
-NEXTAUTH_URL          = https://repentance101ministry.com
-NEXT_PUBLIC_APP_URL   = https://repentance101ministry.com
-ADMIN_EMAIL           = norman@repentance101ministry.com
-ADMIN_PASSWORD        = (strong password for the host)
-ADMIN_NAME            = Ministry Admin
-NEXT_PUBLIC_APP_NAME  = Repentance 101
-```
-
-Click **Deploy**. Vercel runs `prisma migrate deploy` during build.
-
-### Custom domain (repentance101ministry.com)
-Vercel → Project → **Domains** → add `repentance101ministry.com` and `www.repentance101ministry.com`  
-At your registrar, add DNS record: **A** `@` → `76.76.21.21` (or point nameservers to Vercel).  
-For **www**: **CNAME** `www` → `cname.vercel-dns.com`  
-Then set `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to `https://repentance101ministry.com`.
+See [DEPLOY-VPS.md](./DEPLOY-VPS.md). After DNS points at DreamHost, disconnect Git auto-deploys in the Vercel dashboard so `master` pushes do not keep shipping to Vercel.
 
 ---
 
@@ -146,9 +115,8 @@ Open [http://localhost:3000](http://localhost:3000)
 
 | Service | Role |
 |---------|------|
-| **GitHub** | Source code + deploy trigger |
-| **Supabase** | PostgreSQL database + file storage |
-| **Vercel** | Next.js hosting |
-| **WebRTC (built-in)** | Host broadcasts live; members join in-browser — $0/month |
+| **GitHub** | Source code |
+| **DreamHost VPS** | Next.js + Postgres + MinIO (see DEPLOY-VPS.md) |
+| **LiveKit Cloud** | Livestream SFU |
 
-No Docker required for production.
+Do not deploy to Vercel.

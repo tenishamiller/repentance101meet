@@ -1,5 +1,17 @@
 # Deploy on a DreamHost VPS (no Vercel, no extra Postgres/MinIO bill)
 
+**Do not deploy to Vercel.** Production is this VPS only.
+
+Everyday update (SSH into DreamHost, then):
+
+```bash
+cd ~/repentance101meet
+git pull origin master
+docker compose up -d --build
+```
+
+Same thing as `npm run deploy` on the VPS.
+
 This app is a long-running Next.js Node process. Vercel’s serverless limits (≈4.5 MB request body, short function timeouts, cold starts) do **not** apply when you run it on the VPS with Docker + Caddy.
 
 **Backup choice:** daily `pg_dump` kept **7 days on the VPS**, plus encrypted **restic** snapshots of those dumps and MinIO files to **Cloudflare R2** (free ~10 GB, then cheap). Same-disk copies alone are not a backup — recordings live on this box and will eat disk.
