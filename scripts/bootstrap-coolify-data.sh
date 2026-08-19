@@ -38,7 +38,25 @@ set +a
 : "${MINIO_ROOT_USER:=repentance101}"
 
 "${COMPOSE[@]}" up -d postgres minio
-"${COMPOSE[@]}" run --rm minio-init
+# Avoid `compose run` here: MinIO's init script can dump env on POSIX `set`.
+"${COMPOSE[@]}" up --no-deps --wait-timeout 60 minio-init || true
+# minio-init has restart: "no"; run the same commands if the one-shot already exited.
+docker run --rm --network repentance101meet_default \
+  -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
+  -v "$ROOT/docker/minio-cors.json:/cors.json:ro" \
+  minio/mc:latest /bin/sh -c '
+    set -e
+    i=0
+    until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do
+      i=$((i+1))
+      [ $i -gt 30 ] && exit 1
+      sleep 2
+    done
+    mc mb -p local/media || true
+    mc anonymous set download local/media
+    mc cors set local/media /cors.json || true
+    echo minio bucket media ready
+  '
 "${COMPOSE[@]}" up -d --build backup
 
 echo "waiting for postgres..."
@@ -51,9 +69,10 @@ done
 docker exec r101-postgres pg_isready -U repentance -d repentance101
 
 DUMP="/home/ubuntu/repentance101-supabase.sql.gz"
+DUMP_ENV="/home/ubuntu/repentance101meet/.dump.env"
 if [[ ! -f "$DUMP" ]]; then
   echo "dumping current database (Supabase)..."
-  sudo python3 - <<'PY'
+  sudo python3 - <<PY
 from pathlib import Path
 env = {}
 for line in Path("/data/coolify/applications/9sudnrqdhwlvoojg8frgzn0a/.env").read_text().splitlines():
@@ -65,13 +84,15 @@ for line in Path("/data/coolify/applications/9sudnrqdhwlvoojg8frgzn0a/.env").rea
 url = env.get("DIRECT_URL") or env.get("DATABASE_URL")
 if not url:
     raise SystemExit("no DIRECT_URL/DATABASE_URL on Coolify app")
-Path("/tmp/r101-dump.env").write_text(f"DUMP_URL={url}\n")
-Path("/tmp/r101-dump.env").chmod(0o600)
+path = Path("$DUMP_ENV")
+path.write_text("DUMP_URL=" + url + "\n")
+path.chmod(0o600)
 print("dump env ready")
 PY
-  docker run --rm --env-file /tmp/r101-dump.env postgres:16-alpine \
+  sudo chown ubuntu:ubuntu "$DUMP_ENV"
+  docker run --rm --env-file "$DUMP_ENV" postgres:16-alpine \
     sh -c 'pg_dump --no-owner --no-acl "$DUMP_URL" | gzip -9' > "$DUMP"
-  sudo rm -f /tmp/r101-dump.env
+  rm -f "$DUMP_ENV"
   echo "dump saved"
 fi
 
