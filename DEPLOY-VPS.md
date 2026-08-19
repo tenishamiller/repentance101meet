@@ -18,7 +18,7 @@ This app is a long-running Next.js Node process. Vercel’s serverless limits (�
 | Piece | Where | Cost |
 |-------|--------|------|
 | Next.js ministry app | **DreamHost VPS** (Docker) | included in the VPS |
-| Postgres 16 | **same VPS** (Docker) | $0 extra |
+| Postgres 17 | **same VPS** (Docker) | $0 extra |
 | File storage (avatars, chat, recordings) | **MinIO** on the same VPS | $0 extra |
 | TLS / reverse proxy | **Caddy** on the VPS | $0 extra |
 | Off-site backups | **restic → Cloudflare R2** | free until ~10 GB |

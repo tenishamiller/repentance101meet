@@ -90,7 +90,7 @@ print("dump env ready")
 PY
   sudo chown ubuntu:ubuntu "$DUMP_ENV"
   docker run --rm --env-file "$DUMP_ENV" postgres:17-alpine \
-    sh -c 'pg_dump --no-owner --no-acl "$DUMP_URL" | gzip -9' > "$DUMP"
+    sh -c 'pg_dump --no-owner --no-acl --schema=public "$DUMP_URL" | gzip -9' > "$DUMP"
   rm -f "$DUMP_ENV"
   echo "dump saved"
 fi
