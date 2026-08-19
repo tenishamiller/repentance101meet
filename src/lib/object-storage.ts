@@ -1,5 +1,13 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
+/** UUID object keys are immutable; browsers can keep avatars/media for a long time. */
+export const PUBLIC_OBJECT_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
 const BUCKET = process.env.S3_BUCKET?.trim() || "media";
 
@@ -98,9 +106,35 @@ export async function uploadObjectBuffer(options: {
       Key: storagePath,
       Body: buffer,
       ContentType: contentType,
+      CacheControl: PUBLIC_OBJECT_CACHE_CONTROL,
     }),
   );
   return { publicUrl: getPublicObjectUrl(storagePath) };
+}
+
+export async function getObjectBuffer(storagePath: string): Promise<{
+  buffer: Buffer;
+  contentType: string;
+} | null> {
+  if (!isS3Configured()) return null;
+
+  const client = createS3Client(s3InternalEndpoint());
+  try {
+    const res = await client.send(
+      new GetObjectCommand({
+        Bucket: BUCKET,
+        Key: storagePath,
+      }),
+    );
+    const bytes = await res.Body?.transformToByteArray();
+    if (!bytes) return null;
+    return {
+      buffer: Buffer.from(bytes),
+      contentType: res.ContentType || "application/octet-stream",
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function storagePathFromPublicUrl(url: string | null | undefined): string | null {
