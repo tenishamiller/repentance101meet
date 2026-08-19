@@ -3,6 +3,7 @@
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
+import { useAppPath } from "@/hooks/useAppBase";
 import {
   GIVING_PAYPAL_EMAIL,
   formatGivingAmount,
@@ -40,6 +41,7 @@ type Props = {
 
 export function PayPalDonateButton({ dollars, disabled = false }: Props) {
   const router = useRouter();
+  const thankYouPath = useAppPath("/giving/thank-you");
   const reactId = useId();
   const containerId = `paypal-donate-${reactId.replace(/:/g, "")}`;
   const renderedRef = useRef<string>("");
@@ -71,10 +73,10 @@ export function PayPalDonateButton({ dollars, disabled = false }: Props) {
         alt: "Donate with PayPal",
       },
       onComplete: () => {
-        router.push("/giving/thank-you?provider=paypal");
+        router.push(`${thankYouPath}?provider=paypal`);
       },
     }).render(`#${mountId}`);
-  }, [amountKey, containerId, disabled, router, sdkReady, valid]);
+  }, [amountKey, containerId, disabled, router, sdkReady, thankYouPath, valid]);
 
   useEffect(() => {
     renderedRef.current = "";

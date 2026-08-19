@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AppPathLink } from "@/components/AppPathLink";
 import { formatMemberSince } from "@/lib/utils";
 
 type Props = {
@@ -45,9 +45,9 @@ export default async function ProfilePage({ params }: Props) {
         Member since {formatMemberSince(user.createdAt)}
       </p>
       {isOwnProfile && (
-        <Link href="/settings" className="btn-outline-gold mt-8 inline-block">
+        <AppPathLink href="/settings" className="btn-outline-gold mt-8 inline-block">
           Account settings
-        </Link>
+        </AppPathLink>
       )}
     </div>
   );

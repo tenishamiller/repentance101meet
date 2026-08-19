@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AvatarImage } from "@/components/AvatarImage";
+import { AppPathLink } from "@/components/AppPathLink";
 import { MINISTRY_NAME } from "@/lib/brand";
 import { resolveAvatarUrl } from "@/lib/avatar-url";
 import { cn, formatMemberSince, getInitials } from "@/lib/utils";
@@ -194,13 +194,13 @@ export function UserAvatar({
                 Member since {formatMemberSince(profile.createdAt)}
               </p>
             ) : null}
-            <Link
+            <AppPathLink
               href={`/profile/${userId}`}
               className="mt-3 block text-center text-sm text-gold-muted hover:underline"
               onClick={() => setShowPopover(false)}
             >
               View Profile
-            </Link>
+            </AppPathLink>
           </div>
         </>
       )}

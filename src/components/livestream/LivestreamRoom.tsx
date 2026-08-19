@@ -78,8 +78,8 @@ function LivestreamRoomContent({
   avatarUrl,
   isHost,
   hostId,
-  joinCameraOn = false,
-  joinMicOn = false,
+  joinCameraOn = true,
+  joinMicOn = true,
 }: Props) {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -302,13 +302,17 @@ function LivestreamRoomContent({
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden overscroll-none bg-burgundy-deep lg:min-h-0 lg:flex-row">
       <div
-        className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
-          isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
+        className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${
+          isMobile && mobileTab !== "video" ? "shrink-0 lg:min-h-0 lg:flex-1" : "flex-1"
         }`}
       >
         {isHost ? (
           <>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div
+              className={`min-h-0 flex-1 flex-col overflow-hidden ${
+                isMobile && mobileTab !== "video" ? "hidden lg:flex" : "flex"
+              }`}
+            >
               <LivestreamHostStage
               meetingTitle={meetingTitle}
               viewerCount={viewerCount}
@@ -488,7 +492,11 @@ function LivestreamRoomContent({
           </>
         ) : (
           <>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div
+              className={`min-h-0 flex-1 flex-col overflow-hidden ${
+                isMobile && mobileTab !== "video" ? "hidden lg:flex" : "flex"
+              }`}
+            >
               <LivestreamMemberStage
                 meetingTitle={meetingTitle}
                 isLive={isLive}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { AppPathLink } from "@/components/AppPathLink";
 import { LivestreamRoom } from "@/components/livestream/LivestreamRoom";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
 import {
@@ -71,9 +71,9 @@ export function MeetingPageClient({ token }: Props) {
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
         <h1 className="font-serif text-2xl font-bold text-burgundy">Cannot Join Meeting</h1>
         <p className="mt-2 text-burgundy/70">{error}</p>
-        <Link href="/livestream" className="btn-primary mt-6">
+        <AppPathLink href="/livestream" className="btn-primary mt-6">
           Back to Livestream
-        </Link>
+        </AppPathLink>
       </div>
     );
   }
