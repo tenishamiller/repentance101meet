@@ -48,18 +48,19 @@ services:
     volumes:
       - ./docker/minio-cors.json:/cors.json:ro
     entrypoint: ["/bin/sh", "-c"]
-    command: |
-      set -e
-      i=0
-      until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
-        i=$$((i+1))
-        [ $$i -gt 30 ] && exit 1
-        sleep 2
-      done
-      mc mb -p local/media || true
-      mc anonymous set download local/media
-      mc cors set local/media /cors.json || true
-      echo "minio bucket media ready"
+    command:
+      - |
+        set -eu
+        i=0
+        until mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"; do
+          i=$$((i+1))
+          [ $$i -gt 30 ] && exit 1
+          sleep 2
+        done
+        mc mb -p local/media || true
+        mc anonymous set download local/media
+        mc cors set local/media /cors.json || true
+        echo "minio bucket media ready"
 
   app:
     build:

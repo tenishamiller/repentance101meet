@@ -38,13 +38,12 @@ set +a
 : "${MINIO_ROOT_USER:=repentance101}"
 
 "${COMPOSE[@]}" up -d postgres minio
-# Avoid `compose run` here: MinIO's init script can dump env on POSIX `set`.
-"${COMPOSE[@]}" up --no-deps --wait-timeout 60 minio-init || true
-# minio-init has restart: "no"; run the same commands if the one-shot already exited.
+# minio/mc entrypoint is `mc`; override it. Skip compose minio-init (POSIX `set` dumps env).
 docker run --rm --network repentance101meet_default \
+  --entrypoint /bin/sh \
   -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
   -v "$ROOT/docker/minio-cors.json:/cors.json:ro" \
-  minio/mc:latest /bin/sh -c '
+  minio/mc:latest -c '
     set -e
     i=0
     until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"; do
