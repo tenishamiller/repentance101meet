@@ -6,7 +6,7 @@
  *
  * Prerequisites:
  *   npx vercel login
- *   npm run setup:supabase   (creates .env)
+ *   Copy .env.example to .env and fill in Postgres + MinIO values.
  *
  * Usage: npm run deploy
  */
@@ -67,7 +67,7 @@ const env = loadEnv();
 Object.assign(process.env, env);
 
 if (!env.DATABASE_URL) {
-  console.error("Missing .env — run: npm run setup:supabase");
+  console.error("Missing .env — copy .env.example to .env first");
   process.exit(1);
 }
 
@@ -81,9 +81,6 @@ run("npx", vercelArgs(["vercel", "link", "--yes", "--project", VERCEL_PROJECT]))
 const keys = [
   "DATABASE_URL",
   "DIRECT_URL",
-  "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-  "SUPABASE_SERVICE_ROLE_KEY",
   "AUTH_SECRET",
   "NEXTAUTH_URL",
   "NEXT_PUBLIC_APP_URL",

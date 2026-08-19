@@ -49,27 +49,5 @@ export async function uploadMeetingChatFile(
     }
   }
 
-  if (signData.path && signData.token) {
-    const { createSupabaseBrowser, isSupabaseBrowserConfigured } = await import(
-      "@/lib/supabase-browser"
-    );
-    if (!isSupabaseBrowserConfigured()) {
-      return { error: "File storage is not configured" };
-    }
-    const supabase = createSupabaseBrowser()!;
-    const { error } = await supabase.storage
-      .from("uploads")
-      .uploadToSignedUrl(signData.path, signData.token, file, {
-        contentType,
-        upsert: false,
-      });
-    if (error) {
-      return { error: error.message || "Upload failed" };
-    }
-    if (typeof signData.publicUrl === "string") {
-      return { url: signData.publicUrl };
-    }
-  }
-
   return { error: "Upload failed" };
 }

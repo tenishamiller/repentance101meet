@@ -14,8 +14,6 @@
     "db:setup": "prisma db push && tsx prisma/seed.ts",
     "db:deploy": "prisma migrate deploy",
     "generate:favicons": "node scripts/generate-favicons.mjs",
-    "setup:supabase": "node scripts/setup-supabase.mjs",
-    "storage:setup": "node scripts/ensure-storage-bucket.mjs",
     "deploy": "node scripts/deploy-vercel.mjs",
     "deploy:vps": "docker compose up -d --build",
     "postinstall": "prisma generate"
@@ -30,7 +28,6 @@
     "@livekit/components-styles": "^1.2.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
-    "@supabase/supabase-js": "^2.112.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",

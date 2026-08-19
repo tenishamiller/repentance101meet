@@ -1,154 +1,30 @@
-# Supabase + GitHub Setup (legacy Vercel notes included)
+# Deploy Repentance 101
 
-> **Preferred production host is the DreamHost VPS (Postgres + MinIO in Docker) — see [DEPLOY-VPS.md](./DEPLOY-VPS.md).**  
-> This file still documents the old Supabase + Vercel path.
+Production is the **DreamHost VPS** (Coolify + Postgres + MinIO). Do not deploy this app to Vercel.
 
-> **Important:** This ministry site is **100% separate from BraidAppt**. See [ISOLATION.md](./ISOLATION.md).
+See **[DEPLOY-VPS.md](./DEPLOY-VPS.md)** for the live stack.
 
-Follow these steps to get Repentance 101 live.
+This ministry site is **100% separate from BraidAppt**. See [ISOLATION.md](./ISOLATION.md).
 
----
-
-## 1. GitHub (code — separate repo)
+## GitHub
 
 Repo: **https://github.com/tenishamiller/repentance101meet**
 
-This is NOT the BraidAppt repo. Connect only this repo to the Repentance 101 Vercel project.
-
----
-
-## 2. Supabase (dedicated database + storage)
-
-### Automated setup (recommended)
+## Local preview
 
 ```bash
-# Create token at https://supabase.com/dashboard/account/tokens
-# Add to repentance101meet/.env.local only:
-#   SUPABASE_ACCESS_TOKEN=sbp_...
-
-npm run setup:supabase
-npm run db:push
-npm run db:seed
-```
-
-This creates a **new** Supabase project named `repentance101meet` — not shared with BraidAppt.
-
-### Manual setup (alternative)
-1. Go to [supabase.com/dashboard](https://supabase.com/dashboard) → **New project**
-2. Name it `repentance101meet`, pick a region, set a database password (save it)
-
-### Get connection strings
-In **Project Settings → Database**:
-
-| Variable | Which connection |
-|----------|------------------|
-| `DATABASE_URL` | **Transaction pooler** (port 6543) — for Vercel/runtime |
-| `DIRECT_URL` | **Direct connection** (port 5432) — for migrations |
-
-Example format:
-```
-DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.[ref]:[password]@aws-0-us-east-1.pooler.supabase.com:5432/postgres"
-```
-
-### Create storage bucket (avatars & chat attachments)
-1. **Storage → New bucket**
-2. Name: `uploads`
-3. **Public bucket**: ON
-4. Policies: allow authenticated uploads (or use service role from the app)
-
-### Get API keys
-**Project Settings → API**:
-- `NEXT_PUBLIC_SUPABASE_URL` = Project URL
-- `SUPABASE_SERVICE_ROLE_KEY` = service_role key (keep secret)
-
-### Run migrations & seed the host admin account
-
-On your machine, create `.env` from `.env.example`, fill in Supabase values, then:
-
-```bash
-npm run db:push
-npm run db:seed
-```
-
-Or with migrations:
-```bash
-npx prisma migrate dev --name init
-npm run db:seed
-```
-
----
-
-## 3. Vercel (separate project — NOT braid-appt team)
-
-### Option A: CLI (personal account)
-
-```bash
-npx vercel login
-npm run deploy
-```
-
-This creates/links project **repentance101meet** under your **personal** Vercel account.
-
-### Option B: Dashboard
-
-1. [vercel.com/new](https://vercel.com/new) → Import **repentance101meet** from GitHub
-2. Do **not** import into the BraidAppt project or braid-appt team
-3. Framework: **Next.js** (auto-detected)
-
-### Environment variables (Vercel → Settings → Environment Variables)
-
-Add all of these for **Production**, **Preview**, and **Development**:
-
-```
-DATABASE_URL          = (Supabase transaction pooler URL)
-DIRECT_URL            = (Supabase direct URL)
-NEXT_PUBLIC_SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY
-AUTH_SECRET           = (run: openssl rand -base64 32)
-NEXTAUTH_URL          = https://repentance101ministry.com
-NEXT_PUBLIC_APP_URL   = https://repentance101ministry.com
-ADMIN_EMAIL           = norman@repentance101ministry.com
-ADMIN_PASSWORD        = (strong password for the host)
-ADMIN_NAME            = Ministry Admin
-NEXT_PUBLIC_APP_NAME  = Repentance 101
-```
-
-Click **Deploy**. Vercel runs `prisma migrate deploy` during build.
-
-### Custom domain (repentance101ministry.com)
-Vercel → Project → **Domains** → add `repentance101ministry.com` and `www.repentance101ministry.com`  
-At your registrar, add DNS record: **A** `@` → `76.76.21.21` (or point nameservers to Vercel).  
-For **www**: **CNAME** `www` → `cname.vercel-dns.com`  
-Then set `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to `https://repentance101ministry.com`.
-
----
-
-## 4. Preview locally (optional)
-
-With Supabase `.env` filled in:
-
-```bash
+cp .env.example .env
+# set DATABASE_URL, AUTH_SECRET, ADMIN_* 
 npm install
+npm run db:push
+npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open http://localhost:3000
 
-**Host admin login** (after seed — private URL, not on public nav):
+## Host admin
 
-- **https://repentance101ministry.com/host** (or `http://localhost:3000/host` locally)
-- Use `ADMIN_EMAIL` and `ADMIN_PASSWORD` from your environment
+**https://repentance101ministry.com/host**
 
----
-
-## Stack summary
-
-| Service | Role |
-|---------|------|
-| **GitHub** | Source code + deploy trigger |
-| **Supabase** | PostgreSQL database + file storage |
-| **Vercel** | Next.js hosting |
-| **WebRTC (built-in)** | Host broadcasts live; members join in-browser — $0/month |
-
-No Docker required for production.
+Credentials come from `ADMIN_EMAIL` and `ADMIN_PASSWORD` in the server `.env`.

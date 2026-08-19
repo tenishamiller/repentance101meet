@@ -1,6 +1,5 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { createSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 
 const BUCKET = process.env.S3_BUCKET?.trim() || "media";
 
@@ -25,7 +24,7 @@ export function isS3Configured() {
 }
 
 export function isCloudStorageConfigured() {
-  return isS3Configured() || isSupabaseConfigured();
+  return isS3Configured();
 }
 
 function createS3Client(endpoint: string) {
@@ -49,11 +48,6 @@ export function getPublicObjectUrl(storagePath: string) {
     return `${base}/${BUCKET}/${storagePath.split("/").map(encodeURIComponent).join("/")}`;
   }
 
-  if (isSupabaseConfigured()) {
-    const supabase = createSupabaseAdmin()!;
-    return supabase.storage.from("uploads").getPublicUrl(storagePath).data.publicUrl;
-  }
-
   return `/uploads/${storagePath}`;
 }
 
@@ -62,43 +56,25 @@ export async function createSignedUpload(options: {
   contentType: string;
   upsert?: boolean;
 }): Promise<{ signedUrl: string; publicUrl: string; token?: string; path: string }> {
-  const { storagePath, contentType, upsert = false } = options;
+  const { storagePath, contentType } = options;
 
-  if (isS3Configured()) {
-    const client = createS3Client(s3PublicEndpoint() || s3InternalEndpoint());
-    const signedUrl = await getSignedUrl(
-      client,
-      new PutObjectCommand({
-        Bucket: BUCKET,
-        Key: storagePath,
-        ContentType: contentType,
-      }),
-      { expiresIn: 60 * 60 },
-    );
-    return {
-      signedUrl,
-      publicUrl: getPublicObjectUrl(storagePath),
-      path: storagePath,
-    };
-  }
-
-  if (!isSupabaseConfigured()) {
+  if (!isS3Configured()) {
     throw new Error("File storage is not configured");
   }
 
-  const supabase = createSupabaseAdmin()!;
-  const { data, error } = await supabase.storage
-    .from("uploads")
-    .createSignedUploadUrl(storagePath, { upsert });
-
-  if (error || !data) {
-    throw new Error(error?.message ?? "Upload sign failed");
-  }
-
+  const client = createS3Client(s3PublicEndpoint() || s3InternalEndpoint());
+  const signedUrl = await getSignedUrl(
+    client,
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: storagePath,
+      ContentType: contentType,
+    }),
+    { expiresIn: 60 * 60 },
+  );
   return {
-    signedUrl: data.signedUrl,
-    publicUrl: supabase.storage.from("uploads").getPublicUrl(storagePath).data.publicUrl,
-    token: data.token,
+    signedUrl,
+    publicUrl: getPublicObjectUrl(storagePath),
     path: storagePath,
   };
 }
@@ -111,31 +87,20 @@ export async function uploadObjectBuffer(options: {
 }): Promise<{ publicUrl: string }> {
   const { storagePath, buffer, contentType } = options;
 
-  if (isS3Configured()) {
-    const client = createS3Client(s3InternalEndpoint());
-    await client.send(
-      new PutObjectCommand({
-        Bucket: BUCKET,
-        Key: storagePath,
-        Body: buffer,
-        ContentType: contentType,
-      }),
-    );
-    return { publicUrl: getPublicObjectUrl(storagePath) };
+  if (!isS3Configured()) {
+    throw new Error("File storage is not configured");
   }
 
-  if (isSupabaseConfigured()) {
-    const supabase = createSupabaseAdmin()!;
-    const { error } = await supabase.storage
-      .from("uploads")
-      .upload(storagePath, buffer, { contentType, upsert: options.upsert ?? false });
-    if (error) {
-      throw new Error(error.message);
-    }
-    return { publicUrl: supabase.storage.from("uploads").getPublicUrl(storagePath).data.publicUrl };
-  }
-
-  throw new Error("File storage is not configured");
+  const client = createS3Client(s3InternalEndpoint());
+  await client.send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: storagePath,
+      Body: buffer,
+      ContentType: contentType,
+    }),
+  );
+  return { publicUrl: getPublicObjectUrl(storagePath) };
 }
 
 export function storagePathFromPublicUrl(url: string | null | undefined): string | null {
@@ -145,10 +110,10 @@ export function storagePathFromPublicUrl(url: string | null | undefined): string
     const parsed = new URL(url, "https://repentance101ministry.com");
     const pathname = parsed.pathname;
 
-    const supabaseMarker = "/storage/v1/object/public/uploads/";
-    const supabaseIdx = pathname.indexOf(supabaseMarker);
-    if (supabaseIdx >= 0) {
-      return decodeURIComponent(pathname.slice(supabaseIdx + supabaseMarker.length));
+    const legacyMarker = "/storage/v1/object/public/uploads/";
+    const legacyIdx = pathname.indexOf(legacyMarker);
+    if (legacyIdx >= 0) {
+      return decodeURIComponent(pathname.slice(legacyIdx + legacyMarker.length));
     }
 
     const mediaPrefix = `/${BUCKET}/`;
@@ -162,19 +127,13 @@ export function storagePathFromPublicUrl(url: string | null | undefined): string
 }
 
 export async function deleteStoredObject(storagePath: string) {
-  if (isS3Configured()) {
-    const client = createS3Client(s3InternalEndpoint());
-    await client.send(
-      new DeleteObjectCommand({
-        Bucket: BUCKET,
-        Key: storagePath,
-      }),
-    );
-    return;
-  }
+  if (!isS3Configured()) return;
 
-  if (isSupabaseConfigured()) {
-    const supabase = createSupabaseAdmin()!;
-    await supabase.storage.from("uploads").remove([storagePath]);
-  }
+  const client = createS3Client(s3InternalEndpoint());
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: BUCKET,
+      Key: storagePath,
+    }),
+  );
 }

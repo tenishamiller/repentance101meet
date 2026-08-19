@@ -61,7 +61,9 @@ Set at least:
 
 Leave `S3_*` and `DATABASE_URL` out of `.env` — Compose injects them to the local Postgres and MinIO.
 
-### Move data off Supabase (before or right after first boot)
+### One-time data move (already done)
+
+Ministry data now lives on this VPS. Do not point the app at hosted Supabase.
 
 On a machine that can reach Supabase (or the Supabase SQL dump UI):
 

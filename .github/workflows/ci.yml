@@ -26,5 +26,3 @@ jobs:
           AUTH_SECRET: ci-build-secret-at-least-32-characters
           NEXTAUTH_URL: http://localhost:3000
           NEXT_PUBLIC_APP_URL: http://localhost:3000
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key

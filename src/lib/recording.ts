@@ -33,7 +33,7 @@ export function buildRecordingFilename(title: string, _mimeType?: string) {
 export const RECORDING_CONTENT_TYPE = "video/webm";
 
 /**
- * Fallback when signed Supabase upload fails.
+ * Fallback when signed MinIO upload fails.
  * Sized for VPS hosting (no Vercel ~4.5 MB body cap). Signed upload is still preferred first.
  */
 const SERVER_UPLOAD_MAX_BYTES = 100 * 1024 * 1024;
@@ -58,8 +58,8 @@ async function uploadViaServer(
   return { downloadUrl: data.publicUrl, publicUrl: data.publicUrl };
 }
 
-/** Upload using a signed URL (raw PUT body — MinIO or Supabase). */
-async function uploadToSupabaseSignedUrl(signedUrl: string, blob: Blob): Promise<void> {
+/** Upload using a signed URL (raw PUT body — MinIO). */
+async function uploadToSignedUrl(signedUrl: string, blob: Blob): Promise<void> {
   const res = await fetch(signedUrl, {
     method: "PUT",
     body: blob,
@@ -73,25 +73,6 @@ async function uploadToSupabaseSignedUrl(signedUrl: string, blob: Blob): Promise
     const detail = await res.text().catch(() => "");
     throw new Error(detail || `Signed upload failed (${res.status})`);
   }
-}
-
-async function uploadViaSignedToken(
-  path: string,
-  token: string,
-  blob: Blob,
-): Promise<void> {
-  const { createSupabaseBrowser, isSupabaseBrowserConfigured } = await import(
-    "@/lib/supabase-browser"
-  );
-  if (!isSupabaseBrowserConfigured()) {
-    throw new Error("Supabase browser client is not configured");
-  }
-  const supabase = createSupabaseBrowser()!;
-  const { error } = await supabase.storage.from("uploads").uploadToSignedUrl(path, token, blob, {
-    contentType: RECORDING_CONTENT_TYPE,
-    upsert: true,
-  });
-  if (error) throw new Error(error.message);
 }
 
 async function uploadViaSignedUrl(
@@ -110,25 +91,16 @@ async function uploadViaSignedUrl(
     throw new Error(err.error ?? "Could not prepare recording upload");
   }
 
-  const { signedUrl, path, publicUrl, token } = await signRes.json();
+  const { signedUrl, publicUrl } = await signRes.json();
   if (!publicUrl) {
     throw new Error("Storage is not configured for cloud recordings");
   }
 
   const errors: string[] = [];
 
-  if (path && token) {
-    try {
-      await uploadViaSignedToken(path, token, blob);
-      return { downloadUrl: publicUrl, publicUrl };
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : "Token upload failed");
-    }
-  }
-
   if (signedUrl) {
     try {
-      await uploadToSupabaseSignedUrl(signedUrl, blob);
+      await uploadToSignedUrl(signedUrl, blob);
       return { downloadUrl: publicUrl, publicUrl };
     } catch (error) {
       errors.push(error instanceof Error ? error.message : "Signed URL upload failed");
