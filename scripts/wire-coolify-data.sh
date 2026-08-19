@@ -51,7 +51,10 @@ sudo /usr/bin/docker run --rm --network repentance101meet_default \
     mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD"
     for b in media braid glory review-images; do
       mc mb -p local/$b || true
-      mc anonymous set download local/$b || true
+      cat > /tmp/anon-$b.json <<EOF
+{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::$b/*"]}]}
+EOF
+      mc anonymous set-json /tmp/anon-$b.json local/$b || true
     done
     mc ls local
   '
