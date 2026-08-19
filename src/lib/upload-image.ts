@@ -30,7 +30,7 @@ export async function saveUserImage(
 
   if (folder === "avatars") {
     const optimized = await optimizeAvatarImage(buffer, file.type);
-    buffer = optimized.buffer;
+    buffer = Buffer.from(optimized.buffer);
     contentType = optimized.contentType;
     ext = optimized.ext;
   }
