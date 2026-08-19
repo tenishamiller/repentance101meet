@@ -204,8 +204,8 @@ Path("/tmp/r101-env.json").write_text(json.dumps({
 }))
 PY
 sudo chmod 600 /tmp/r101-env.json /tmp/r101-upsert-env.php
-docker cp /tmp/r101-upsert-env.php coolify:/tmp/r101-upsert-env.php
-docker cp /tmp/r101-env.json coolify:/tmp/r101-env.json
+sudo docker cp /tmp/r101-upsert-env.php coolify:/tmp/r101-upsert-env.php
+sudo docker cp /tmp/r101-env.json coolify:/tmp/r101-env.json
 docker exec coolify php /tmp/r101-upsert-env.php
 docker exec coolify rm -f /tmp/r101-upsert-env.php /tmp/r101-env.json
 sudo rm -f /tmp/r101-upsert-env.php /tmp/r101-env.json
