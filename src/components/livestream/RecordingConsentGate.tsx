@@ -69,11 +69,29 @@ function JoinMediaToggle({
   );
 }
 
-export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
-  const [cameraOn, setCameraOn] = useState(false);
-  const [micOn, setMicOn] = useState(false);
+async function primeJoinMedia(cameraOn: boolean, micOn: boolean) {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return;
+  if (!cameraOn && !micOn) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: micOn,
+      video: cameraOn,
+    });
+    for (const track of stream.getTracks()) track.stop();
+  } catch {
+    /* LiveKit will ask again after join if the browser blocked this tap. */
+  }
+}
 
-  function handleAccept() {
+export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
+  const [cameraOn, setCameraOn] = useState(true);
+  const [micOn, setMicOn] = useState(true);
+  const [joining, setJoining] = useState(false);
+
+  async function handleAccept() {
+    if (joining) return;
+    setJoining(true);
+    await primeJoinMedia(cameraOn, micOn);
     onAccept({ cameraOn, micOn });
   }
 
@@ -121,14 +139,19 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
             offIcon={MicOff}
           />
           <p className="text-xs text-burgundy/55">
-            Choose whether to join with your camera and microphone on. You can change these anytime
-            after you join.
+            Camera and microphone turn on when you join. Turn either off here first if you want to
+            enter quietly. You can change these anytime after you join.
           </p>
         </div>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <button type="button" onClick={handleAccept} className="btn-primary flex-1">
-            I understand — join livestream
+          <button
+            type="button"
+            onClick={() => void handleAccept()}
+            disabled={joining}
+            className="btn-primary flex-1"
+          >
+            {joining ? "Joining..." : "I understand — join livestream"}
           </button>
           <Link href="/livestream" className="btn-secondary flex-1 text-center">
             Leave
