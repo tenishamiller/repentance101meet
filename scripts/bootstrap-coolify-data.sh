@@ -89,7 +89,7 @@ path.chmod(0o600)
 print("dump env ready")
 PY
   sudo chown ubuntu:ubuntu "$DUMP_ENV"
-  docker run --rm --env-file "$DUMP_ENV" postgres:16-alpine \
+  docker run --rm --env-file "$DUMP_ENV" postgres:17-alpine \
     sh -c 'pg_dump --no-owner --no-acl "$DUMP_URL" | gzip -9' > "$DUMP"
   rm -f "$DUMP_ENV"
   echo "dump saved"
