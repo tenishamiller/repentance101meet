@@ -126,7 +126,7 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
             You join with camera and microphone <span className="font-semibold">off</span>. That is
             on purpose, on phone and computer. If you want to be seen or heard, turn the switches
             below on before you join. You can also turn them on after you are in the room with the
-            camera and mic buttons.
+            camera and mic buttons. Host screen share never turns your camera on.
           </p>
           <JoinMediaToggle
             active={cameraOn}

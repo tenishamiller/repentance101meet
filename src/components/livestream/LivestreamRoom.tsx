@@ -78,8 +78,8 @@ function LivestreamRoomContent({
   avatarUrl,
   isHost,
   hostId,
-  joinCameraOn = true,
-  joinMicOn = true,
+  joinCameraOn = false,
+  joinMicOn = false,
 }: Props) {
   const router = useRouter();
   const isMobile = useIsMobile();

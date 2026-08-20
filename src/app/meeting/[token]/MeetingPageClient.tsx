@@ -27,8 +27,8 @@ export function MeetingPageClient({ token }: Props) {
   const [error, setError] = useState("");
   const [consented, setConsented] = useState(false);
   const [joinMedia, setJoinMedia] = useState<MemberJoinMediaPrefs>({
-    cameraOn: true,
-    micOn: true,
+    cameraOn: false,
+    micOn: false,
   });
 
   useEffect(() => {
