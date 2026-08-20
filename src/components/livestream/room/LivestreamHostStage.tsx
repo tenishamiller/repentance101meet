@@ -7,6 +7,7 @@ import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { MobileSwipePanels } from "@/components/layout/MobileSwipePanels";
 import { LiveKitParticipantGallery } from "@/components/livekit/LiveKitParticipantGallery";
 import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
+import { HostShareCameraPip } from "@/components/livestream/HostShareCameraPip";
 import { Logo } from "@/components/Logo";
 import { useAppPath } from "@/hooks/useAppBase";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
@@ -139,6 +140,16 @@ export function LivestreamHostStage({
           videoClassName="h-full w-full object-contain"
           className="h-full w-full"
         />
+        {mobilePresenting && hostSelfTile && (
+          <HostShareCameraPip
+            trackRef={hostSelfTile.trackRef}
+            userId={hostSelfTile.participantIdentity}
+            name={hostSelfTile.name}
+            avatarUrl={hostSelfTile.avatarUrl}
+            cameraOff={hostSelfTile.cameraOff}
+            muted={!hostSelfTile.micOn}
+          />
+        )}
       </div>
       {!isScreenSharing && <MuteIndicator visible={isMuted} />}
       {showConnectionOverlay && !error && (

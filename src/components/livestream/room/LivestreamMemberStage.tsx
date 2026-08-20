@@ -13,6 +13,7 @@ import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { ParticipantPanelNameRow } from "@/components/livestream/ParticipantPanelNameRow";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
 import type { RemoteParticipant } from "livekit-client";
+import { HostShareCameraPip } from "@/components/livestream/HostShareCameraPip";
 import { Logo } from "@/components/Logo";
 import { useAppPath } from "@/hooks/useAppBase";
 import { PANEL_TILE_CARD_CLASS, PANEL_TILE_FRAME_CLASS } from "@/lib/panel-tile";
@@ -119,23 +120,24 @@ export function LivestreamMemberStage({
     </div>
   );
 
-  const hostPipCard = present ? (
-    <div className={PANEL_TILE_CARD_CLASS}>
-      <div className={PANEL_TILE_FRAME_CLASS}>
-        <LiveKitVideoTile
-          trackRef={hostCameraPipTrack}
-          userId={hostProfile.userId}
-          name={hostProfile.name}
-          avatarUrl={hostProfile.avatarUrl}
-          cameraOff={isRemoteCameraOff}
-          waitingForVideo={waitingForHostVideo}
-          compact
-          panelLayout
-        />
+  const hostCameraOff = !hostCameraPipTrack?.publication?.track;
+  const hostPipCard =
+    present && !isMobile ? (
+      <div className={PANEL_TILE_CARD_CLASS}>
+        <div className={PANEL_TILE_FRAME_CLASS}>
+          <LiveKitVideoTile
+            trackRef={hostCameraPipTrack}
+            userId={hostProfile.userId}
+            name={hostProfile.name}
+            avatarUrl={hostProfile.avatarUrl}
+            cameraOff={hostCameraOff}
+            compact
+            panelLayout
+          />
+        </div>
+        <ParticipantPanelNameRow name={hostProfile.name} muted={isRemoteMuted} />
       </div>
-      <ParticipantPanelNameRow name={hostProfile.name} muted={isRemoteMuted} />
-    </div>
-  ) : null;
+    ) : null;
 
   const otherMembersGallery = (
     <LiveKitParticipantGallery
@@ -182,6 +184,16 @@ export function LivestreamMemberStage({
         lowLatency
         className={mobilePresentShare ? "absolute inset-0 h-full w-full" : "h-full w-full"}
       />
+      {mobilePresentShare && (
+        <HostShareCameraPip
+          trackRef={hostCameraPipTrack}
+          userId={hostProfile.userId}
+          name={hostProfile.name}
+          avatarUrl={hostProfile.avatarUrl}
+          cameraOff={hostCameraOff}
+          muted={isRemoteMuted}
+        />
+      )}
       {!present && <MuteIndicator visible={isRemoteMuted} />}
       {!present && (
         <p className="pointer-events-none absolute bottom-3 left-3 z-10 rounded-lg border border-gold/30 bg-burgundy-dark/80 px-2.5 py-1 text-[10px] font-semibold text-gold-light backdrop-blur sm:text-xs">
@@ -246,7 +258,7 @@ export function LivestreamMemberStage({
     !memberMicEnabled ? "mics off by host" : null,
   ].filter(Boolean);
 
-  const swipeBadge = otherMemberCount + (present ? 2 : 1);
+  const swipeBadge = otherMemberCount + 1;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
