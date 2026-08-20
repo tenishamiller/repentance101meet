@@ -76,7 +76,16 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
     },
   });
 
-  if (!membership || membership.status !== "APPROVED") {
+  if (!membership) {
+    return Response.json({ error: "You do not have a request for this channel" }, { status: 403 });
+  }
+
+  if (membership.status === "PENDING") {
+    await prisma.channelMembership.delete({ where: { id: membership.id } });
+    return Response.json({ success: true, action: "cancelled" });
+  }
+
+  if (membership.status !== "APPROVED") {
     return Response.json({ error: "You are not in this channel" }, { status: 403 });
   }
 

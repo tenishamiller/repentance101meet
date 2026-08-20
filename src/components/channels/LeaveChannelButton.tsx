@@ -54,7 +54,7 @@ export function LeaveChannelButton({ slug, channelName, variant = "header" }: Pr
         "inline-flex items-center gap-1.5 font-semibold transition disabled:opacity-60",
         variant === "header"
           ? "rounded-lg border border-burgundy/25 bg-cream px-2.5 py-1.5 text-xs text-burgundy/80 hover:border-burgundy/40 hover:bg-burgundy/5 hover:text-burgundy sm:px-3 sm:text-sm"
-          : "mt-3 text-sm text-burgundy/65 hover:text-burgundy hover:underline",
+          : "text-sm text-burgundy/65 hover:text-burgundy hover:underline",
       )}
     >
       <LogOut className="h-3.5 w-3.5" />
