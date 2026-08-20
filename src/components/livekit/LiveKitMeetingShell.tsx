@@ -197,7 +197,7 @@ export function LiveKitMeetingShell({
           );
         }}
         data-lk-theme="default"
-        className="flex h-full min-h-0 flex-1 flex-col"
+        className="flex h-full min-h-0 flex-1 flex-col isolate"
       >
         <LiveKitTokenSync serverUrl={credentials.serverUrl} token={credentials.token} />
         <RoomConnectionMonitor roomError={roomError} onRoomError={setRoomError} />

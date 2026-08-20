@@ -122,9 +122,8 @@ export function UserAvatar({
         src={displayAvatarUrl}
         alt={displayName}
         className={cn(
-          "relative h-full w-full transition-opacity duration-150",
+          "site-brand-img relative h-full w-full",
           imageFit === "contain" ? "object-contain" : "object-cover",
-          imageLoaded ? "opacity-100" : "opacity-0",
         )}
         onLoad={() => setLoadedUrl(displayAvatarUrl)}
         onError={() => setFailedUrl(displayAvatarUrl)}
