@@ -57,6 +57,14 @@ export function toMobilePath(pathname: string): string | null {
     return `${MOBILE_PREFIX}${pathname}`;
   }
 
+  if (pathname.startsWith("/profile/")) {
+    return `${MOBILE_PREFIX}${pathname}`;
+  }
+
+  if (pathname.startsWith("/giving/")) {
+    return `${MOBILE_PREFIX}${pathname}`;
+  }
+
   return null;
 }
 
