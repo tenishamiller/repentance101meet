@@ -1,100 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Circle, Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { Circle } from "lucide-react";
 import { AppPathLink } from "@/components/AppPathLink";
-import type { MemberJoinMediaPrefs } from "@/lib/member-join-media";
-import { cn } from "@/lib/utils";
 
 type Props = {
   meetingTitle: string;
-  onAccept: (media: MemberJoinMediaPrefs) => void;
+  onAccept: () => void;
 };
 
-function JoinMediaToggle({
-  active,
-  onClick,
-  onLabel,
-  offLabel,
-  onIcon: OnIcon,
-  offIcon: OffIcon,
-}: {
-  active: boolean;
-  onClick: () => void;
-  onLabel: string;
-  offLabel: string;
-  onIcon: React.ComponentType<{ className?: string }>;
-  offIcon: React.ComponentType<{ className?: string }>;
-}) {
-  const Icon = active ? OnIcon : OffIcon;
-  const label = active ? onLabel : offLabel;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex flex-1 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition",
-        active
-          ? "border-gold/50 bg-gold/15 text-burgundy"
-          : "border-gold/25 bg-cream-dark text-burgundy/80 hover:border-gold/40",
-      )}
-      aria-pressed={active}
-    >
-      <span className="flex items-center gap-3">
-        <span
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-full",
-            active ? "bg-gold/25 text-burgundy" : "bg-burgundy/10 text-burgundy/60",
-          )}
-        >
-          <Icon className="h-5 w-5" />
-        </span>
-        <span className="font-semibold">{label}</span>
-      </span>
-      <span
-        className={cn(
-          "relative h-7 w-12 shrink-0 rounded-full transition",
-          active ? "bg-gold" : "bg-burgundy/20",
-        )}
-        aria-hidden
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 h-6 w-6 rounded-full bg-cream shadow transition",
-            active ? "left-[calc(100%-1.625rem)]" : "left-0.5",
-          )}
-        />
-      </span>
-    </button>
-  );
-}
-
-async function primeJoinMedia(cameraOn: boolean, micOn: boolean) {
-  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return;
-  if (!cameraOn && !micOn) return;
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: micOn,
-      video: cameraOn,
-    });
-    for (const track of stream.getTracks()) track.stop();
-  } catch {
-    /* LiveKit will ask again after join if the browser blocked this tap. */
-  }
-}
-
 export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
-  const [cameraOn, setCameraOn] = useState(false);
-  const [micOn, setMicOn] = useState(false);
-  const [joining, setJoining] = useState(false);
-
-  async function handleAccept() {
-    if (joining) return;
-    setJoining(true);
-    await primeJoinMedia(cameraOn, micOn);
-    onAccept({ cameraOn, micOn });
-  }
-
   return (
     <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center bg-burgundy-deep px-4 py-10">
       <div className="w-full max-w-lg rounded-2xl border border-gold/30 bg-cream p-6 shadow-2xl sm:p-8">
@@ -116,48 +30,16 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
           <p>
             By joining, you agree to participate respectfully in this live ministry session.
           </p>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          <p className="text-xs font-bold uppercase tracking-wide text-burgundy/55">
-            Your camera and microphone
-          </p>
-          <p className="text-sm leading-relaxed text-burgundy/80">
-            You join with camera and microphone <span className="font-semibold">off</span>. That is
-            on purpose, on phone and computer. If you want to be seen or heard, turn the switches
-            below on before you join. You can also turn them on after you are in the room with the
-            camera and mic buttons. Host screen share never turns your camera on.
-          </p>
-          <JoinMediaToggle
-            active={cameraOn}
-            onClick={() => setCameraOn((on) => !on)}
-            onLabel="Camera on — you will be seen"
-            offLabel="Camera off — you will not be seen"
-            onIcon={Video}
-            offIcon={VideoOff}
-          />
-          <JoinMediaToggle
-            active={micOn}
-            onClick={() => setMicOn((on) => !on)}
-            onLabel="Microphone on — you will be heard"
-            offLabel="Microphone off — you will not be heard"
-            onIcon={Mic}
-            offIcon={MicOff}
-          />
-          <p className="text-xs text-burgundy/55">
-            “I understand — join livestream” does not turn camera or microphone on. Only these
-            switches do.
+          <p>
+            Your camera and microphone start <span className="font-semibold">off</span> on phone and
+            computer. If you want to be seen or heard, turn them on after you enter with the camera
+            and microphone buttons in the room.
           </p>
         </div>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={() => void handleAccept()}
-            disabled={joining}
-            className="btn-primary flex-1"
-          >
-            {joining ? "Joining..." : "I understand — join livestream"}
+          <button type="button" onClick={onAccept} className="btn-primary flex-1">
+            I understand — join livestream
           </button>
           <AppPathLink href="/livestream" className="btn-secondary flex-1 text-center">
             Leave
