@@ -6,28 +6,10 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+import { unquoteEnv } from "@/lib/env";
+
 /** UUID object keys are immutable; browsers can keep avatars/media for a long time. */
 export const PUBLIC_OBJECT_CACHE_CONTROL = "public, max-age=31536000, immutable";
-
-function unquoteEnv(value: string | undefined): string {
-  if (!value) return "";
-  let v = value.trim();
-  for (let i = 0; i < 3; i++) {
-    if (
-      (v.startsWith('"') && v.endsWith('"')) ||
-      (v.startsWith("'") && v.endsWith("'"))
-    ) {
-      v = v.slice(1, -1).trim();
-      continue;
-    }
-    if (v.startsWith('\\"') && v.endsWith('\\"')) {
-      v = v.slice(2, -2).trim();
-      continue;
-    }
-    break;
-  }
-  return v.replace(/^\\"/, "").replace(/\\"$/, "");
-}
 
 const BUCKET = unquoteEnv(process.env.S3_BUCKET) || "media";
 
