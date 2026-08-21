@@ -48,12 +48,21 @@ type CreateTokenOptions = {
   isHost: boolean;
   memberVideoEnabled?: boolean;
   memberMicEnabled?: boolean;
+  /** Private 1-on-1 rooms: invitees may publish a screen. Livestream members must not. */
+  allowMemberScreenShare?: boolean;
 };
 
-function memberPublishSources(memberVideoEnabled: boolean, memberMicEnabled: boolean) {
+function memberPublishSources(
+  memberVideoEnabled: boolean,
+  memberMicEnabled: boolean,
+  allowMemberScreenShare = false,
+) {
   const sources: TrackSource[] = [];
   if (memberVideoEnabled) sources.push(TrackSource.CAMERA);
   if (memberMicEnabled) sources.push(TrackSource.MICROPHONE);
+  if (allowMemberScreenShare) {
+    sources.push(TrackSource.SCREEN_SHARE, TrackSource.SCREEN_SHARE_AUDIO);
+  }
   return sources;
 }
 
@@ -85,6 +94,7 @@ export async function createLiveKitAccessToken(options: CreateTokenOptions) {
     const sources = memberPublishSources(
       options.memberVideoEnabled !== false,
       options.memberMicEnabled !== false,
+      options.allowMemberScreenShare === true,
     );
     token.addGrant({
       roomJoin: true,

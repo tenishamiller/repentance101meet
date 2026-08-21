@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Circle,
@@ -8,6 +8,8 @@ import {
   MessageCircle,
   Mic,
   MicOff,
+  MonitorOff,
+  MonitorUp,
   PhoneOff,
   Shield,
   Square,
@@ -15,6 +17,7 @@ import {
   VideoOff,
 } from "lucide-react";
 import { MuteIndicator } from "@/components/livestream/MuteIndicator";
+import { HostShareCameraPip } from "@/components/livestream/HostShareCameraPip";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useMeetingPresence } from "@/hooks/useMeetingPresence";
 import { useLiveKitStage } from "@/hooks/useLiveKitStage";
@@ -30,6 +33,7 @@ import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { OnboardingDecisionModal } from "@/components/onboarding/OnboardingDecisionModal";
 import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
 import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
+import { swallowStraySharePickerClick } from "@/lib/swallow-share-picker-click";
 
 type Peer = {
   id: string;
@@ -82,6 +86,24 @@ function PrivateMinistryRoomContent({
   const [decisionLoading, setDecisionLoading] = useState(false);
   const [decisionError, setDecisionError] = useState("");
   const [actionError, setActionError] = useState("");
+  const [sharePickerArmedUntil, setSharePickerArmedUntil] = useState(0);
+  const sharePickerArmedUntilRef = useRef(0);
+
+  function armSharePickerGuard() {
+    const until = Date.now() + 2000;
+    sharePickerArmedUntilRef.current = until;
+    setSharePickerArmedUntil(until);
+    swallowStraySharePickerClick();
+    window.setTimeout(() => {
+      if (sharePickerArmedUntilRef.current !== until) return;
+      sharePickerArmedUntilRef.current = 0;
+      setSharePickerArmedUntil(0);
+    }, 2000);
+  }
+
+  function ignoreSharePickerClick() {
+    return Date.now() < sharePickerArmedUntilRef.current;
+  }
 
   const { leaveMeeting, meetingEnded } = useMeetingPresence({
     meetingToken,
@@ -115,8 +137,12 @@ function PrivateMinistryRoomContent({
     switchFacingMode,
     refreshMediaInputDevices,
     isRefreshingDevices,
+    isRemoteScreenSharing,
+    isScreenSharing,
+    hostCameraPipTrack,
     toggleMute,
     toggleCamera,
+    toggleScreenShare,
     mediaError,
   } = useLiveKitStage({
     hostId,
@@ -276,7 +302,11 @@ function PrivateMinistryRoomContent({
             </div>
           )}
 
-          <div className={`relative min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_7.5rem] overflow-hidden bg-black lg:grid-cols-2 lg:grid-rows-1 ${
+          <div className={`relative min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_7.5rem] overflow-hidden bg-black lg:grid-rows-1 ${
+            isRemoteScreenSharing
+              ? "lg:grid-cols-[minmax(0,1.75fr)_minmax(11rem,0.9fr)]"
+              : "lg:grid-cols-2"
+          } ${
             isMobile && mobileTab !== "video" ? "hidden lg:grid" : "grid"
           }`}>
             <div className="relative min-h-0 min-w-0 overflow-hidden border-gold/20 bg-black lg:border-r">
@@ -285,11 +315,22 @@ function PrivateMinistryRoomContent({
                 userId={peer.id}
                 name={peer.name}
                 avatarUrl={peer.avatarUrl}
-                cameraOff={isRemoteCameraOff}
+                cameraOff={isRemoteScreenSharing ? false : isRemoteCameraOff}
                 videoClassName="h-full w-full object-contain"
                 lowLatency
               />
-              <MuteIndicator visible={isRemoteMuted} />
+              {isRemoteScreenSharing ? (
+                <HostShareCameraPip
+                  trackRef={hostCameraPipTrack}
+                  userId={peer.id}
+                  name={peer.name}
+                  avatarUrl={peer.avatarUrl}
+                  cameraOff={isRemoteCameraOff}
+                  muted={isRemoteMuted}
+                />
+              ) : (
+                <MuteIndicator visible={isRemoteMuted} />
+              )}
             </div>
 
             <div className="relative min-h-0 min-w-0 overflow-hidden border-t border-gold/20 lg:border-t-0">
@@ -300,6 +341,11 @@ function PrivateMinistryRoomContent({
                 cameraOff={isCameraOff}
               />
               <MuteIndicator visible={isMuted} />
+              {isScreenSharing && (
+                <p className="pointer-events-none absolute left-2 top-2 z-10 rounded-lg border border-gold bg-gold px-2 py-0.5 text-[10px] font-bold text-burgundy-deep">
+                  You are sharing
+                </p>
+              )}
             </div>
 
             {!isLive && !error && (
@@ -324,6 +370,12 @@ function PrivateMinistryRoomContent({
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-gold" />
                   </span>
                   Connected
+                </div>
+              )}
+              {isRemoteScreenSharing && (
+                <div className="inline-flex items-center gap-2 rounded-full border border-gold/40 bg-burgundy-dark/90 px-3 py-1.5 text-xs font-bold text-gold-light backdrop-blur">
+                  <MonitorUp className="h-3.5 w-3.5" />
+                  {peer.name} is sharing
                 </div>
               )}
             </div>
@@ -360,17 +412,50 @@ function PrivateMinistryRoomContent({
               refreshing={isRefreshingDevices}
             />
             <ControlButton
-              onClick={toggleMute}
+              onClick={() => {
+                if (ignoreSharePickerClick()) return;
+                void toggleMute();
+              }}
               active={!isMuted}
+              disabled={sharePickerArmedUntil > 0}
               label={isMuted ? "Unmute" : "Mute"}
               icon={isMuted ? MicOff : Mic}
             />
             <ControlButton
-              onClick={toggleCamera}
+              onClick={() => {
+                if (ignoreSharePickerClick()) return;
+                void toggleCamera();
+              }}
               active={!isCameraOff}
+              disabled={sharePickerArmedUntil > 0}
               label={isCameraOff ? "Camera On" : "Camera Off"}
               icon={isCameraOff ? VideoOff : Video}
             />
+            <button
+              type="button"
+              title="Share a window, screen, or browser tab. For tab audio, pick a Chrome tab and check “Share tab audio”."
+              onClick={() => {
+                armSharePickerGuard();
+                void toggleScreenShare().finally(() => armSharePickerGuard());
+              }}
+              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
+                isScreenSharing
+                  ? "border-gold bg-gold text-burgundy-deep shadow-md"
+                  : "border-gold/50 bg-burgundy text-gold-light hover:border-gold hover:bg-burgundy-dark"
+              }`}
+            >
+              {isScreenSharing ? (
+                <>
+                  <MonitorOff className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Stop Share</span>
+                </>
+              ) : (
+                <>
+                  <MonitorUp className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline">Share</span>
+                </>
+              )}
+            </button>
             {!isHost && <MemberMessagesPopover userId={userId} />}
             <button
               type="button"
@@ -442,11 +527,13 @@ function PrivateMinistryRoomContent({
 function ControlButton({
   onClick,
   active,
+  disabled = false,
   label,
   icon: Icon,
 }: {
   onClick: () => void;
   active: boolean;
+  disabled?: boolean;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
 }) {
@@ -455,7 +542,8 @@ function ControlButton({
       type="button"
       onClick={onClick}
       title={label}
-      className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition ${
+      disabled={disabled}
+      className={`flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-semibold transition disabled:opacity-50 ${
         active
           ? "border-gold/30 bg-burgundy text-cream hover:bg-burgundy-dark"
           : "border-gold/50 bg-gold/15 text-gold-light hover:bg-gold/25"

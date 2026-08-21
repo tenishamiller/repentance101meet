@@ -166,18 +166,31 @@ export function useLiveKitStage({
         : undefined,
     [privatePeer, publishedTracks],
   );
+  const privatePeerScreenTrack = useMemo(
+    () =>
+      mode === "private" && privatePeer
+        ? pickTrack(publishedTracks, Track.Source.ScreenShare, privatePeer.identity)
+        : undefined,
+    [mode, privatePeer, publishedTracks],
+  );
 
   const hasLocalScreenTrack = hasLiveVideoPublication(localScreenTrack?.publication);
   const isScreenSharing =
-    isHost && mode === "livestream" && isScreenShareEnabled && hasLocalScreenTrack;
+    (mode === "private" || (isHost && mode === "livestream")) &&
+    isScreenShareEnabled &&
+    hasLocalScreenTrack;
   const isRemoteScreenSharing =
-    mode === "livestream" &&
-    !isHost &&
-    hasLiveVideoPublication(hostScreenFromRoom?.publication);
+    mode === "private"
+      ? hasLiveVideoPublication(privatePeerScreenTrack?.publication)
+      : mode === "livestream" &&
+        !isHost &&
+        hasLiveVideoPublication(hostScreenFromRoom?.publication);
 
   const hostMainTrack =
     mode === "private"
-      ? privatePeerCameraTrack
+      ? isRemoteScreenSharing
+        ? privatePeerScreenTrack
+        : privatePeerCameraTrack
       : isHost
         ? isScreenSharing
           ? localScreenTrack
@@ -188,7 +201,9 @@ export function useLiveKitStage({
 
   const hostCameraPipTrack =
     mode === "private"
-      ? undefined
+      ? isRemoteScreenSharing
+        ? privatePeerCameraTrack
+        : undefined
       : isHost
         ? isScreenSharing
           ? localCameraTrack
@@ -219,7 +234,14 @@ export function useLiveKitStage({
   useEffect(() => {
     ensureRemoteVideoSubscribed(hostCameraFromRoom?.publication);
     ensureRemoteVideoSubscribed(hostScreenFromRoom?.publication);
-  }, [hostCameraFromRoom?.publication, hostScreenFromRoom?.publication]);
+    ensureRemoteVideoSubscribed(privatePeerCameraTrack?.publication);
+    ensureRemoteVideoSubscribed(privatePeerScreenTrack?.publication);
+  }, [
+    hostCameraFromRoom?.publication,
+    hostScreenFromRoom?.publication,
+    privatePeerCameraTrack?.publication,
+    privatePeerScreenTrack?.publication,
+  ]);
 
   const isRemoteCameraOff =
     mode === "private"
@@ -837,12 +859,12 @@ export function useLiveKitStage({
   ]);
 
   const toggleScreenShare = useCallback(async () => {
-    if (!isHost) return;
+    if (mode !== "private" && !isHost) return;
     const micWasOn = localParticipant.isMicrophoneEnabled || micWantedRef.current;
     try {
       if (isScreenShareEnabled) {
         await localParticipant.setScreenShareEnabled(false);
-        if (!cameraOffByUser && mode === "livestream") {
+        if (!cameraOffByUser && isHost && mode === "livestream") {
           await enableHostCamera(true);
         }
         await restoreMicrophoneIfNeeded(micWasOn, true);
