@@ -7,6 +7,9 @@ import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { MobileSwipePanels } from "@/components/layout/MobileSwipePanels";
 import { LiveKitParticipantGallery } from "@/components/livekit/LiveKitParticipantGallery";
 import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
+import { HostShareCameraPip } from "@/components/livestream/HostShareCameraPip";
+import { Logo } from "@/components/Logo";
+import { useAppPath } from "@/hooks/useAppBase";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
 import type { RemoteParticipant } from "livekit-client";
 import { cn } from "@/lib/utils";
@@ -73,6 +76,7 @@ export function LivestreamHostStage({
   clapCount,
   isMobile = false,
 }: Props) {
+  const homePath = useAppPath("/");
   const hasHostVideo = !!hostMainTrack?.publication?.track;
   const showCameraOff = isLive && isCameraOff && !isScreenSharing;
   const waitingForVideo =
@@ -93,6 +97,8 @@ export function LivestreamHostStage({
       layout="sidebar"
       side="right"
       hideHeader={isMobile}
+      density="grid"
+      prominent={!isMobile}
       className={isMobile ? "h-full w-full max-w-none shrink border-0 bg-transparent xl:w-full" : undefined}
     />
   );
@@ -136,6 +142,16 @@ export function LivestreamHostStage({
           videoClassName="h-full w-full object-contain"
           className="h-full w-full"
         />
+        {mobilePresenting && hostSelfTile && (
+          <HostShareCameraPip
+            trackRef={hostSelfTile.trackRef}
+            userId={hostSelfTile.participantIdentity}
+            name={hostSelfTile.name}
+            avatarUrl={hostSelfTile.avatarUrl}
+            cameraOff={hostSelfTile.cameraOff}
+            muted={!hostSelfTile.micOn}
+          />
+        )}
       </div>
       {!isScreenSharing && <MuteIndicator visible={isMuted} />}
       {showConnectionOverlay && !error && (
@@ -158,24 +174,27 @@ export function LivestreamHostStage({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-gold/30 bg-burgundy px-3 py-2 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate font-serif text-sm font-semibold text-cream sm:text-base">
-              {meetingTitle}
-            </p>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gold-light/80">
-              {isLive && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-burgundy-dark px-2 py-0.5 font-bold text-gold">
-                  <span className="h-1.5 w-1.5 rounded-full bg-gold" />
-                  LIVE
-                </span>
-              )}
-              {isScreenSharing && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 font-semibold text-cream">
-                  <MonitorUp className="h-3 w-3" />
-                  Sharing screen
-                </span>
-              )}
-              <span>{viewerCount} watching</span>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Logo size="sm" href={homePath} showText={false} inverted />
+            <div className="min-w-0">
+              <p className="truncate font-serif text-sm font-semibold text-cream sm:text-base">
+                {meetingTitle}
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gold-light/80">
+                {isLive && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-burgundy-dark px-2 py-0.5 font-bold text-gold">
+                    <span className="h-1.5 w-1.5 rounded-full bg-gold" />
+                    LIVE
+                  </span>
+                )}
+                {isScreenSharing && (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/15 px-2 py-0.5 font-semibold text-cream">
+                    <MonitorUp className="h-3 w-3" />
+                    Sharing screen
+                  </span>
+                )}
+                <span>{viewerCount} watching</span>
+              </div>
             </div>
           </div>
         </div>
@@ -192,7 +211,9 @@ export function LivestreamHostStage({
           />
         ) : (
           <>
-            {videoStage}
+            <div className="flex min-h-0 min-w-0 flex-[1_1_42%] flex-col overflow-hidden">
+              {videoStage}
+            </div>
             {inRoomGallery}
           </>
         )}

@@ -10,7 +10,7 @@ export function MobileAppHeader() {
   const { data: session } = useSession();
 
   return (
-    <header className="site-theme navbar-brand sticky top-0 z-50">
+    <header className="site-theme navbar-brand sticky top-0 z-50 isolate">
       <div className="flex items-center justify-between px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-1">
           <SiteBrandMark size="sm" href="/m" showText={false} />
@@ -26,6 +26,7 @@ export function MobileAppHeader() {
                 name={session.user.name ?? "Member"}
                 avatarUrl={session.user.avatarUrl}
                 size="sm"
+                loadProfileWhenEmpty
               />
               <SignOutButton />
             </>

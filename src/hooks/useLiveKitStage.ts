@@ -102,8 +102,11 @@ export function useLiveKitStage({
   } = useLocalParticipant();
   const remoteParticipants = useRemoteParticipants();
 
-  const [cameraOffByUser, setCameraOffByUser] = useState(false);
-  const cameraOffByUserRef = useRef(false);
+  const memberCameraStartsOff =
+    !isHost && mode === "livestream" && !initialMemberCameraOn;
+  const [cameraOffByUser, setCameraOffByUser] = useState(memberCameraStartsOff);
+  const cameraOffByUserRef = useRef(memberCameraStartsOff);
+  const cameraEnableGenerationRef = useRef(0);
   const [videoInputDevices, setVideoInputDevices] = useState<MediaDeviceInfo[]>([]);
   const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedVideoDeviceId, setSelectedVideoDeviceId] = useState("");
@@ -163,18 +166,31 @@ export function useLiveKitStage({
         : undefined,
     [privatePeer, publishedTracks],
   );
+  const privatePeerScreenTrack = useMemo(
+    () =>
+      mode === "private" && privatePeer
+        ? pickTrack(publishedTracks, Track.Source.ScreenShare, privatePeer.identity)
+        : undefined,
+    [mode, privatePeer, publishedTracks],
+  );
 
   const hasLocalScreenTrack = hasLiveVideoPublication(localScreenTrack?.publication);
   const isScreenSharing =
-    isHost && mode === "livestream" && isScreenShareEnabled && hasLocalScreenTrack;
+    (mode === "private" || (isHost && mode === "livestream")) &&
+    isScreenShareEnabled &&
+    hasLocalScreenTrack;
   const isRemoteScreenSharing =
-    mode === "livestream" &&
-    !isHost &&
-    hasLiveVideoPublication(hostScreenFromRoom?.publication);
+    mode === "private"
+      ? hasLiveVideoPublication(privatePeerScreenTrack?.publication)
+      : mode === "livestream" &&
+        !isHost &&
+        hasLiveVideoPublication(hostScreenFromRoom?.publication);
 
   const hostMainTrack =
     mode === "private"
-      ? privatePeerCameraTrack
+      ? isRemoteScreenSharing
+        ? privatePeerScreenTrack
+        : privatePeerCameraTrack
       : isHost
         ? isScreenSharing
           ? localScreenTrack
@@ -185,7 +201,9 @@ export function useLiveKitStage({
 
   const hostCameraPipTrack =
     mode === "private"
-      ? undefined
+      ? isRemoteScreenSharing
+        ? privatePeerCameraTrack
+        : undefined
       : isHost
         ? isScreenSharing
           ? localCameraTrack
@@ -216,7 +234,14 @@ export function useLiveKitStage({
   useEffect(() => {
     ensureRemoteVideoSubscribed(hostCameraFromRoom?.publication);
     ensureRemoteVideoSubscribed(hostScreenFromRoom?.publication);
-  }, [hostCameraFromRoom?.publication, hostScreenFromRoom?.publication]);
+    ensureRemoteVideoSubscribed(privatePeerCameraTrack?.publication);
+    ensureRemoteVideoSubscribed(privatePeerScreenTrack?.publication);
+  }, [
+    hostCameraFromRoom?.publication,
+    hostScreenFromRoom?.publication,
+    privatePeerCameraTrack?.publication,
+    privatePeerScreenTrack?.publication,
+  ]);
 
   const isRemoteCameraOff =
     mode === "private"
@@ -320,6 +345,15 @@ export function useLiveKitStage({
 
   const enableMemberCamera = useCallback(
     async (enabled: boolean) => {
+      if (
+        enabled &&
+        !isHost &&
+        mode === "livestream" &&
+        cameraOffByUserRef.current
+      ) {
+        return;
+      }
+      const generation = ++cameraEnableGenerationRef.current;
       const micWasOn = localParticipant.isMicrophoneEnabled || micWantedRef.current;
       if (enabled) {
         const { capture, publish } = getMemberCameraPublishOptions();
@@ -331,9 +365,15 @@ export function useLiveKitStage({
       } else {
         await localParticipant.setCameraEnabled(false);
       }
+      if (generation !== cameraEnableGenerationRef.current) {
+        if (cameraOffByUserRef.current) {
+          await localParticipant.setCameraEnabled(false);
+        }
+        return;
+      }
       await restoreMicrophoneIfNeeded(micWasOn);
     },
-    [localParticipant, restoreMicrophoneIfNeeded],
+    [isHost, localParticipant, mode, restoreMicrophoneIfNeeded],
   );
 
   const enableMicrophone = useCallback(
@@ -359,6 +399,7 @@ export function useLiveKitStage({
   );
 
   const appliedJoinMediaRef = useRef(false);
+  const wasConnectedRef = useRef(false);
 
   useEffect(() => {
     return () => clearMicRestoreTimers();
@@ -368,10 +409,6 @@ export function useLiveKitStage({
     if (connectionState !== ConnectionState.Connected) return;
     lockPlayAndRecordAudioSession();
   }, [connectionState]);
-
-  useEffect(() => {
-    cameraOffByUserRef.current = cameraOffByUser;
-  }, [cameraOffByUser]);
 
   useEffect(() => {
     if (isHost || mode !== "livestream") return;
@@ -387,20 +424,29 @@ export function useLiveKitStage({
   useEffect(() => {
     if (isHost || mode !== "livestream") return;
     if (!memberVideoEnabled) {
-      cameraOffByUserRef.current = true;
-      setCameraOffByUser(true);
       void enableMemberCamera(false);
     }
+    // Host "allow cameras" never turns a member camera on. Only join-with-camera
+    // or the member's own camera button does.
   }, [enableMemberCamera, isHost, memberVideoEnabled, mode]);
 
   useEffect(() => {
-    if (connectionState !== ConnectionState.Connected) return;
+    if (connectionState !== ConnectionState.Connected) {
+      if (
+        connectionState === ConnectionState.Disconnected ||
+        connectionState === ConnectionState.Reconnecting
+      ) {
+        wasConnectedRef.current = false;
+      }
+      return;
+    }
+
+    const alreadyConnected = wasConnectedRef.current;
+    wasConnectedRef.current = true;
 
     void (async () => {
       try {
         if (!appliedJoinMediaRef.current) {
-          appliedJoinMediaRef.current = true;
-
           if (isHost || mode === "private") {
             micWantedRef.current = true;
             if (isHost && mode === "livestream") {
@@ -414,13 +460,14 @@ export function useLiveKitStage({
             await enableMicrophone(true);
             cameraOffByUserRef.current = false;
             setCameraOffByUser(false);
+            appliedJoinMediaRef.current = true;
             return;
           }
 
           if (memberVideoEnabled && initialMemberCameraOn) {
-            await enableMemberCamera(true);
             cameraOffByUserRef.current = false;
             setCameraOffByUser(false);
+            await enableMemberCamera(true);
           } else {
             cameraOffByUserRef.current = true;
             setCameraOffByUser(true);
@@ -433,19 +480,42 @@ export function useLiveKitStage({
           } else {
             await enableMicrophone(false);
           }
+          appliedJoinMediaRef.current = true;
           return;
         }
 
         if (isHost || mode === "private") {
+          if (!cameraOffByUserRef.current) {
+            if (isHost && mode === "livestream") {
+              await enableHostCamera(true);
+            } else {
+              await localParticipant.setCameraEnabled(
+                true,
+                withExactDeviceId({}, preferredVideoDeviceIdRef.current),
+              );
+            }
+          }
           if (micWantedRef.current) await restoreMicrophoneIfNeeded(true);
           return;
         }
 
+        // Members: host screen share refreshes localParticipant while still
+        // connected. Never use that as a reason to start a camera.
+        if (alreadyConnected) {
+          if (memberMicEnabled && micWantedRef.current) {
+            await restoreMicrophoneIfNeeded(true);
+          }
+          return;
+        }
+
+        if (memberVideoEnabled && !cameraOffByUserRef.current) {
+          await enableMemberCamera(true);
+        }
         if (memberMicEnabled && micWantedRef.current) {
           await restoreMicrophoneIfNeeded(true);
         }
       } catch {
-        /* surfaced via lastCameraError */
+        appliedJoinMediaRef.current = false;
       }
     })();
   }, [
@@ -553,7 +623,11 @@ export function useLiveKitStage({
           sessionVideoDeviceIdRef.current = nextVideo;
         }
         setSelectedVideoDeviceId(nextVideo);
-        await ensureKindDevice("videoinput", nextVideo);
+        const maySwitchCamera =
+          isHost || mode === "private" || !cameraOffByUserRef.current;
+        if (maySwitchCamera) {
+          await ensureKindDevice("videoinput", nextVideo);
+        }
       }
 
       if (nextAudio) {
@@ -574,7 +648,14 @@ export function useLiveKitStage({
     } finally {
       reconcilingDevicesRef.current = false;
     }
-  }, [ensureKindDevice, initializePreferredDevices, pickFallbackDeviceId, restoreMicrophoneIfNeeded]);
+  }, [
+    ensureKindDevice,
+    initializePreferredDevices,
+    isHost,
+    mode,
+    pickFallbackDeviceId,
+    restoreMicrophoneIfNeeded,
+  ]);
 
   const refreshMediaInputDevices = useCallback(async () => {
     setIsRefreshingDevices(true);
@@ -734,6 +815,13 @@ export function useLiveKitStage({
     void restoreMicrophoneIfNeeded(true, true);
   }, [isHost, isRemoteScreenSharing, memberMicEnabled, mode, restoreMicrophoneIfNeeded]);
 
+  useEffect(() => {
+    if (isHost || mode !== "livestream") return;
+    if (!isRemoteScreenSharing) return;
+    if (!cameraOffByUserRef.current) return;
+    void enableMemberCamera(false);
+  }, [enableMemberCamera, isHost, isRemoteScreenSharing, mode]);
+
   const toggleMute = useCallback(async () => {
     if (!canUseMic || (!isHost && mode === "livestream" && !memberMicEnabled)) return;
     const nextOn = !isMicrophoneEnabled;
@@ -756,7 +844,9 @@ export function useLiveKitStage({
       await enableHostCamera(!nextOff);
       return;
     }
+    const micWasOn = localParticipant.isMicrophoneEnabled || micWantedRef.current;
     await localParticipant.setCameraEnabled(!nextOff);
+    await restoreMicrophoneIfNeeded(micWasOn);
   }, [
     canUseCamera,
     enableHostCamera,
@@ -765,15 +855,16 @@ export function useLiveKitStage({
     localParticipant,
     memberVideoEnabled,
     mode,
+    restoreMicrophoneIfNeeded,
   ]);
 
   const toggleScreenShare = useCallback(async () => {
-    if (!isHost) return;
+    if (mode !== "private" && !isHost) return;
     const micWasOn = localParticipant.isMicrophoneEnabled || micWantedRef.current;
     try {
       if (isScreenShareEnabled) {
         await localParticipant.setScreenShareEnabled(false);
-        if (!cameraOffByUser && mode === "livestream") {
+        if (!cameraOffByUser && isHost && mode === "livestream") {
           await enableHostCamera(true);
         }
         await restoreMicrophoneIfNeeded(micWasOn, true);
@@ -793,6 +884,8 @@ export function useLiveKitStage({
       }
 
       await localParticipant.setScreenShareEnabled(true, undefined, publishOptions);
+      await restoreMicrophoneIfNeeded(micWasOn, true);
+    } catch {
       await restoreMicrophoneIfNeeded(micWasOn, true);
     } finally {
       swallowStraySharePickerClick();
@@ -817,9 +910,11 @@ export function useLiveKitStage({
       preferredVideoDeviceIdRef.current = deviceId;
       setSelectedVideoDeviceId(deviceId);
       savePreferredCameraDeviceId(deviceId);
+      const micWasOn = localParticipant.isMicrophoneEnabled || micWantedRef.current;
       await room.switchActiveDevice("videoinput", deviceId);
+      await restoreMicrophoneIfNeeded(micWasOn, true);
     },
-    [room],
+    [localParticipant, restoreMicrophoneIfNeeded, room],
   );
 
   const switchAudioDevice = useCallback(

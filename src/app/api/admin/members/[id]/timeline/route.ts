@@ -45,6 +45,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { logId, reason, membershipId } = await request.json();
 
   if (logId && reason) {
+    const log = await prisma.memberActivityLog.findFirst({
+      where: { id: logId, userId: id },
+      select: { id: true },
+    });
+    if (!log) {
+      return Response.json({ error: "Timeline entry not found" }, { status: 404 });
+    }
     await prisma.memberActivityLog.update({
       where: { id: logId },
       data: { reason: String(reason) },

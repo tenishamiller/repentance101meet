@@ -8,6 +8,7 @@ type Props = {
   onDeny: () => void;
   onCancel: () => void;
   loading?: boolean;
+  error?: string;
 };
 
 export function OnboardingDecisionModal({
@@ -16,6 +17,7 @@ export function OnboardingDecisionModal({
   onDeny,
   onCancel,
   loading = false,
+  error,
 }: Props) {
   function handleDeny() {
     const sure = window.confirm(
@@ -37,6 +39,11 @@ export function OnboardingDecisionModal({
           The personal one-on-one with <strong>{memberName}</strong> has ended. Is this member
           approved to join Repentance 101?
         </p>
+        {error ? (
+          <p className="mt-3 rounded-lg border border-burgundy/30 bg-burgundy/5 px-3 py-2 text-sm text-burgundy">
+            {error}
+          </p>
+        ) : null}
         <div className="mt-6 flex flex-col gap-3">
           <button
             type="button"

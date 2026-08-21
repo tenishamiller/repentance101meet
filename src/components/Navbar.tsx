@@ -10,9 +10,11 @@ export async function Navbar() {
   const session = await auth();
 
   return (
-    <header className="site-theme navbar-brand sticky top-0 z-50">
+    <header className="site-theme navbar-brand sticky top-0 z-50 isolate">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-3 sm:px-4 sm:py-4">
-        <SiteBrandMark size="md" />
+        <div className="shrink-0">
+          <SiteBrandMark size="md" />
+        </div>
 
         <nav className="hidden items-center gap-1 text-sm font-medium md:flex">
           {[
@@ -77,6 +79,7 @@ export async function Navbar() {
                 name={session.user.name ?? "Member"}
                 avatarUrl={session.user.avatarUrl}
                 size="md"
+                loadProfileWhenEmpty
               />
               <Link
                 href="/settings"

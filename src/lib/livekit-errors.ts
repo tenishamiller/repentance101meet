@@ -3,6 +3,6 @@ export function isLiveKitPermissionError(message: string) {
   const normalized = message.toLowerCase();
   return (
     normalized.includes("insufficient permissions") ||
-    normalized.includes("failed to publish track")
+    normalized.includes("permission denied")
   );
 }

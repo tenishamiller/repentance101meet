@@ -1,3 +1,5 @@
+import { unquoteEnv } from "@/lib/env";
+
 const PRODUCTION_APP_URL = "https://repentance101ministry.com";
 
 /** Public site URL for links, auth, and emails — never localhost in production. */
@@ -9,8 +11,9 @@ export function getAppUrl(): string {
   ];
 
   for (const value of candidates) {
-    if (value && !value.includes("localhost") && !value.includes("127.0.0.1")) {
-      return value.replace(/\/$/, "");
+    const url = unquoteEnv(value);
+    if (url && !url.includes("localhost") && !url.includes("127.0.0.1")) {
+      return url.replace(/\/$/, "");
     }
   }
 

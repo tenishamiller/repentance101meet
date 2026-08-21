@@ -1,14 +1,13 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getAppUrl } from "@/lib/app-url";
 import { v4 as uuidv4 } from "uuid";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const isAdmin = session.user.role === "ADMIN";
 
@@ -19,6 +18,7 @@ export async function GET() {
         isOnboardingApproval: true,
         invitedUserId: session.user.id,
         memberHiddenAt: null,
+        deletedAt: null,
       },
       orderBy: { createdAt: "desc" },
       take: 5,
@@ -32,8 +32,8 @@ export async function GET() {
 
   const sessions = await prisma.meeting.findMany({
     where: isAdmin
-      ? { kind: "PRIVATE", hostHiddenAt: null }
-      : { kind: "PRIVATE", invitedUserId: session.user.id, memberHiddenAt: null },
+      ? { kind: "PRIVATE", hostHiddenAt: null, deletedAt: null }
+      : { kind: "PRIVATE", invitedUserId: session.user.id, memberHiddenAt: null, deletedAt: null },
     orderBy: { createdAt: "desc" },
     take: 30,
     include: {
@@ -57,12 +57,15 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (session?.user?.role !== "ADMIN") {
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
+  if (session.user.role !== "ADMIN") {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { title, invitedUserId } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const { title, invitedUserId } = body as { title?: string; invitedUserId?: string };
 
   if (!invitedUserId) {
     return Response.json({ error: "Select a member to invite" }, { status: 400 });
@@ -103,14 +106,17 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
-  const { sessionId, action } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const { sessionId, action } = body as { sessionId?: string; action?: string };
+  if (!sessionId || !action) {
+    return Response.json({ error: "Invalid request" }, { status: 400 });
+  }
   const privateSession = await prisma.meeting.findFirst({
-    where: { id: sessionId, kind: "PRIVATE" },
+    where: { id: sessionId, kind: "PRIVATE", deletedAt: null },
   });
 
   if (!privateSession) {

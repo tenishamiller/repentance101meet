@@ -116,6 +116,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     isHost,
     memberVideoEnabled,
     memberMicEnabled,
+    allowMemberScreenShare: meeting.kind === "PRIVATE",
   });
 
   return Response.json({

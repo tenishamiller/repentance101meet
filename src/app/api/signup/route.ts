@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { logMemberActivity } from "@/lib/member-activity";
 import { permanentlyDeleteUser, purgeExpiredUsers } from "@/lib/user-deletion";
@@ -65,6 +66,9 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return Response.json({ error: error.issues[0]?.message }, { status: 400 });
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return Response.json({ error: "Email already registered" }, { status: 400 });
     }
     return Response.json({ error: "Signup failed" }, { status: 500 });
   }

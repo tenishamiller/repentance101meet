@@ -10,7 +10,11 @@ import { ParticipantSignalBadges } from "@/components/livestream/LivestreamAudie
 import { ParticipantPanelNameRow } from "@/components/livestream/ParticipantPanelNameRow";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
 import { avatarUrlFromLiveKitMetadata } from "@/lib/avatar-url";
-import { PANEL_TILE_CARD_CLASS, PANEL_TILE_FRAME_CLASS } from "@/lib/panel-tile";
+import {
+  PANEL_TILE_CARD_CLASS,
+  PANEL_TILE_FRAME_CLASS,
+  inRoomGridColumns,
+} from "@/lib/panel-tile";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -114,6 +118,13 @@ type GalleryProps = {
   side?: "left" | "right";
   className?: string;
   hideHeader?: boolean;
+  /**
+   * Host / OBS layout: In room grows with a count-based CSS grid and takes
+   * more width than the main video/share pane.
+   */
+  prominent?: boolean;
+  /** Reflow tiles by participant count (1 col → 2 → max 3). */
+  density?: "stack" | "grid";
 };
 
 export function LiveKitParticipantGallery({
@@ -127,10 +138,15 @@ export function LiveKitParticipantGallery({
   side = "right",
   className,
   hideHeader = false,
+  prominent = false,
+  density = "stack",
 }: GalleryProps) {
   const members = remoteParticipants.filter((p) => p.identity !== hostId);
   const dbById = new Map(participants.map((p) => [p.user.id, p]));
   const tileCount = members.length + (hostSelfTile ? 1 : 0);
+  const columns = density === "grid" ? inRoomGridColumns(tileCount) : 1;
+  const gridClass =
+    columns === 3 ? "grid-cols-3" : columns === 2 ? "grid-cols-2" : "grid-cols-1";
 
   if (tileCount === 0) {
     const empty = (
@@ -141,7 +157,10 @@ export function LiveKitParticipantGallery({
     return layout === "sidebar" ? (
       <div
         className={cn(
-          "flex min-h-0 w-44 shrink-0 flex-col self-stretch overflow-hidden bg-burgundy-dark/90 xl:w-52",
+          "flex min-h-0 flex-col self-stretch overflow-hidden bg-burgundy-dark/90",
+          prominent
+            ? "min-w-[22rem] flex-[1_1_58%]"
+            : "w-44 shrink-0 xl:w-52",
           side === "left" ? "border-r border-gold/20" : "border-l border-gold/20",
           className,
         )}
@@ -193,7 +212,10 @@ export function LiveKitParticipantGallery({
     return (
       <div
         className={cn(
-          "flex min-h-0 w-44 shrink-0 flex-col self-stretch overflow-hidden bg-burgundy-dark/90 xl:w-52",
+          "flex min-h-0 flex-col self-stretch overflow-hidden bg-burgundy-dark/90",
+          prominent
+            ? "min-w-[22rem] flex-[1_1_58%]"
+            : "w-44 shrink-0 xl:w-52",
           side === "left" ? "border-r border-gold/20" : "border-l border-gold/20",
           className,
         )}
@@ -203,7 +225,12 @@ export function LiveKitParticipantGallery({
             In room ({tileCount})
           </p>
         )}
-        <div className="chat-scroll chat-scroll-dark min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
+        <div
+          className={cn(
+            "in-room-participant-grid chat-scroll chat-scroll-dark min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-2",
+            gridClass,
+          )}
+        >
           {tiles}
         </div>
       </div>
