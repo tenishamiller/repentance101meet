@@ -49,10 +49,10 @@ const ITEMS: NavItem[] = [
     match: (p) => p.startsWith("/livestream") || p.startsWith("/meeting"),
   },
   {
-    href: "/channels/general",
+    href: "/channels",
     label: "Chat",
     icon: MessageCircle,
-    match: (p) => p.startsWith("/channels/"),
+    match: (p) => p === "/channels" || p.startsWith("/channels/"),
     memberOnly: true,
   },
   {
@@ -221,7 +221,7 @@ export function MobileBottomNav({ mobileApp = false }: { mobileApp?: boolean }) 
             </Link>
             {!isAdmin && isApproved && (
               <Link
-                href={link("/channels/general")}
+                href={link("/channels")}
                 onClick={() => setMoreOpen(false)}
                 className="rounded-xl border border-gold/25 bg-cream-dark px-3 py-3 text-sm font-medium text-burgundy"
               >
