@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 type RouteParams = { params: Promise<{ token: string }> };
@@ -25,18 +25,17 @@ async function getMeetingContext(token: string, userId: string) {
     return { error: "You are blocked from this meeting", status: 403 as const };
   }
 
-  if (!participant && meeting.kind === "PRIVATE") {
-    return { error: "Join the session first", status: 403 as const };
+  if (!participant) {
+    return { error: "Join the meeting first", status: 403 as const };
   }
 
   return { meeting, participant };
 }
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const { token } = await params;
   const ctx = await getMeetingContext(token, session.user.id);
@@ -62,10 +61,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const { token } = await params;
   const ctx = await getMeetingContext(token, session.user.id);
@@ -82,7 +80,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  const { type, toUserId, payload } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const { type, toUserId, payload } = body as {
+    type?: string;
+    toUserId?: string | null;
+    payload?: unknown;
+  };
+
+  if (!type || typeof type !== "string") {
+    return Response.json({ error: "Signal type required" }, { status: 400 });
+  }
 
   const signal = await prisma.meetingSignal.create({
     data: {

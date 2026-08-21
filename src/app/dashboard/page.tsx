@@ -5,6 +5,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { BrandDivider } from "@/components/BrandDivider";
 import { LiveMeetingBanner } from "@/components/livestream/LiveMeetingBanner";
+import { LeaveChannelButton } from "@/components/channels/LeaveChannelButton";
+import { CancelChannelRequestButton } from "@/components/channels/CancelChannelRequestButton";
 import { formatRequestDateTime, getChannelPublicDescription } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +45,7 @@ export default async function DashboardPage() {
           kind: "PRIVATE",
           invitedUserId: session.user.id,
           status: "LIVE",
+          deletedAt: null,
         },
       })
     : null;
@@ -175,12 +178,21 @@ export default async function DashboardPage() {
               </p>
 
               {isAdmin || isApproved ? (
-                <Link
-                  href={`/channels/${channel.slug}`}
-                  className="mt-4 inline-block text-sm font-medium text-gold-muted hover:underline"
-                >
-                  Enter Channel →
-                </Link>
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <Link
+                    href={`/channels/${channel.slug}`}
+                    className="text-sm font-medium text-gold-muted hover:underline"
+                  >
+                    Enter Channel →
+                  </Link>
+                  {!isAdmin && isApproved && (
+                    <LeaveChannelButton
+                      slug={channel.slug}
+                      channelName={channel.name}
+                      variant="card"
+                    />
+                  )}
+                </div>
               ) : status === "PENDING" ? (
                 <div className="mt-4">
                   <p className="text-sm text-gold-muted">
@@ -191,6 +203,11 @@ export default async function DashboardPage() {
                       Requested {formatRequestDateTime(membership.requestedAt)}
                     </p>
                   )}
+                  <CancelChannelRequestButton
+                    slug={channel.slug}
+                    channelName={channel.name}
+                    variant="card"
+                  />
                 </div>
               ) : status === "DENIED" ? (
                 <p className="mt-4 text-sm text-burgundy">

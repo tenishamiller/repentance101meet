@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Channel } from "@/generated/prisma/client";
 import { MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
+import { CancelChannelRequestButton } from "@/components/channels/CancelChannelRequestButton";
 import { formatRequestDateTime, getChannelPublicDescription } from "@/lib/utils";
 
 type Props = {
@@ -44,7 +45,7 @@ export function JoinChannelRequest({ channel, membershipStatus, requestedAt }: P
       </p>
 
       {status === "PENDING" ? (
-        <div className="mt-8 rounded-xl border border-gold/40 bg-gold/10 px-6 py-4 text-burgundy">
+        <div className="mt-8 w-full rounded-xl border border-gold/40 bg-gold/10 px-6 py-4 text-burgundy">
           <p className="font-semibold">Chat Unavailable — Request Pending</p>
           <p className="mt-2 text-sm leading-relaxed">
             You cannot view or send messages in this channel while your access is pending. Please
@@ -55,6 +56,15 @@ export function JoinChannelRequest({ channel, membershipStatus, requestedAt }: P
               Requested {formatRequestDateTime(requestTime)}
             </p>
           )}
+          <CancelChannelRequestButton
+            slug={channel.slug}
+            channelName={channel.name}
+            onCancelled={() => {
+              setStatus(null);
+              setRequestTime(null);
+              setMessage("Your join request was cancelled.");
+            }}
+          />
         </div>
       ) : status === "DENIED" ? (
         <div className="mt-8 rounded-xl border border-burgundy/30 bg-burgundy/5 px-6 py-4 text-burgundy">
