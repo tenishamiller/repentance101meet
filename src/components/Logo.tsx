@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { BrandSeal } from "@/components/BrandSeal";
 import { cn } from "@/lib/utils";
 
 type LogoProps = {
@@ -27,22 +27,8 @@ export function Logo({
   const s = sizes[size];
 
   const content = (
-    <div className={cn("flex items-center gap-3", className)}>
-      <div
-        className={cn(
-          "relative shrink-0 overflow-hidden rounded-full shadow-lg",
-          inverted ? "seal-ring ring-offset-burgundy-deep" : "seal-ring ring-offset-cream",
-        )}
-      >
-        <Image
-          src="/brand/repentance101-logo.png"
-          alt="Repentance 101 Ministry"
-          width={s.img}
-          height={s.img}
-          className="object-cover"
-          priority
-        />
-      </div>
+    <div className={cn("flex shrink-0 items-center gap-3", className)}>
+      <BrandSeal size={s.img} inverted={inverted} priority={size !== "lg"} />
       {showText && (
         <p
           className={cn(
@@ -59,7 +45,7 @@ export function Logo({
 
   if (href) {
     return (
-      <Link href={href} className="group transition hover:opacity-90">
+      <Link href={href} className="group shrink-0 transition hover:opacity-90">
         {content}
       </Link>
     );

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { BrandDivider } from "@/components/BrandDivider";
+import { BrandSeal } from "@/components/BrandSeal";
 import { MINISTRY_LEADER } from "@/lib/brand";
 import { useAppPath } from "@/hooks/useAppBase";
 
@@ -17,13 +17,7 @@ export function RemovedFromMeetingScreen({ meetingTitle, onContinue }: Props) {
 
   return (
     <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center bg-burgundy-deep px-4 py-12 text-center">
-      <Image
-        src="/brand/repentance101-logo.png"
-        alt="Repentance 101"
-        width={120}
-        height={120}
-        className="seal-ring rounded-full ring-offset-burgundy-deep"
-      />
+      <BrandSeal size={120} inverted className="mx-auto" />
 
       <h1 className="mt-6 font-serif text-3xl font-bold text-cream md:text-4xl">
         You were removed from the livestream

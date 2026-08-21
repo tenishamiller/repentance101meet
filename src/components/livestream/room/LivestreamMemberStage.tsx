@@ -13,6 +13,8 @@ import { MuteIndicator } from "@/components/livestream/MuteIndicator";
 import { ParticipantPanelNameRow } from "@/components/livestream/ParticipantPanelNameRow";
 import type { MeetingParticipant } from "@/hooks/useMeetingPresence";
 import type { RemoteParticipant } from "livekit-client";
+import { Logo } from "@/components/Logo";
+import { useAppPath } from "@/hooks/useAppBase";
 import { PANEL_TILE_CARD_CLASS, PANEL_TILE_FRAME_CLASS } from "@/lib/panel-tile";
 import { cn } from "@/lib/utils";
 
@@ -88,6 +90,7 @@ export function LivestreamMemberStage({
   remoteParticipants = [],
   participants = [],
 }: Props) {
+  const homePath = useAppPath("/");
   const present = isRemoteScreenSharing;
   const mobilePresentShare = isMobile && present;
   const mobilePrimaryKey = present ? "presenting" : "solo";
@@ -249,11 +252,14 @@ export function LivestreamMemberStage({
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="shrink-0 border-b border-burgundy/30 bg-burgundy px-3 py-2 sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate font-serif text-sm font-semibold text-cream sm:text-base">
-              {meetingTitle}
-            </p>
-            <p className="mt-0.5 truncate text-xs text-gold-light/80">{statusParts.join(" · ")}</p>
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Logo size="sm" href={homePath} showText={false} inverted />
+            <div className="min-w-0">
+              <p className="truncate font-serif text-sm font-semibold text-cream sm:text-base">
+                {meetingTitle}
+              </p>
+              <p className="mt-0.5 truncate text-xs text-gold-light/80">{statusParts.join(" · ")}</p>
+            </div>
           </div>
           {isLive && (
             <div className="badge-live shrink-0">
