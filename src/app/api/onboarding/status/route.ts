@@ -16,6 +16,7 @@ export async function GET() {
       onboardingDueAt: true,
       status: true,
       role: true,
+      deletedAt: true,
     },
   });
 
@@ -32,5 +33,6 @@ export async function GET() {
     onboardingDueAt: user.onboardingDueAt?.toISOString() ?? null,
     status: user.status,
     role: user.role,
+    deleted: Boolean(user.deletedAt),
   });
 }

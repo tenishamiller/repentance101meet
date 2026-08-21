@@ -305,7 +305,11 @@ export async function DELETE(request: NextRequest) {
 
   await prisma.user.update({
     where: { id: userId },
-    data: { questionnaireAnswers: Prisma.DbNull },
+    data: {
+      questionnaireAnswers: Prisma.DbNull,
+      questionnaireCompletedAt: null,
+      questionnaireRetakeRequestedAt: null,
+    },
   });
 
   return Response.json({ success: true });

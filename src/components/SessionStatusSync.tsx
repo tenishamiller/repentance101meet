@@ -1,20 +1,28 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
-/** Keeps JWT status in sync when an admin approves a pending member mid-session. */
+/** Keeps JWT in sync when an admin approves, rejects, or removes a member mid-session. */
 export function SessionStatusSync() {
   const { data: session, status, update } = useSession();
 
   useEffect(() => {
-    if (status !== "authenticated" || session?.user?.status !== "PENDING") return;
+    if (status !== "authenticated") return;
 
     async function refreshStatus() {
       const res = await fetch("/api/onboarding/status");
+      if (res.status === 401 || res.status === 404) {
+        await signOut({ redirect: true });
+        return;
+      }
       if (!res.ok) return;
       const data = await res.json();
-      if (data.status === "APPROVED") {
+      if (data.deleted || data.status === "REJECTED") {
+        await signOut({ redirect: true });
+        return;
+      }
+      if (session?.user?.status === "PENDING" && data.status === "APPROVED") {
         await update({ status: "APPROVED" });
       }
     }
