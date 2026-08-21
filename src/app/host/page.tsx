@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { HostLoginForm } from "./HostLoginForm";
@@ -8,5 +9,9 @@ export default async function HostLoginPage() {
     redirect("/admin");
   }
 
-  return <HostLoginForm />;
+  return (
+    <Suspense>
+      <HostLoginForm />
+    </Suspense>
+  );
 }

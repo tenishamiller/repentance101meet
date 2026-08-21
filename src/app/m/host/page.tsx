@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { HostLoginForm } from "@/app/host/HostLoginForm";
@@ -8,5 +9,9 @@ export default async function MobileHostLoginPage() {
     redirect("/m/admin");
   }
 
-  return <HostLoginForm mobileApp />;
+  return (
+    <Suspense>
+      <HostLoginForm mobileApp />
+    </Suspense>
+  );
 }

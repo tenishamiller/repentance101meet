@@ -12,6 +12,7 @@ export function MemberLoginForm({ mobileApp = false }: { mobileApp?: boolean }) 
   const base = mobileApp ? "/m" : "";
   const searchParams = useSearchParams();
   const afterLogin = safeCallbackUrl(searchParams.get("callbackUrl"));
+  const passwordWasReset = searchParams.get("reset") === "1";
   const { email, setEmail, rememberMe, setRememberMe, persistOnLogin } = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -97,6 +98,11 @@ export function MemberLoginForm({ mobileApp = false }: { mobileApp?: boolean }) 
         <p className="mt-2 text-burgundy/70">Sign in to your member account</p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          {passwordWasReset && (
+            <div className="rounded-lg border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-burgundy">
+              Your password was updated. Sign in with your new password.
+            </div>
+          )}
           {error && (
             <div className="rounded-lg border border-burgundy/20 bg-burgundy/5 px-4 py-3 text-sm text-burgundy">
               {error}
@@ -114,7 +120,15 @@ export function MemberLoginForm({ mobileApp = false }: { mobileApp?: boolean }) 
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-burgundy">Password</label>
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <label className="block text-sm font-medium text-burgundy">Password</label>
+              <Link
+                href={`${base}/forgot-password`}
+                className="text-xs font-medium text-gold-muted hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               required
