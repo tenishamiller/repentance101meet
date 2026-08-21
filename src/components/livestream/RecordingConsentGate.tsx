@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Circle, Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { AppPathLink } from "@/components/AppPathLink";
 import type { MemberJoinMediaPrefs } from "@/lib/member-join-media";
 import { cn } from "@/lib/utils";
 
@@ -153,9 +153,9 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
           >
             {joining ? "Joining..." : "I understand — join livestream"}
           </button>
-          <Link href="/livestream" className="btn-secondary flex-1 text-center">
+          <AppPathLink href="/livestream" className="btn-secondary flex-1 text-center">
             Leave
-          </Link>
+          </AppPathLink>
         </div>
       </div>
     </div>

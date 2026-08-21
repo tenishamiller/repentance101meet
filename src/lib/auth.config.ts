@@ -37,6 +37,9 @@ export const authConfig = {
       if (trigger === "update" && session) {
         token.name = session.name ?? token.name;
         token.avatarUrl = session.avatarUrl ?? token.avatarUrl;
+        if (typeof session.email === "string" && session.email.trim()) {
+          token.email = session.email.trim().toLowerCase();
+        }
         token.status = (session.status ?? token.status) as
           | "PENDING"
           | "APPROVED"
@@ -56,6 +59,9 @@ export const authConfig = {
         session.user.status = token.status as "PENDING" | "APPROVED" | "REJECTED";
         session.user.avatarUrl = token.avatarUrl as string | null | undefined;
         session.user.questionnaireCompleted = token.questionnaireCompleted === true;
+        if (typeof token.email === "string") {
+          session.user.email = token.email;
+        }
       }
       return session;
     },

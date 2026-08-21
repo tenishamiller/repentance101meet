@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(session?.user?.name ?? "");
   const [email, setEmail] = useState(session?.user?.email ?? "");
+  const [currentPassword, setCurrentPassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -28,10 +29,18 @@ export default function SettingsPage() {
     setError("");
     setMessage("");
 
+    const emailChanging =
+      email.trim().toLowerCase() !== (session?.user?.email ?? "").toLowerCase();
+
     const res = await fetch("/api/user/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, avatarUrl }),
+      body: JSON.stringify({
+        name,
+        email,
+        avatarUrl,
+        currentPassword: emailChanging ? currentPassword : undefined,
+      }),
     });
 
     const data = await res.json();
@@ -40,8 +49,10 @@ export default function SettingsPage() {
       return;
     }
 
-    await update({ name, avatarUrl: data.user.avatarUrl });
+    await update({ name, email: data.user.email, avatarUrl: data.user.avatarUrl });
     setAvatarUrl(data.user.avatarUrl ?? "");
+    setEmail(data.user.email ?? email);
+    setCurrentPassword("");
     setMessage("Profile updated!");
   }
 
@@ -80,7 +91,11 @@ export default function SettingsPage() {
     }
 
     setError("");
-    const res = await fetch("/api/user/delete", { method: "DELETE" });
+    const res = await fetch("/api/user/delete", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ confirm: deleteConfirm }),
+    });
     if (res.ok) {
       await signOut({ callbackUrl: homePath });
       return;
@@ -168,6 +183,21 @@ export default function SettingsPage() {
           <label className="mb-1 block text-sm font-medium text-burgundy">Email</label>
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="input-field" />
         </div>
+        {email.trim().toLowerCase() !== (session.user.email ?? "").toLowerCase() && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-burgundy">
+              Current password (required to change email)
+            </label>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="input-field"
+              required
+            />
+          </div>
+        )}
         <button type="submit" className="btn-primary">
           Save Profile
         </button>
