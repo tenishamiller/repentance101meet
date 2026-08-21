@@ -1,37 +1,24 @@
-export type MemberJoinMediaPrefs = {
-  cameraOn: boolean;
-  micOn: boolean;
-};
-
-type StoredSession = MemberJoinMediaPrefs & { consented: true };
+type StoredSession = { consented: true };
 
 const sessionKey = (meetingToken: string) => `r101-livestream-join:${meetingToken}`;
 
-/** Join choices for this browser tab session — survives refresh, cleared when the member leaves. */
-export function getMemberJoinSession(meetingToken: string): MemberJoinMediaPrefs | null {
-  if (typeof window === "undefined") return null;
+/** True when this browser tab already accepted the join warning for this meeting. */
+export function hasMemberJoinSession(meetingToken: string) {
+  if (typeof window === "undefined") return false;
   try {
     const raw = window.sessionStorage.getItem(sessionKey(meetingToken));
-    if (!raw) return null;
+    if (!raw) return false;
     const parsed = JSON.parse(raw) as StoredSession;
-    return { cameraOn: !!parsed.cameraOn, micOn: !!parsed.micOn };
+    return parsed.consented === true;
   } catch {
-    return null;
+    return false;
   }
 }
 
-export function hasMemberJoinSession(meetingToken: string) {
-  return getMemberJoinSession(meetingToken) !== null;
-}
-
-export function saveMemberJoinSession(meetingToken: string, prefs: MemberJoinMediaPrefs) {
+export function saveMemberJoinSession(meetingToken: string) {
   if (typeof window === "undefined") return;
   try {
-    const stored: StoredSession = {
-      cameraOn: prefs.cameraOn,
-      micOn: prefs.micOn,
-      consented: true,
-    };
+    const stored: StoredSession = { consented: true };
     window.sessionStorage.setItem(sessionKey(meetingToken), JSON.stringify(stored));
   } catch {
     /* private browsing / quota */

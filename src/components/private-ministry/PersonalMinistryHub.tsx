@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import {
   Calendar,
   Heart,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AppPathLink } from "@/components/AppPathLink";
 import { PaginatedScrollList } from "@/components/admin/PaginatedScrollList";
 import { ShowMoreList } from "@/components/ShowMoreList";
 import { MemberSearchPicker } from "@/components/admin/MemberSearchPicker";
@@ -42,6 +42,7 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
   const [invitedMember, setInvitedMember] = useState<Member | null>(null);
   const [creating, setCreating] = useState(false);
   const [lastJoinUrl, setLastJoinUrl] = useState("");
+  const [error, setError] = useState("");
 
   const fetchSessions = useCallback(async () => {
     const res = await fetch("/api/private-ministry");
@@ -63,19 +64,23 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
   async function createSession() {
     if (!invitedMember) return;
     setCreating(true);
+    setError("");
     const res = await fetch("/api/private-ministry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, invitedUserId: invitedMember.id }),
     });
     setCreating(false);
-    if (res.ok) {
-      const data = await res.json();
-      setLastJoinUrl(data.joinUrl);
-      setTitle("");
-      setInvitedMember(null);
-      void fetchSessions();
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(typeof data.error === "string" ? data.error : "Could not create session.");
+      return;
     }
+    const data = await res.json();
+    setLastJoinUrl(data.joinUrl);
+    setTitle("");
+    setInvitedMember(null);
+    void fetchSessions();
   }
 
   async function sessionAction(sessionId: string, action: "start" | "end" | "hide") {
@@ -148,12 +153,12 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
           <div className="flex flex-wrap gap-2">
             {isAdmin && (s.status === "SCHEDULED" || s.status === "LIVE") && (
               <>
-                <Link
+                <AppPathLink
                   href={`/personal-ministry/${s.linkToken}`}
                   className="btn-primary !px-4 !py-2 text-sm"
                 >
                   {s.status === "SCHEDULED" ? "Start & Enter" : "Enter as Host"}
-                </Link>
+                </AppPathLink>
                 {s.status === "LIVE" && (
                   <button
                     type="button"
@@ -166,12 +171,12 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
               </>
             )}
             {!isAdmin && (s.status === "SCHEDULED" || s.status === "LIVE") && (
-              <Link
+              <AppPathLink
                 href={`/personal-ministry/${s.linkToken}`}
                 className="btn-primary !px-4 !py-2 text-sm"
               >
                 {s.status === "LIVE" ? "Join Private Session" : "Open Session"}
-              </Link>
+              </AppPathLink>
             )}
             {s.status !== "LIVE" && (
               <button
@@ -209,13 +214,13 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
             </p>
 
             {!isAdmin && liveInvite && (
-              <Link
+              <AppPathLink
                 href={`/personal-ministry/${liveInvite.linkToken}`}
                 className="btn-primary mt-8 inline-flex items-center gap-2 !px-8 !py-4 !text-lg"
               >
                 <Video className="h-6 w-6" />
                 Join Private Session
-              </Link>
+              </AppPathLink>
             )}
           </div>
         </section>
@@ -268,6 +273,9 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
             <Plus className="h-4 w-4" />
             {creating ? "Creating..." : "Create Private Session"}
           </button>
+          {error ? (
+            <p className="mt-3 text-sm text-burgundy">{error}</p>
+          ) : null}
 
           {lastJoinUrl && (
             <div className="mt-4 rounded-xl border border-gold/30 bg-cream-dark p-4">
@@ -361,9 +369,9 @@ export function PersonalMinistryHub({ isAdmin, userName = "", embedded = false }
         <p className="mt-8 text-center text-sm text-burgundy/60">
           Welcome, {userName}. This space is only for sessions you&apos;re personally invited to —
           separate from the public live teaching at{" "}
-          <Link href="/livestream" className="font-medium text-burgundy underline">
+          <AppPathLink href="/livestream" className="font-medium text-burgundy underline">
             Live Meeting
-          </Link>
+          </AppPathLink>
           .
         </p>
       )}

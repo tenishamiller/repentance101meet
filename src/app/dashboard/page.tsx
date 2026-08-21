@@ -43,6 +43,7 @@ export default async function DashboardPage() {
           kind: "PRIVATE",
           invitedUserId: session.user.id,
           status: "LIVE",
+          deletedAt: null,
         },
       })
     : null;

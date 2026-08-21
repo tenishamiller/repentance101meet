@@ -1,25 +1,52 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const BUCKET = process.env.S3_BUCKET?.trim() || "media";
+/** UUID object keys are immutable; browsers can keep avatars/media for a long time. */
+export const PUBLIC_OBJECT_CACHE_CONTROL = "public, max-age=31536000, immutable";
+
+function unquoteEnv(value: string | undefined): string {
+  if (!value) return "";
+  let v = value.trim();
+  for (let i = 0; i < 3; i++) {
+    if (
+      (v.startsWith('"') && v.endsWith('"')) ||
+      (v.startsWith("'") && v.endsWith("'"))
+    ) {
+      v = v.slice(1, -1).trim();
+      continue;
+    }
+    if (v.startsWith('\\"') && v.endsWith('\\"')) {
+      v = v.slice(2, -2).trim();
+      continue;
+    }
+    break;
+  }
+  return v.replace(/^\\"/, "").replace(/\\"$/, "");
+}
+
+const BUCKET = unquoteEnv(process.env.S3_BUCKET) || "media";
 
 function s3InternalEndpoint() {
-  return process.env.S3_ENDPOINT?.replace(/\/$/, "") || "";
+  return unquoteEnv(process.env.S3_ENDPOINT).replace(/\/$/, "");
 }
 
 function s3PublicEndpoint() {
   return (
-    process.env.S3_PUBLIC_ENDPOINT?.replace(/\/$/, "") ||
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    ""
+    unquoteEnv(process.env.S3_PUBLIC_ENDPOINT).replace(/\/$/, "") ||
+    unquoteEnv(process.env.NEXT_PUBLIC_APP_URL).replace(/\/$/, "")
   );
 }
 
 export function isS3Configured() {
   return Boolean(
-    process.env.S3_ENDPOINT &&
-      process.env.S3_ACCESS_KEY &&
-      process.env.S3_SECRET_KEY,
+    unquoteEnv(process.env.S3_ENDPOINT) &&
+      unquoteEnv(process.env.S3_ACCESS_KEY) &&
+      unquoteEnv(process.env.S3_SECRET_KEY),
   );
 }
 
@@ -29,15 +56,15 @@ export function isCloudStorageConfigured() {
 
 function createS3Client(endpoint: string) {
   return new S3Client({
-    region: process.env.S3_REGION?.trim() || "us-east-1",
+    region: unquoteEnv(process.env.S3_REGION) || "us-east-1",
     endpoint,
     forcePathStyle: true,
     // MinIO rejects the AWS SDK's default CRC32 checksum headers.
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",
     credentials: {
-      accessKeyId: process.env.S3_ACCESS_KEY!,
-      secretAccessKey: process.env.S3_SECRET_KEY!,
+      accessKeyId: unquoteEnv(process.env.S3_ACCESS_KEY),
+      secretAccessKey: unquoteEnv(process.env.S3_SECRET_KEY),
     },
   });
 }
@@ -98,9 +125,35 @@ export async function uploadObjectBuffer(options: {
       Key: storagePath,
       Body: buffer,
       ContentType: contentType,
+      CacheControl: PUBLIC_OBJECT_CACHE_CONTROL,
     }),
   );
   return { publicUrl: getPublicObjectUrl(storagePath) };
+}
+
+export async function getObjectBuffer(storagePath: string): Promise<{
+  buffer: Buffer;
+  contentType: string;
+} | null> {
+  if (!isS3Configured()) return null;
+
+  const client = createS3Client(s3InternalEndpoint());
+  try {
+    const res = await client.send(
+      new GetObjectCommand({
+        Bucket: BUCKET,
+        Key: storagePath,
+      }),
+    );
+    const bytes = await res.Body?.transformToByteArray();
+    if (!bytes) return null;
+    return {
+      buffer: Buffer.from(bytes),
+      contentType: res.ContentType || "application/octet-stream",
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function storagePathFromPublicUrl(url: string | null | undefined): string | null {

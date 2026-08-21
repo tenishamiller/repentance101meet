@@ -1,17 +1,16 @@
-import { auth } from "@/lib/auth";
+import { getActiveSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
 export async function GET(_request: Request, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const { token } = await params;
   const privateSession = await prisma.meeting.findFirst({
-    where: { linkToken: token, kind: "PRIVATE" },
+    where: { linkToken: token, kind: "PRIVATE", deletedAt: null },
     include: {
       invitedUser: { select: { id: true, name: true, avatarUrl: true } },
       createdBy: { select: { id: true, name: true, avatarUrl: true } },

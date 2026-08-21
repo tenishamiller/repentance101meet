@@ -165,6 +165,8 @@ export function LiveKitMeetingShell({
         token={credentials.token}
         serverUrl={credentials.serverUrl}
         connect
+        audio={false}
+        video={false}
         options={getLiveKitRoomOptions(persistInBackground)}
         connectOptions={{ autoSubscribe: true }}
         onDisconnected={onDisconnected}
