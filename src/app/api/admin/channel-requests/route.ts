@@ -9,16 +9,26 @@ export async function PATCH(request: NextRequest) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { membershipId, status } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const { membershipId, status } = body as { membershipId?: string; status?: string };
 
-  const allowed = ["PENDING", "APPROVED", "DENIED"];
-  if (!allowed.includes(status)) {
+  const allowed = ["PENDING", "APPROVED", "DENIED"] as const;
+  if (!membershipId || !allowed.includes(status as (typeof allowed)[number])) {
     return Response.json({ error: "Invalid status" }, { status: 400 });
+  }
+  const nextStatus = status as (typeof allowed)[number];
+
+  const existing = await prisma.channelMembership.findUnique({
+    where: { id: membershipId },
+    select: { id: true },
+  });
+  if (!existing) {
+    return Response.json({ error: "Not found" }, { status: 404 });
   }
 
   const membership = await prisma.channelMembership.update({
     where: { id: membershipId },
-    data: { status },
+    data: { status: nextStatus },
     include: {
       user: { select: { name: true } },
       channel: { select: { id: true, name: true, type: true } },
@@ -30,14 +40,14 @@ export async function PATCH(request: NextRequest) {
     DENIED: "CHANNEL_DENIED" as const,
     PENDING: "CHANNEL_REQUESTED" as const,
   };
-  const logType = typeMap[status as keyof typeof typeMap];
+  const logType = typeMap[nextStatus];
   if (logType && logType !== "CHANNEL_REQUESTED") {
     await logMemberActivity({
       userId: membership.userId,
       type: logType,
       channelId: membership.channelId,
       actorId: session.user.id,
-      label: `${status === "APPROVED" ? "Approved" : "Denied"} for ${membership.channel.name}`,
+      label: `${nextStatus === "APPROVED" ? "Approved" : "Denied"} for ${membership.channel.name}`,
     });
   }
 
@@ -50,7 +60,12 @@ export async function DELETE(request: NextRequest) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { membershipId, reason } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const { membershipId, reason } = body as { membershipId?: string; reason?: string };
+
+  if (!membershipId) {
+    return Response.json({ error: "Not found" }, { status: 400 });
+  }
 
   const membership = await prisma.channelMembership.findUnique({
     where: { id: membershipId },

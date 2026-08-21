@@ -1,3 +1,5 @@
+import { unquoteEnv } from "@/lib/env";
+
 /** Normalize stored avatar paths to a browser-loadable URL. */
 export function resolveAvatarUrl(url: string | null | undefined): string | null {
   if (!url?.trim()) return null;
@@ -9,7 +11,7 @@ export function resolveAvatarUrl(url: string | null | undefined): string | null 
     if (typeof window !== "undefined") {
       return `${window.location.origin}${trimmed}`;
     }
-    const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+    const base = unquoteEnv(process.env.NEXT_PUBLIC_APP_URL).replace(/\/$/, "");
     return base ? `${base}${trimmed}` : trimmed;
   }
   return trimmed;
