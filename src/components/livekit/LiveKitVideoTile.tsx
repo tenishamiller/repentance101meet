@@ -128,7 +128,7 @@ export function LiveKitVideoTile({
           playsInline
           controls={false}
           disablePictureInPicture
-          manageSubscription
+          manageSubscription={panelLayout}
         />
       ) : cameraOff ? (
         <CameraOffOverlay

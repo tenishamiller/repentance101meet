@@ -27,7 +27,15 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { userId, reason, meetingId } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const { userId, reason, meetingId } = body as {
+    userId?: string;
+    reason?: string;
+    meetingId?: string;
+  };
+  if (!userId) {
+    return Response.json({ error: "userId required" }, { status: 400 });
+  }
 
   const block = await prisma.blockList.upsert({
     where: {
@@ -81,7 +89,16 @@ export async function PATCH(request: NextRequest) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { blockId } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const { blockId } = body as { blockId?: string };
+  if (!blockId) {
+    return Response.json({ error: "blockId required" }, { status: 400 });
+  }
+
+  const existing = await prisma.blockList.findUnique({ where: { id: blockId } });
+  if (!existing) {
+    return Response.json({ error: "Block not found" }, { status: 404 });
+  }
 
   await prisma.blockList.update({
     where: { id: blockId },

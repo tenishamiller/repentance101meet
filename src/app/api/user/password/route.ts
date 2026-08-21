@@ -1,13 +1,12 @@
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
-import { auth } from "@/lib/auth";
+import { getActiveSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function PATCH(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const body = await request.json().catch(() => ({}));
   const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : "";
@@ -22,7 +21,7 @@ export async function PATCH(request: NextRequest) {
     return Response.json({ error: "New password must be at least 8 characters" }, { status: 400 });
   }
 
-  if (confirmPassword && confirmPassword !== newPassword) {
+  if (confirmPassword !== newPassword) {
     return Response.json({ error: "New password and confirmation do not match" }, { status: 400 });
   }
 

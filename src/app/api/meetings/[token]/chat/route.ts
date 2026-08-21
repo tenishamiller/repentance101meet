@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireMeetingParticipant } from "@/lib/meeting-access";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
@@ -25,15 +26,24 @@ async function canModerateMeetingChat(
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const { token } = await params;
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
   if (!meeting || meeting.deletedAt) {
     return Response.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const access = await requireMeetingParticipant({
+    meetingId: meeting.id,
+    userId: session.user.id,
+    role: session.user.role,
+    createdById: meeting.createdById,
+  });
+  if (!access.ok) {
+    return Response.json({ error: "Join the meeting to view chat" }, { status: 403 });
   }
 
   const canModerate = await canModerateMeetingChat(
@@ -70,10 +80,9 @@ export async function GET(request: Request, { params }: RouteParams) {
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const { token } = await params;
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
@@ -91,7 +100,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return Response.json({ error: "Join the meeting to chat" }, { status: 403 });
   }
 
-  const { content, attachments, replyToId } = await request.json();
+  const { content, attachments, replyToId } = await request.json().catch(() => ({}));
 
   if (!content?.trim() && !attachments?.length) {
     return Response.json({ error: "Message cannot be empty" }, { status: 400 });
@@ -124,13 +133,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const { token } = await params;
-  const { userId, action, enabled } = await request.json();
+  const body = await request.json().catch(() => ({}));
+  const { userId, action, enabled } = body as {
+    userId?: string;
+    action?: string;
+    enabled?: boolean;
+  };
 
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
   if (!meeting || meeting.deletedAt) {
@@ -138,6 +151,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   if (action === "raise-hand" || action === "lower-hand") {
+    const participant = await prisma.meetingParticipant.findUnique({
+      where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
+    });
+    if (!participant || participant.blocked) {
+      return Response.json({ error: "Join the meeting first" }, { status: 403 });
+    }
     const now = new Date();
     await prisma.meetingParticipant.update({
       where: { meetingId_userId: { meetingId: meeting.id, userId: session.user.id } },
@@ -232,6 +251,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   if (action === "block") {
+    if (!userId || typeof userId !== "string") {
+      return Response.json({ error: "userId required" }, { status: 400 });
+    }
+    if (userId === meeting.createdById) {
+      return Response.json({ error: "Cannot block the host" }, { status: 400 });
+    }
+    const target = await prisma.meetingParticipant.findUnique({
+      where: { meetingId_userId: { meetingId: meeting.id, userId } },
+      select: { id: true },
+    });
+    if (!target) {
+      return Response.json({ error: "Participant not found" }, { status: 404 });
+    }
     await prisma.meetingParticipant.update({
       where: { meetingId_userId: { meetingId: meeting.id, userId } },
       data: { blocked: true },
