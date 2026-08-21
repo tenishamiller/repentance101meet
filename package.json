@@ -14,6 +14,7 @@
     "db:setup": "prisma db push && tsx prisma/seed.ts",
     "db:deploy": "prisma migrate deploy",
     "generate:favicons": "node scripts/generate-favicons.mjs",
+    "avatars:optimize": "tsx scripts/optimize-existing-avatars.ts",
     "deploy": "node scripts/deploy-vercel.mjs",
     "deploy:vps": "docker compose up -d --build",
     "postinstall": "prisma generate"
@@ -41,6 +42,7 @@
     "prisma": "^7.9.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "sharp": "^0.35.3",
     "tailwind-merge": "^3.6.0",
     "uuid": "^14.0.1",
     "zod": "^4.4.3"
@@ -55,7 +57,6 @@
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
-    "sharp": "^0.35.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.11",
     "typescript": "^5"

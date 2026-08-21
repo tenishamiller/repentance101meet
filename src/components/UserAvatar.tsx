@@ -53,19 +53,16 @@ export function UserAvatar({
   imageFit = "cover",
 }: UserAvatarProps) {
   const [showPopover, setShowPopover] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
   const [profile, setProfile] = useState<PublicProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
-    setImageFailed(false);
-  }, [avatarUrl]);
-
-  useEffect(() => {
-    if (interactive || (!loadProfileWhenEmpty && avatarUrl)) return;
+    // Don't block the photo on an extra round-trip when the URL is already known.
+    if (avatarUrl) return;
+    if (interactive && !loadProfileWhenEmpty) return;
 
     let cancelled = false;
-    setProfileLoading(true);
 
     fetch(`/api/users/${userId}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -74,9 +71,7 @@ export function UserAvatar({
           setProfile(data.user);
         }
       })
-      .finally(() => {
-        if (!cancelled) setProfileLoading(false);
-      });
+      .catch(() => null);
 
     return () => {
       cancelled = true;
@@ -89,7 +84,6 @@ export function UserAvatar({
     }
 
     let cancelled = false;
-    setProfileLoading(true);
 
     fetch(`/api/users/${userId}`)
       .then((res) => (res.ok ? res.json() : null))
@@ -98,9 +92,7 @@ export function UserAvatar({
           setProfile(data.user);
         }
       })
-      .finally(() => {
-        if (!cancelled) setProfileLoading(false);
-      });
+      .catch(() => null);
 
     return () => {
       cancelled = true;
@@ -109,31 +101,37 @@ export function UserAvatar({
 
   const displayName = profile?.name ?? name;
   const displayAvatarUrl = resolveAvatarUrl(profile?.avatarUrl ?? avatarUrl);
-  const showImage = displayAvatarUrl && !imageFailed;
+  const imageFailed = Boolean(displayAvatarUrl && failedUrl === displayAvatarUrl);
+  const imageLoaded = Boolean(displayAvatarUrl && loadedUrl === displayAvatarUrl);
 
-  const face = (
-    <>
-      {showImage ? (
-        <AvatarImage
-          src={displayAvatarUrl}
-          alt={displayName}
-          className={cn(
-            "h-full w-full",
-            imageFit === "contain" ? "object-contain" : "object-cover",
-          )}
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <span
-          className={cn(
-            "flex h-full w-full items-center justify-center font-semibold",
-            onDark ? "bg-burgundy/40 text-cream" : "bg-burgundy/10 text-burgundy",
-          )}
-        >
-          {getInitials(displayName)}
-        </span>
+  const initials = (
+    <span
+      className={cn(
+        "flex h-full w-full items-center justify-center font-semibold",
+        onDark ? "bg-burgundy/40 text-cream" : "bg-burgundy/10 text-burgundy",
       )}
+    >
+      {getInitials(displayName)}
+    </span>
+  );
+
+  const face = displayAvatarUrl && !imageFailed ? (
+    <>
+      <span className={cn("absolute inset-0", imageLoaded && "opacity-0")}>{initials}</span>
+      <AvatarImage
+        src={displayAvatarUrl}
+        alt={displayName}
+        className={cn(
+          "relative h-full w-full transition-opacity duration-150",
+          imageFit === "contain" ? "object-contain" : "object-cover",
+          imageLoaded ? "opacity-100" : "opacity-0",
+        )}
+        onLoad={() => setLoadedUrl(displayAvatarUrl)}
+        onError={() => setFailedUrl(displayAvatarUrl)}
+      />
     </>
+  ) : (
+    initials
   );
 
   if (!interactive) {
@@ -187,13 +185,13 @@ export function UserAvatar({
                 Teacher — {MINISTRY_NAME}
               </p>
             )}
-            {profileLoading ? (
-              <p className="mt-2 text-center text-xs text-burgundy/45">Loading profile…</p>
-            ) : profile ? (
+            {profile ? (
               <p className="mt-2 text-center text-xs text-burgundy/60">
                 Member since {formatMemberSince(profile.createdAt)}
               </p>
-            ) : null}
+            ) : (
+              <p className="mt-2 text-center text-xs text-burgundy/45">Loading profile…</p>
+            )}
             <Link
               href={`/profile/${userId}`}
               className="mt-3 block text-center text-sm text-gold-muted hover:underline"
