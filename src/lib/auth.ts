@@ -63,6 +63,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
 });
 
+/** Session that is still allowed to call APIs (not deleted or rejected). */
+export async function getActiveSession() {
+  const session = await auth();
+  if (!session?.user) {
+    return {
+      session: null as null,
+      unauthorized: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { deletedAt: true, status: true },
+  });
+
+  if (!user || user.deletedAt || user.status === "REJECTED") {
+    return {
+      session: null as null,
+      unauthorized: Response.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  session.user.status = user.status;
+  return { session, unauthorized: null };
+}
+
 export async function requireAuth() {
   const session = await auth();
   if (!session?.user) {

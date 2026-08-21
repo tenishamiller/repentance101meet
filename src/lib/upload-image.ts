@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { isCloudStorageConfigured, isS3Configured, uploadObjectBuffer } from "@/lib/object-storage";
+import { optimizeAvatarImage } from "@/lib/optimize-image";
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5 MB
 const MAX_UPLOAD_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB (screenshots, GIFs)
@@ -23,8 +24,17 @@ export async function saveUserImage(
   }
 
   const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-  const ext = path.extname(file.name) || ".jpg";
+  let buffer = Buffer.from(bytes);
+  let contentType = file.type;
+  let ext = path.extname(file.name) || ".jpg";
+
+  if (folder === "avatars") {
+    const optimized = await optimizeAvatarImage(buffer, file.type);
+    buffer = Buffer.from(optimized.buffer);
+    contentType = optimized.contentType;
+    ext = optimized.ext;
+  }
+
   const filename =
     folder === "avatars"
       ? `avatars/${userId}/${uuidv4()}${ext}`
@@ -35,7 +45,7 @@ export async function saveUserImage(
       const { publicUrl } = await uploadObjectBuffer({
         storagePath: filename,
         buffer,
-        contentType: file.type,
+        contentType,
         upsert: false,
       });
       return { url: publicUrl };

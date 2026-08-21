@@ -49,6 +49,10 @@ export function LiveMeetingBanner({
       <p className="badge-live mb-2 w-fit">● LIVE NOW</p>
       <p className="font-semibold text-burgundy">{live.title}</p>
       <p className="mt-1 text-sm text-burgundy/70">A live teaching session is in progress.</p>
+      <p className="mt-2 text-xs text-burgundy/60">
+        You join with camera and microphone off. Turn them on on the next screen if you want to be
+        seen or heard.
+      </p>
       <Link href={href} className="btn-burgundy mt-4 inline-block !px-5 !py-2.5 text-sm">
         Join Meeting
       </Link>
