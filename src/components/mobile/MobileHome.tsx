@@ -52,6 +52,7 @@ export async function MobileHome() {
             kind: "PRIVATE",
             invitedUserId: session.user.id,
             status: "LIVE",
+            deletedAt: null,
           },
         })
       : null;

@@ -217,6 +217,7 @@ export const config = {
     "/missed-it",
     "/missed-it/:path*",
     "/channels/:path*",
+    "/profile/:path*",
     "/m",
     "/m/host",
     "/m/login",
@@ -236,5 +237,6 @@ export const config = {
     "/m/missed-it",
     "/m/missed-it/:path*",
     "/m/channels/:path*",
+    "/m/profile/:path*",
   ],
 };

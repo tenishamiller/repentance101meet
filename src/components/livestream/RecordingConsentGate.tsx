@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Circle, Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { AppPathLink } from "@/components/AppPathLink";
 import type { MemberJoinMediaPrefs } from "@/lib/member-join-media";
 import { cn } from "@/lib/utils";
 
@@ -84,8 +84,8 @@ async function primeJoinMedia(cameraOn: boolean, micOn: boolean) {
 }
 
 export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
-  const [cameraOn, setCameraOn] = useState(true);
-  const [micOn, setMicOn] = useState(true);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [micOn, setMicOn] = useState(false);
   const [joining, setJoining] = useState(false);
 
   async function handleAccept() {
@@ -122,25 +122,31 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
           <p className="text-xs font-bold uppercase tracking-wide text-burgundy/55">
             Your camera and microphone
           </p>
+          <p className="text-sm leading-relaxed text-burgundy/80">
+            You join with camera and microphone <span className="font-semibold">off</span>. That is
+            on purpose, on phone and computer. If you want to be seen or heard, turn the switches
+            below on before you join. You can also turn them on after you are in the room with the
+            camera and mic buttons. Host screen share never turns your camera on.
+          </p>
           <JoinMediaToggle
             active={cameraOn}
             onClick={() => setCameraOn((on) => !on)}
-            onLabel="Camera on"
-            offLabel="Camera off"
+            onLabel="Camera on — you will be seen"
+            offLabel="Camera off — you will not be seen"
             onIcon={Video}
             offIcon={VideoOff}
           />
           <JoinMediaToggle
             active={micOn}
             onClick={() => setMicOn((on) => !on)}
-            onLabel="Microphone on"
-            offLabel="Microphone off"
+            onLabel="Microphone on — you will be heard"
+            offLabel="Microphone off — you will not be heard"
             onIcon={Mic}
             offIcon={MicOff}
           />
           <p className="text-xs text-burgundy/55">
-            Camera and microphone turn on when you join. Turn either off here first if you want to
-            enter quietly. You can change these anytime after you join.
+            “I understand — join livestream” does not turn camera or microphone on. Only these
+            switches do.
           </p>
         </div>
 
@@ -153,9 +159,9 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
           >
             {joining ? "Joining..." : "I understand — join livestream"}
           </button>
-          <Link href="/livestream" className="btn-secondary flex-1 text-center">
+          <AppPathLink href="/livestream" className="btn-secondary flex-1 text-center">
             Leave
-          </Link>
+          </AppPathLink>
         </div>
       </div>
     </div>

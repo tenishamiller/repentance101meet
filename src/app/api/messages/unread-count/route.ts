@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getActiveSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { activeUserFilter } from "@/lib/user-deletion";
 import {
@@ -7,10 +7,9 @@ import {
 } from "@/lib/message-thread-deletion";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   await purgeExpiredConversations();
 
