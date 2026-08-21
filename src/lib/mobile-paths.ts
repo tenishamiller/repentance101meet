@@ -6,6 +6,7 @@ const DESKTOP_TO_MOBILE: Record<string, string> = {
   "/signup": "/m/signup",
   "/forgot-password": "/m/forgot-password",
   "/reset-password": "/m/reset-password",
+  "/channels": "/m/channels",
   "/questionnaire": "/m/questionnaire",
   "/host": "/m/host",
   "/dashboard": "/m/dashboard",

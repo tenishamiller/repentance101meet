@@ -87,9 +87,9 @@ export async function MobileHome() {
           icon: Radio,
         },
         {
-          href: `${base}/channels/general`,
+          href: `${base}/channels`,
           label: "Member Chat",
-          desc: "Fellowship channels",
+          desc: "Accountability, Q&A, and fellowship",
           icon: Users,
         },
         {

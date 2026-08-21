@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Ban, ClipboardPaste, MessageCircle, Paperclip, SendHorizontal, UserMinus, X } from "lucide-react";
+import { Ban, ChevronLeft, ClipboardPaste, MessageCircle, Paperclip, SendHorizontal, UserMinus, X } from "lucide-react";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
 import { EmojiPicker } from "@/components/channels/EmojiPicker";
@@ -619,6 +619,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     );
   });
   const selectedPeer = peerMembers.find((member) => member.id === peerId) ?? null;
+  const mobilePeerThread = inMobileShell && isPeerMessaging && Boolean(peerId);
 
   const deletedForSidebar = deletedThreads;
 
@@ -641,8 +642,12 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-        {isPeerMessaging && (
-          <aside className="card-brand flex max-h-64 flex-col overflow-hidden p-3 lg:max-h-none lg:w-72 lg:shrink-0">
+        {isPeerMessaging && !mobilePeerThread && (
+          <aside
+            className={`card-brand flex flex-col overflow-hidden p-3 lg:w-72 lg:shrink-0 ${
+              inMobileShell ? "max-h-[min(52vh,26rem)] min-h-0 shrink-0" : "max-h-64 lg:max-h-none"
+            }`}
+          >
             <button
               type="button"
               onClick={() => setPeerId(null)}
@@ -942,6 +947,16 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                 <div className="shrink-0 border-b border-gold/20 bg-cream-dark/80 px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
+                      {mobilePeerThread && (
+                        <button
+                          type="button"
+                          onClick={() => setPeerId(null)}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gold/30 px-2.5 py-1.5 text-xs font-semibold text-burgundy hover:bg-gold/10"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Members
+                        </button>
+                      )}
                       <UserAvatar
                         userId={selectedPeer.id}
                         name={selectedPeer.name}
