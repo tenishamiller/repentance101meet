@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
@@ -11,6 +12,8 @@ import { RememberMeCheckbox, useRememberedEmail } from "@/components/auth/Rememb
 
 export function HostLoginForm({ mobileApp = false }: { mobileApp?: boolean }) {
   const base = mobileApp ? "/m" : "";
+  const searchParams = useSearchParams();
+  const passwordWasReset = searchParams.get("reset") === "1";
   const { email, setEmail, rememberMe, setRememberMe, persistOnLogin } = useRememberedEmail();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -66,6 +69,11 @@ export function HostLoginForm({ mobileApp = false }: { mobileApp?: boolean }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {passwordWasReset && (
+            <div className="rounded-lg border border-gold/30 bg-gold/10 px-4 py-3 text-sm text-burgundy">
+              Your password was updated. Sign in with your new password.
+            </div>
+          )}
           {error && (
             <div className="rounded-lg border border-burgundy/20 bg-burgundy/5 px-4 py-3 text-sm text-burgundy">
               {error}
@@ -84,7 +92,15 @@ export function HostLoginForm({ mobileApp = false }: { mobileApp?: boolean }) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-burgundy">Password</label>
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <label className="block text-sm font-medium text-burgundy">Password</label>
+              <Link
+                href={`${base}/forgot-password?from=host`}
+                className="text-xs font-medium text-gold-muted hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               required
