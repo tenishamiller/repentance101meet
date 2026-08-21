@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   AlertCircle,
   Ban,
@@ -11,6 +10,7 @@ import {
   Video,
 } from "lucide-react";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AppPathLink } from "@/components/AppPathLink";
 import { formatDate, formatRequestDateTime } from "@/lib/utils";
 import type { DashboardStats } from "./types";
 
@@ -115,12 +115,12 @@ export function AdminOverview({ stats, onGoTo }: Props) {
                   {s.title}
                   {s.invitedUser ? ` · with ${s.invitedUser.name}` : ""}
                 </span>
-                <Link
+                <AppPathLink
                   href={`/personal-ministry/${s.linkToken}`}
                   className="btn-burgundy !px-4 !py-2 text-sm"
                 >
                   Enter Session
-                </Link>
+                </AppPathLink>
               </li>
             ))}
           </ul>

@@ -1,6 +1,8 @@
 import "server-only";
 
 import { AccessToken, RoomServiceClient, TrackSource } from "livekit-server-sdk";
+import { unquoteEnv } from "@/lib/env";
+import { normalizeLiveKitUrl } from "@/lib/livekit-url";
 
 export type LiveKitConfig = {
   url: string;
@@ -9,24 +11,24 @@ export type LiveKitConfig = {
 };
 
 export function getLiveKitConfig(): LiveKitConfig | null {
-  const url = process.env.LIVEKIT_URL?.trim();
-  const apiKey = process.env.LIVEKIT_API_KEY?.trim();
-  const apiSecret = process.env.LIVEKIT_API_SECRET?.trim();
+  const url =
+    normalizeLiveKitUrl(process.env.LIVEKIT_URL) || unquoteEnv(process.env.LIVEKIT_URL);
+  const apiKey = unquoteEnv(process.env.LIVEKIT_API_KEY);
+  const apiSecret = unquoteEnv(process.env.LIVEKIT_API_SECRET);
   if (!url || !apiKey || !apiSecret) return null;
   return { url, apiKey, apiSecret };
 }
 
 export function getPublicLiveKitUrl() {
-  return (
-    process.env.NEXT_PUBLIC_LIVEKIT_URL?.trim() ||
-    process.env.LIVEKIT_URL?.trim() ||
-    ""
+  return normalizeLiveKitUrl(
+    unquoteEnv(process.env.NEXT_PUBLIC_LIVEKIT_URL) || unquoteEnv(process.env.LIVEKIT_URL),
   );
 }
 
 /** Throws when LiveKit project credentials are rejected by the cloud API. */
 export async function assertLiveKitCredentials(config: LiveKitConfig) {
-  const host = config.url.replace(/^wss:\/\//, "https://");
+  const wsUrl = normalizeLiveKitUrl(config.url) || unquoteEnv(config.url);
+  const host = wsUrl.replace(/^wss:\/\//, "https://").replace(/^ws:\/\//, "http://");
   const client = new RoomServiceClient(host, config.apiKey, config.apiSecret);
   await client.listRooms();
 }

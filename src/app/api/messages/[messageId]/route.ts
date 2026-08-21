@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canEditMessage } from "@/lib/utils";
 import { z } from "zod";
@@ -29,13 +29,23 @@ async function canAccessMessage(
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const { messageId } = await params;
-  const body = z.object({ content: z.string().trim().min(1).max(2000) }).parse(await request.json());
+  let body: { content: string };
+  try {
+    body = z.object({ content: z.string().trim().min(1).max(2000) }).parse(await request.json());
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return Response.json(
+        { error: error.issues[0]?.message ?? "Invalid content" },
+        { status: 400 },
+      );
+    }
+    return Response.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
   const message = await prisma.membershipMessage.findUnique({
     where: { id: messageId },

@@ -52,7 +52,7 @@ type Props = {
 
 export function PrivateMinistryRoom(props: Props) {
   return (
-    <LiveKitMeetingShell meetingToken={props.meetingToken}>
+    <LiveKitMeetingShell meetingToken={props.meetingToken} persistInBackground>
       <PrivateMinistryRoomContent {...props} />
     </LiveKitMeetingShell>
   );
@@ -80,6 +80,8 @@ function PrivateMinistryRoomContent({
   const chatVisible = !isMobile || mobileTab === "chat";
   const [showDecision, setShowDecision] = useState(false);
   const [decisionLoading, setDecisionLoading] = useState(false);
+  const [decisionError, setDecisionError] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const { leaveMeeting, meetingEnded } = useMeetingPresence({
     meetingToken,
@@ -115,6 +117,7 @@ function PrivateMinistryRoomContent({
     isRefreshingDevices,
     toggleMute,
     toggleCamera,
+    mediaError,
   } = useLiveKitStage({
     hostId,
     userId,
@@ -132,10 +135,11 @@ function PrivateMinistryRoomContent({
     finalizeRecording,
   } = usePrivateMinistryRecording({ meetingToken, meetingTitle, isHost });
 
-  const error = recordingError;
+  const error = actionError || recordingError || mediaError;
   const peerLabel = isHost ? peer.name : `Your Session Host ${peer.name}`;
 
   async function handleEndSession() {
+    setActionError("");
     await finalizeRecording();
     await fetch(`/api/meetings/${meetingToken}/signal`, {
       method: "POST",
@@ -148,7 +152,14 @@ function PrivateMinistryRoomContent({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId, action: "end" }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      setActionError(
+        typeof data.error === "string" ? data.error : "Could not end this session. Please try again.",
+      );
+      return;
+    }
 
     if (isHost && isOnboardingApproval && data.requiresOnboardingDecision && invitedUserId) {
       setShowDecision(true);
@@ -166,6 +177,7 @@ function PrivateMinistryRoomContent({
   async function handleDecision(decision: "approve" | "deny") {
     if (!invitedUserId) return;
     setDecisionLoading(true);
+    setDecisionError("");
     const res = await fetch("/api/admin/onboarding", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -178,6 +190,12 @@ function PrivateMinistryRoomContent({
       }),
     });
     if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setDecisionError(
+        typeof data.error === "string"
+          ? data.error
+          : "Could not save this membership decision. Please try again.",
+      );
       setDecisionLoading(false);
       return;
     }
@@ -187,7 +205,12 @@ function PrivateMinistryRoomContent({
   }
 
   if (meetingEnded && !isHost) {
-    return null;
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center bg-burgundy-deep px-4 text-center">
+        <h1 className="font-serif text-2xl font-bold text-cream">Session ended</h1>
+        <p className="mt-2 max-w-md text-gold-light/80">The host ended this private session.</p>
+      </div>
+    );
   }
 
   return (
@@ -198,6 +221,7 @@ function PrivateMinistryRoomContent({
           userId={invitedUserId}
           meetingId={sessionId}
           loading={decisionLoading}
+          error={decisionError}
           onApprove={() => void handleDecision("approve")}
           onDeny={() => void handleDecision("deny")}
           onCancel={() => {
@@ -208,8 +232,8 @@ function PrivateMinistryRoomContent({
       )}
       <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-burgundy-deep lg:min-h-0 lg:flex-row">
         <div
-          className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${
-            isMobile && mobileTab !== "video" ? "hidden lg:flex" : ""
+          className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${
+            isMobile && mobileTab !== "video" ? "shrink-0 lg:min-h-0 lg:flex-1" : "flex-1"
           }`}
         >
           {isHost && (
@@ -252,8 +276,10 @@ function PrivateMinistryRoomContent({
             </div>
           )}
 
-          <div className="relative grid min-h-0 flex-1 grid-cols-2 grid-rows-1 overflow-hidden bg-black">
-            <div className="relative min-h-0 min-w-0 overflow-hidden border-r border-gold/20 bg-black">
+          <div className={`relative min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_7.5rem] overflow-hidden bg-black lg:grid-cols-2 lg:grid-rows-1 ${
+            isMobile && mobileTab !== "video" ? "hidden lg:grid" : "grid"
+          }`}>
+            <div className="relative min-h-0 min-w-0 overflow-hidden border-gold/20 bg-black lg:border-r">
               <LiveKitVideoTile
                 trackRef={hostMainTrack}
                 userId={peer.id}
@@ -266,7 +292,7 @@ function PrivateMinistryRoomContent({
               <MuteIndicator visible={isRemoteMuted} />
             </div>
 
-            <div className="relative min-h-0 min-w-0 overflow-hidden">
+            <div className="relative min-h-0 min-w-0 overflow-hidden border-t border-gold/20 lg:border-t-0">
               <LiveKitVideoTile
                 trackRef={localCameraTrack}
                 userId={userId}
@@ -314,7 +340,9 @@ function PrivateMinistryRoomContent({
             </div>
           )}
 
-          <div className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-t border-gold/20 bg-burgundy-dark px-4 py-3">
+          <div className={`flex shrink-0 flex-wrap items-center justify-center gap-3 border-t border-gold/20 bg-burgundy-dark px-4 py-3 ${
+            isMobile ? "overflow-x-auto overscroll-x-contain touch-pan-x flex-nowrap [&>*]:shrink-0" : ""
+          }`}>
             <CameraDeviceSelect
               devices={videoInputDevices}
               selectedDeviceId={selectedVideoDeviceId}

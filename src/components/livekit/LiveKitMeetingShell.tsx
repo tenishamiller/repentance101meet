@@ -6,6 +6,7 @@ import { LiveKitRoom, RoomAudioRenderer, useConnectionState } from "@livekit/com
 import { ConnectionState, type MediaDeviceFailure } from "livekit-client";
 import { getLiveKitRoomOptions } from "@/lib/livekit-capture";
 import { isLiveKitPermissionError } from "@/lib/livekit-errors";
+import { normalizeLiveKitUrl } from "@/lib/livekit-url";
 import {
   LiveKitMeetingContext,
   type LiveKitMeetingContextValue,
@@ -91,9 +92,15 @@ export function LiveKitMeetingShell({
         setCredentials(null);
         return;
       }
+      const serverUrl = normalizeLiveKitUrl(data.serverUrl);
+      if (!serverUrl) {
+        setError("Video server URL is invalid. Check LIVEKIT_URL on the server.");
+        setCredentials(null);
+        return;
+      }
       setCredentials({
         token: data.token,
-        serverUrl: data.serverUrl,
+        serverUrl,
         roomName: data.roomName,
         isHost: data.isHost === true,
         memberVideoEnabled: data.memberVideoEnabled !== false,
@@ -113,9 +120,11 @@ export function LiveKitMeetingShell({
       const res = await fetch(`/api/meetings/${meetingToken}/livekit-token`);
       const data = await res.json();
       if (!res.ok || !data.serverUrl || !data.token) return;
+      const serverUrl = normalizeLiveKitUrl(data.serverUrl);
+      if (!serverUrl) return;
       setCredentials({
         token: data.token,
-        serverUrl: data.serverUrl,
+        serverUrl,
         roomName: data.roomName,
         isHost: data.isHost === true,
         memberVideoEnabled: data.memberVideoEnabled !== false,
@@ -165,6 +174,8 @@ export function LiveKitMeetingShell({
         token={credentials.token}
         serverUrl={credentials.serverUrl}
         connect
+        audio={false}
+        video={false}
         options={getLiveKitRoomOptions(persistInBackground)}
         connectOptions={{ autoSubscribe: true }}
         onDisconnected={onDisconnected}
@@ -172,6 +183,10 @@ export function LiveKitMeetingShell({
         onError={(err) => {
           const message = err.message || "Could not connect to video room";
           if (isLiveKitPermissionError(message)) return;
+          if (/invalid url|failed to construct/i.test(message)) {
+            setRoomError("Video server URL is invalid. Refresh and try again.");
+            return;
+          }
           setRoomError(message);
         }}
         onMediaDeviceFailure={(failure?: MediaDeviceFailure) => {

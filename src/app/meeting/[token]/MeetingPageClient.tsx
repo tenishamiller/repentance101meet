@@ -1,16 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { AppPathLink } from "@/components/AppPathLink";
 import { LivestreamRoom } from "@/components/livestream/LivestreamRoom";
 import { MeetingEndedScreen } from "@/components/livestream/MeetingEndedScreen";
+import { RecordingConsentGate } from "@/components/livestream/RecordingConsentGate";
 import {
-  RecordingConsentGate,
-} from "@/components/livestream/RecordingConsentGate";
-import {
-  getMemberJoinSession,
+  hasMemberJoinSession,
   saveMemberJoinSession,
-  type MemberJoinMediaPrefs,
 } from "@/lib/member-join-media";
 
 type Props = {
@@ -26,15 +23,9 @@ export function MeetingPageClient({ token }: Props) {
   const [endedMeeting, setEndedMeeting] = useState<{ title: string } | null>(null);
   const [error, setError] = useState("");
   const [consented, setConsented] = useState(false);
-  const [joinMedia, setJoinMedia] = useState<MemberJoinMediaPrefs>({
-    cameraOn: true,
-    micOn: true,
-  });
 
   useEffect(() => {
-    const session = getMemberJoinSession(token);
-    if (session) {
-      setJoinMedia(session);
+    if (hasMemberJoinSession(token)) {
       setConsented(true);
     }
   }, [token]);
@@ -56,9 +47,8 @@ export function MeetingPageClient({ token }: Props) {
       .catch(() => setError("Failed to connect"));
   }, [token]);
 
-  function acceptConsent(media: MemberJoinMediaPrefs) {
-    saveMemberJoinSession(token, media);
-    setJoinMedia(media);
+  function acceptConsent() {
+    saveMemberJoinSession(token);
     setConsented(true);
   }
 
@@ -71,9 +61,9 @@ export function MeetingPageClient({ token }: Props) {
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
         <h1 className="font-serif text-2xl font-bold text-burgundy">Cannot Join Meeting</h1>
         <p className="mt-2 text-burgundy/70">{error}</p>
-        <Link href="/livestream" className="btn-primary mt-6">
+        <AppPathLink href="/livestream" className="btn-primary mt-6">
           Back to Livestream
-        </Link>
+        </AppPathLink>
       </div>
     );
   }
@@ -96,16 +86,16 @@ export function MeetingPageClient({ token }: Props) {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <LivestreamRoom
-      meetingToken={token}
-      meetingTitle={data.meeting.title}
-      userId={data.user.id}
-      userName={data.user.name}
-      avatarUrl={data.user.avatarUrl}
-      isHost={data.isHost}
-      hostId={data.meeting.createdById}
-      joinCameraOn={joinMedia.cameraOn}
-      joinMicOn={joinMedia.micOn}
-    />
+        meetingToken={token}
+        meetingTitle={data.meeting.title}
+        userId={data.user.id}
+        userName={data.user.name}
+        avatarUrl={data.user.avatarUrl}
+        isHost={data.isHost}
+        hostId={data.meeting.createdById}
+        joinCameraOn={false}
+        joinMicOn={false}
+      />
     </div>
   );
 }
