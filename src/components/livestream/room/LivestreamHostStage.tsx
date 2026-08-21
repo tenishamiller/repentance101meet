@@ -97,6 +97,8 @@ export function LivestreamHostStage({
       layout="sidebar"
       side="right"
       hideHeader={isMobile}
+      density="grid"
+      prominent={!isMobile}
       className={isMobile ? "h-full w-full max-w-none shrink border-0 bg-transparent xl:w-full" : undefined}
     />
   );
@@ -209,7 +211,9 @@ export function LivestreamHostStage({
           />
         ) : (
           <>
-            {videoStage}
+            <div className="flex min-h-0 min-w-0 flex-[1_1_42%] flex-col overflow-hidden">
+              {videoStage}
+            </div>
             {inRoomGallery}
           </>
         )}
