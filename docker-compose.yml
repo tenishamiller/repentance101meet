@@ -47,6 +47,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - ./docker/minio-cors.json:/cors.json:ro
+      - ./docker/minio-anonymous-getobject.json:/anon-getobject.json:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -58,9 +59,9 @@ services:
           sleep 2
         done
         mc mb -p local/media || true
-        mc anonymous set download local/media
+        mc anonymous set-json /anon-getobject.json local/media
         mc cors set local/media /cors.json || true
-        echo "minio bucket media ready"
+        echo "minio bucket media ready (anonymous GetObject only)"
 
   app:
     build:

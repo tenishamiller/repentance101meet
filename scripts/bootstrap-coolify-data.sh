@@ -43,6 +43,7 @@ docker run --rm --network repentance101meet_default \
   --entrypoint /bin/sh \
   -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD \
   -v "$ROOT/docker/minio-cors.json:/cors.json:ro" \
+  -v "$ROOT/docker/minio-anonymous-getobject.json:/anon-getobject.json:ro" \
   minio/mc:latest -c '
     set -e
     i=0
@@ -52,7 +53,7 @@ docker run --rm --network repentance101meet_default \
       sleep 2
     done
     mc mb -p local/media || true
-    mc anonymous set download local/media
+    mc anonymous set-json /anon-getobject.json local/media
     mc cors set local/media /cors.json || true
     echo minio bucket media ready
   '
