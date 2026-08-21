@@ -1,20 +1,30 @@
 import { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { expireStaleMeetingSignals } from "@/lib/expire-meeting-signals";
+import { requireMeetingParticipant } from "@/lib/meeting-access";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
 export async function GET(_request: Request, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const { token } = await params;
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
   if (!meeting || meeting.deletedAt) {
     return Response.json({ error: "Meeting not found" }, { status: 404 });
+  }
+
+  const access = await requireMeetingParticipant({
+    meetingId: meeting.id,
+    userId: session.user.id,
+    role: session.user.role,
+    createdById: meeting.createdById,
+  });
+  if (!access.ok) {
+    return Response.json({ error: "Join the meeting first" }, { status: 403 });
   }
 
   const isHost = meeting.createdById === session.user.id;
@@ -47,10 +57,9 @@ export async function GET(_request: Request, { params }: RouteParams) {
 }
 
 export async function DELETE(_request: Request, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const { token } = await params;
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });
@@ -70,10 +79,9 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authz = await getActiveSession();
+  if (authz.unauthorized) return authz.unauthorized;
+  const session = authz.session;
 
   const { token } = await params;
   const meeting = await prisma.meeting.findUnique({ where: { linkToken: token } });

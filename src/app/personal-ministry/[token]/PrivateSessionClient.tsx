@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { AppPathLink } from "@/components/AppPathLink";
 import { PrivateMinistryRoom } from "@/components/private-ministry/PrivateMinistryRoom";
 
 type Props = {
@@ -76,9 +76,9 @@ export function PrivateSessionClient({ token }: Props) {
           The host hasn&apos;t entered yet. This page will join automatically when the session
           starts.
         </p>
-        <Link href="/messages" className="btn-secondary mt-6">
+        <AppPathLink href="/messages" className="btn-secondary mt-6">
           Back to Membership Messages
-        </Link>
+        </AppPathLink>
       </div>
     );
   }
@@ -88,9 +88,9 @@ export function PrivateSessionClient({ token }: Props) {
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-4">
         <h1 className="font-serif text-2xl font-bold text-burgundy">Cannot Join Session</h1>
         <p className="mt-2 max-w-md text-center text-burgundy/70">{error}</p>
-        <Link href="/messages" className="btn-primary mt-6">
+        <AppPathLink href="/messages" className="btn-primary mt-6">
           Back to Membership Messages
-        </Link>
+        </AppPathLink>
       </div>
     );
   }

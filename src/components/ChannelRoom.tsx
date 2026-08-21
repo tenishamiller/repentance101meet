@@ -9,6 +9,7 @@ import {
   type ChannelMessageData,
 } from "@/components/channels/ChannelMessageItem";
 import { JoinChannelRequest } from "@/components/JoinChannelRequest";
+import { LeaveChannelButton } from "@/components/channels/LeaveChannelButton";
 import { BrandDivider } from "@/components/BrandDivider";
 import { formatDateSeparator, shouldShowDateSeparator } from "@/lib/channel-messages";
 import { isNearBottom, scrollContainerToBottom } from "@/lib/chat-scroll";
@@ -236,9 +237,14 @@ export function ChannelRoom({ channel, userId, isAdmin }: Props) {
             >
               {headerOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
-            <div className="flex items-center gap-1.5 rounded-full border border-gold/30 bg-cream/80 px-2.5 py-1 text-xs text-burgundy sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
-              <MessageCircle className="h-3.5 w-3.5 text-gold-muted sm:h-4 sm:w-4" />
-              <span>{messages.length}</span>
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
+              {!isAdmin && (
+                <LeaveChannelButton slug={channel.slug} channelName={channel.name} />
+              )}
+              <div className="flex items-center gap-1.5 rounded-full border border-gold/30 bg-cream/80 px-2.5 py-1 text-xs text-burgundy sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
+                <MessageCircle className="h-3.5 w-3.5 text-gold-muted sm:h-4 sm:w-4" />
+                <span>{messages.length}</span>
+              </div>
             </div>
           </div>
         </div>

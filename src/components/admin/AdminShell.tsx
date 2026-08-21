@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
   Ban,
@@ -18,6 +17,7 @@ import {
 import { MINISTRY_NAME } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AppPathLink } from "@/components/AppPathLink";
 import type { AdminTab } from "./types";
 
 const NAV: { id: AdminTab; label: string; icon: typeof Home; description: string }[] = [
@@ -74,19 +74,19 @@ export function AdminShell({ activeTab, onTabChange, badges, children }: Props) 
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link
+            <AppPathLink
               href="/livestream"
               className="btn-secondary inline-flex items-center gap-2 !px-5 !py-2.5 text-sm"
             >
               <Video className="h-4 w-4" />
               Live Room
-            </Link>
-            <Link href="/dashboard" className="btn-secondary !px-5 !py-2.5 text-sm">
+            </AppPathLink>
+            <AppPathLink href="/dashboard" className="btn-secondary !px-5 !py-2.5 text-sm">
               ← Member View
-            </Link>
-            <Link href="/settings" className="btn-secondary inline-flex items-center gap-2 !px-5 !py-2.5 text-sm">
+            </AppPathLink>
+            <AppPathLink href="/settings" className="btn-secondary inline-flex items-center gap-2 !px-5 !py-2.5 text-sm">
               Account Settings
-            </Link>
+            </AppPathLink>
           </div>
         </div>
         <BrandDivider light className="my-6" />

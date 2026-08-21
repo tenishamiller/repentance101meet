@@ -39,6 +39,10 @@
   --font-serif: var(--font-serif);
 }
 
+html {
+  color-scheme: light;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -159,9 +163,18 @@ body {
   );
 }
 
-/* Navbar — cream bar with burgundy bottom rule */
+/* Navbar — cream bar with burgundy bottom rule.
+ * Keep color-scheme light so LiveKit's dark theme cannot invert/blank the seal. */
 .navbar-brand {
   @apply border-b-2 border-gold/30 bg-cream/95 shadow-sm backdrop-blur-md;
+  color-scheme: light;
+  isolation: isolate;
+}
+
+.site-brand-img {
+  display: block;
+  max-width: none;
+  color-scheme: light;
 }
 
 /* Footer — deep burgundy like logo seal */
