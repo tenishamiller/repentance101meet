@@ -26,7 +26,7 @@ import { CompleteServiceButton } from "@/components/booking/complete-service-but
 import { ServiceCompletedStatus } from "@/components/booking/service-completed-status";
 import { ConfirmDepositButton } from "@/components/booking/confirm-deposit-button";
 import { DeleteBookingFromScheduleButton } from "@/components/booking/delete-booking-from-schedule-button";
-import { LateFeeBookingActions } from "@/components/booking/late-fee-booking-actions";
+import { LateArrivalProblemPanel } from "@/components/booking/late-arrival-problem-panel";
 import { NoShowBookingButton } from "@/components/booking/no-show-booking-button";
 import { NoShowFeeBookingActions } from "@/components/booking/no-show-fee-booking-actions";
 import { RescheduleBookingButton } from "@/components/booking/reschedule-booking-button";
@@ -171,13 +171,13 @@ export function BraiderBookingActions({
       <div className={cn(visitActionsRoot, className)}>
         <ServiceCompletedStatus />
         {lateFollowUp && braider && (
-          <LateFeeBookingActions
+          <LateArrivalProblemPanel
             booking={booking}
             braider={braider}
             braiderId={braiderId}
             currency={currency}
+            followUp
             onUpdated={onNoShowMarked}
-            layout="stack"
           />
         )}
         {showRemoveAction && (
@@ -268,13 +268,13 @@ export function BraiderBookingActions({
 
       {lateFollowUp && braider && (
         <div className={visitActionsInlinePanel}>
-          <LateFeeBookingActions
+          <LateArrivalProblemPanel
             booking={booking}
             braider={braider}
             braiderId={braiderId}
             currency={currency}
+            followUp
             onUpdated={onNoShowMarked}
-            layout="stack"
           />
         </div>
       )}
@@ -366,19 +366,21 @@ export function BraiderBookingActions({
 
           {activeProblem === "late" && braider && (
             <div className={visitActionsInlinePanel}>
-              <p className="mb-3 text-xs leading-relaxed text-stone-500">
-                Only use this if they actually arrived late. Nothing is charged until you choose to.
-              </p>
-              <LateFeeBookingActions
+              <LateArrivalProblemPanel
                 booking={booking}
                 braider={braider}
                 braiderId={braiderId}
                 currency={currency}
                 onUpdated={(updated) => {
                   onNoShowMarked(updated);
-                  setActiveProblem(null);
+                  if (
+                    updated.late_fee_status === "waived" ||
+                    updated.late_fee_status === "charged" ||
+                    updated.late_fee_status === "handled_outside"
+                  ) {
+                    setActiveProblem(null);
+                  }
                 }}
-                layout="stack"
               />
               <button
                 type="button"
