@@ -46,6 +46,8 @@ type CreateTokenOptions = {
   isHost: boolean;
   memberVideoEnabled?: boolean;
   memberMicEnabled?: boolean;
+  /** Private 1-on-1: both participants need full publish (camera + mic). */
+  roomKind?: "livestream" | "private";
 };
 
 function memberPublishSources(memberVideoEnabled: boolean, memberMicEnabled: boolean) {
@@ -70,14 +72,14 @@ export async function createLiveKitAccessToken(options: CreateTokenOptions) {
     }),
   });
 
-  if (options.isHost) {
+  if (options.isHost || options.roomKind === "private") {
     token.addGrant({
       roomJoin: true,
       room: options.roomName,
       canPublish: true,
       canSubscribe: true,
       canPublishData: true,
-      roomAdmin: true,
+      roomAdmin: options.isHost === true,
     });
   } else {
     const sources = memberPublishSources(
