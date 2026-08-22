@@ -52,7 +52,11 @@ type Props = {
 
 export function PrivateMinistryRoom(props: Props) {
   return (
-    <LiveKitMeetingShell meetingToken={props.meetingToken}>
+    <LiveKitMeetingShell
+      meetingToken={props.meetingToken}
+      meetingTitle={props.meetingTitle}
+      enableAudioUnlock
+    >
       <PrivateMinistryRoomContent {...props} />
     </LiveKitMeetingShell>
   );
@@ -113,6 +117,7 @@ function PrivateMinistryRoomContent({
     switchFacingMode,
     refreshMediaInputDevices,
     isRefreshingDevices,
+    mediaError,
     toggleMute,
     toggleCamera,
   } = useLiveKitStage({
@@ -132,7 +137,7 @@ function PrivateMinistryRoomContent({
     finalizeRecording,
   } = usePrivateMinistryRecording({ meetingToken, meetingTitle, isHost });
 
-  const error = recordingError;
+  const error = recordingError || mediaError;
   const peerLabel = isHost ? peer.name : `Your Session Host ${peer.name}`;
 
   async function handleEndSession() {
