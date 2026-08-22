@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import type { Channel } from "@/generated/prisma/client";
 import { MINISTRY_LEADER } from "@/lib/brand";
 import { BrandDivider } from "@/components/BrandDivider";
 import { formatRequestDateTime, getChannelPublicDescription } from "@/lib/utils";
+import { useAppBase } from "@/hooks/useAppBase";
 
 type Props = {
   channel: Channel;
@@ -13,6 +16,7 @@ type Props = {
 };
 
 export function JoinChannelRequest({ channel, membershipStatus, requestedAt }: Props) {
+  const inMobileShell = useAppBase() === "/m";
   const [status, setStatus] = useState(membershipStatus);
   const [requestTime, setRequestTime] = useState(requestedAt ?? null);
   const [loading, setLoading] = useState(false);
@@ -37,6 +41,15 @@ export function JoinChannelRequest({ channel, membershipStatus, requestedAt }: P
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-lg flex-col items-center justify-center px-4 py-16 text-center">
+      {inMobileShell && (
+        <Link
+          href="/m/channels"
+          className="mb-6 inline-flex items-center gap-1.5 self-start text-sm font-semibold text-gold-muted hover:text-burgundy"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          All channels
+        </Link>
+      )}
       <h1 className="font-serif text-3xl font-bold text-burgundy">{channel.name}</h1>
       <BrandDivider className="my-4 max-w-xs" />
       <p className="text-burgundy/70">

@@ -11,5 +11,10 @@ export default async function MobileMessagesPage() {
   if (session.user.status === "PENDING" && !session.user.questionnaireCompleted) {
     redirect("/m/signup");
   }
-  return <MembershipMessageCenter />;
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <MembershipMessageCenter />
+    </div>
+  );
 }

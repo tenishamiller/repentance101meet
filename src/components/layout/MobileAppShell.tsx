@@ -26,8 +26,8 @@ export function MobileAppShell({ children }: Props) {
       {!immersive && <MobileAppHeader />}
       <main
         className={cn(
-          "flex flex-1 flex-col",
-          immersive ? "h-[100dvh] min-h-0 overflow-hidden" : showNav && "mobile-main-pad",
+          "flex min-h-0 flex-1 flex-col",
+          immersive ? "h-[100dvh] overflow-hidden" : showNav && "mobile-main-pad",
         )}
       >
         {children}

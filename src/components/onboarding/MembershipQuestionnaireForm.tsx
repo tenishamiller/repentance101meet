@@ -171,13 +171,21 @@ export function MembershipQuestionnaireForm({
             required
             rows={5}
           />
-          <div className="mt-1 flex justify-between text-xs text-burgundy/50">
-            <span>
-              {relationshipWithJesus.length < 100
-                ? `Characters needed: ${100 - relationshipWithJesus.length}`
-                : "Minimum met"}
+          <div className="mt-1 flex justify-between text-xs">
+            <span
+              className={
+                relationshipWithJesus.trim().length < 100
+                  ? "font-bold text-red-600"
+                  : "font-semibold text-burgundy/70"
+              }
+            >
+              {relationshipWithJesus.trim().length < 100
+                ? `Characters needed: ${100 - relationshipWithJesus.trim().length}`
+                : "Minimum met (100 characters)"}
             </span>
-            <span>Characters remaining: {1000 - relationshipWithJesus.length}</span>
+            <span className="text-burgundy/50">
+              Characters remaining: {1000 - relationshipWithJesus.length}
+            </span>
           </div>
         </QuestionBlock>
 

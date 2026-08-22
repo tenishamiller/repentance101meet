@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Ban, ClipboardPaste, MessageCircle, Paperclip, SendHorizontal, UserMinus, X } from "lucide-react";
+import { Ban, ChevronLeft, ClipboardPaste, MessageCircle, Paperclip, SendHorizontal, UserMinus, X } from "lucide-react";
 import { BrandDivider } from "@/components/BrandDivider";
 import { UserAvatar } from "@/components/UserAvatar";
 import { EmojiPicker } from "@/components/channels/EmojiPicker";
@@ -586,7 +586,7 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
   const shellClass = embedded
     ? "flex min-h-[min(70vh,720px)] flex-col"
     : inMobileShell
-      ? "mx-auto flex min-h-0 flex-1 flex-col px-3 py-4 sm:px-4"
+      ? "mx-auto flex h-full min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 sm:py-3"
       : "mx-auto flex h-mobile-app min-h-0 max-w-[90rem] flex-col px-3 py-4 sm:px-4 lg:h-[calc(100vh-80px)]";
 
   const searchLower = memberSearch.trim().toLowerCase();
@@ -619,20 +619,32 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
     );
   });
   const selectedPeer = peerMembers.find((member) => member.id === peerId) ?? null;
+  const mobilePeerThread = inMobileShell && isPeerMessaging && Boolean(peerId);
 
   const deletedForSidebar = deletedThreads;
 
   return (
     <div className={shellClass}>
       {!embedded && (
-        <div className="mb-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-muted">
-            Membership Messages
-          </p>
-          <h1 className="font-serif text-2xl font-bold text-burgundy sm:text-3xl">Messages</h1>
-          <BrandDivider className="my-3 max-w-xs" />
+        <div className={`shrink-0 ${inMobileShell && isPending ? "mb-2" : "mb-4"}`}>
+          {!(inMobileShell && isPending) && (
+            <>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-muted">
+                Membership Messages
+              </p>
+              <h1 className="font-serif text-2xl font-bold text-burgundy sm:text-3xl">Messages</h1>
+              <BrandDivider className="my-3 max-w-xs" />
+            </>
+          )}
+          {inMobileShell && isPending && (
+            <h1 className="font-serif text-xl font-bold text-burgundy">Messages with Norman</h1>
+          )}
           {isPending && (
-            <div className="rounded-xl border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-burgundy">
+            <div
+              className={`rounded-xl border border-gold/40 bg-gold/10 text-burgundy ${
+                inMobileShell ? "mt-2 px-3 py-2 text-xs leading-snug" : "px-4 py-3 text-sm"
+              }`}
+            >
               While your membership is pending, this is your only access on the site. Norman will
               message you here and send your required one-on-one approval meeting link.
             </div>
@@ -641,8 +653,12 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
       )}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-        {isPeerMessaging && (
-          <aside className="card-brand flex max-h-64 flex-col overflow-hidden p-3 lg:max-h-none lg:w-72 lg:shrink-0">
+        {isPeerMessaging && !mobilePeerThread && (
+          <aside
+            className={`card-brand flex flex-col overflow-hidden p-3 lg:w-72 lg:shrink-0 ${
+              inMobileShell ? "max-h-[min(52vh,26rem)] min-h-0 shrink-0" : "max-h-64 lg:max-h-none"
+            }`}
+          >
             <button
               type="button"
               onClick={() => setPeerId(null)}
@@ -942,6 +958,16 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
                 <div className="shrink-0 border-b border-gold/20 bg-cream-dark/80 px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
+                      {mobilePeerThread && (
+                        <button
+                          type="button"
+                          onClick={() => setPeerId(null)}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gold/30 px-2.5 py-1.5 text-xs font-semibold text-burgundy hover:bg-gold/10"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Members
+                        </button>
+                      )}
                       <UserAvatar
                         userId={selectedPeer.id}
                         name={selectedPeer.name}
@@ -1078,11 +1104,20 @@ export function MembershipMessageCenter({ embedded = false, onUnreadChange }: Pr
               )}
 
               {!isAdmin && !isPeerMessaging && (
-                <div className="shrink-0 border-b border-gold/20 bg-cream-dark/80 px-4 py-3">
+                <div className="shrink-0 border-b border-gold/20 bg-cream-dark/80 px-3 py-2 sm:px-4 sm:py-3">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-burgundy">Ministry leadership</p>
-                      <p className="truncate text-xs text-burgundy/60">Membership messages</p>
+                      {!inMobileShell && (
+                        <>
+                          <p className="truncate font-semibold text-burgundy">Ministry leadership</p>
+                          <p className="truncate text-xs text-burgundy/60">Membership messages</p>
+                        </>
+                      )}
+                      {inMobileShell && (
+                        <p className="truncate text-xs text-burgundy/60">
+                          Your conversation with {MINISTRY_LEADER}
+                        </p>
+                      )}
                     </div>
                     {activeConversationId && (
                       <ThreadOverflowMenu
