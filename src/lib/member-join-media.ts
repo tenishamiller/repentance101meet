@@ -46,3 +46,18 @@ export function clearMemberJoinSession(meetingToken: string) {
     /* ignore */
   }
 }
+
+/** Prime mic/camera permission in the same user gesture that starts the session. */
+export async function primeJoinMedia(cameraOn: boolean, micOn: boolean) {
+  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return;
+  if (!cameraOn && !micOn) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: micOn,
+      video: cameraOn,
+    });
+    for (const track of stream.getTracks()) track.stop();
+  } catch {
+    /* LiveKit will ask again after join if the browser blocked this tap. */
+  }
+}
