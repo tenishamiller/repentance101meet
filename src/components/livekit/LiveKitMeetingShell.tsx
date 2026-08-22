@@ -29,6 +29,8 @@ type Props = {
   onDisconnected?: () => void;
   /** Livestream: stay connected and keep audio when the tab/app is backgrounded. */
   persistInBackground?: boolean;
+  /** Private 1-on-1: unlock remote audio playback (browser autoplay policy). */
+  enableAudioUnlock?: boolean;
   meetingTitle?: string;
   /** Livestream uses selective audio routing instead of the default renderer. */
   skipRoomAudio?: boolean;
@@ -66,6 +68,7 @@ export function LiveKitMeetingShell({
   children,
   onDisconnected,
   persistInBackground = false,
+  enableAudioUnlock = false,
   meetingTitle,
   skipRoomAudio = false,
 }: Props) {
@@ -191,6 +194,12 @@ export function LiveKitMeetingShell({
             <LiveKitPersistInBackground />
             <LiveKitBackgroundAudio meetingTitle={meetingTitle} />
           </>
+        )}
+        {enableAudioUnlock && !persistInBackground && (
+          <LiveKitBackgroundAudio
+            meetingTitle={meetingTitle}
+            resumeLabel="Tap to connect session audio"
+          />
         )}
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
         {!skipRoomAudio && <RoomAudioRenderer />}

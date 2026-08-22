@@ -2,13 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Circle, Mic, MicOff, Video, VideoOff } from "lucide-react";
-import type { MemberJoinMediaPrefs } from "@/lib/member-join-media";
-import { primeJoinMedia } from "@/lib/member-join-media";
+import { Heart, Mic, MicOff, Shield, Video, VideoOff } from "lucide-react";
+import {
+  type MemberJoinMediaPrefs,
+  primeJoinMedia,
+  savePrivateJoinSession,
+} from "@/lib/member-join-media";
 import { cn } from "@/lib/utils";
 
 type Props = {
   meetingTitle: string;
+  peerName: string;
+  meetingToken: string;
+  leaveHref: string;
   onAccept: (media: MemberJoinMediaPrefs) => void;
 };
 
@@ -70,7 +76,13 @@ function JoinMediaToggle({
   );
 }
 
-export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
+export function PrivateSessionJoinGate({
+  meetingTitle,
+  peerName,
+  meetingToken,
+  leaveHref,
+  onAccept,
+}: Props) {
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -79,29 +91,29 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
     if (joining) return;
     setJoining(true);
     await primeJoinMedia(cameraOn, micOn);
-    onAccept({ cameraOn, micOn });
+    const prefs = { cameraOn, micOn };
+    savePrivateJoinSession(meetingToken, prefs);
+    onAccept(prefs);
   }
 
   return (
     <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center bg-burgundy-deep px-4 py-10">
       <div className="w-full max-w-lg rounded-2xl border border-gold/30 bg-cream p-6 shadow-2xl sm:p-8">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-gold/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-burgundy">
-          <Circle className="h-3 w-3 fill-burgundy text-burgundy" />
-          Livestream
+          <Shield className="h-3.5 w-3.5" />
+          Private session
         </div>
 
-        <h1 className="font-serif text-2xl font-bold text-burgundy sm:text-3xl">
-          Before you join
-        </h1>
+        <h1 className="font-serif text-2xl font-bold text-burgundy sm:text-3xl">Before you join</h1>
         <p className="mt-2 text-sm text-burgundy/65">{meetingTitle}</p>
+        <p className="mt-1 text-sm text-burgundy/55">
+          One-on-one with <strong className="text-burgundy">{peerName}</strong>
+        </p>
 
         <div className="mt-6 space-y-4 text-sm leading-relaxed text-burgundy/85">
           <p>
-            This session is a live teaching broadcast. Chat and participation may be visible to other
-            members in the room.
-          </p>
-          <p>
-            By joining, you agree to participate respectfully in this live ministry session.
+            This room is private — just the two of you. Check your camera and microphone before
+            entering.
           </p>
         </div>
 
@@ -126,8 +138,8 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
             offIcon={MicOff}
           />
           <p className="text-xs text-burgundy/55">
-            Camera and microphone turn on when you join. Turn either off here first if you want to
-            enter quietly. You can change these anytime after you join.
+            Tap join to allow your browser to use the selected devices. You can change them anytime
+            in the session.
           </p>
         </div>
 
@@ -136,11 +148,12 @@ export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {
             type="button"
             onClick={() => void handleAccept()}
             disabled={joining}
-            className="btn-primary flex-1"
+            className="btn-primary flex flex-1 items-center justify-center gap-2"
           >
-            {joining ? "Joining..." : "I understand — join livestream"}
+            <Heart className="h-4 w-4" />
+            {joining ? "Joining..." : "Join private session"}
           </button>
-          <Link href="/livestream" className="btn-secondary flex-1 text-center">
+          <Link href={leaveHref} className="btn-secondary flex-1 text-center">
             Leave
           </Link>
         </div>

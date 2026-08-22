@@ -30,6 +30,11 @@ import { BlockedUsersPanel } from "@/components/livestream/BlockedUsersPanel";
 import { OnboardingDecisionModal } from "@/components/onboarding/OnboardingDecisionModal";
 import { LiveKitMeetingShell } from "@/components/livekit/LiveKitMeetingShell";
 import { LiveKitVideoTile } from "@/components/livekit/LiveKitVideoTile";
+import { PrivateSessionJoinGate } from "@/components/private-ministry/PrivateSessionJoinGate";
+import {
+  getPrivateJoinSession,
+  type MemberJoinMediaPrefs,
+} from "@/lib/member-join-media";
 
 type Peer = {
   id: string;
@@ -51,9 +56,32 @@ type Props = {
 };
 
 export function PrivateMinistryRoom(props: Props) {
+  const personalMinistryPath = useAppPath("/personal-ministry");
+  const messagesPath = useAppPath("/messages");
+  const leaveHref = props.isOnboardingApproval ? messagesPath : personalMinistryPath;
+  const [joinPrefs, setJoinPrefs] = useState<MemberJoinMediaPrefs | null>(() =>
+    getPrivateJoinSession(props.meetingToken),
+  );
+
+  if (!joinPrefs) {
+    return (
+      <PrivateSessionJoinGate
+        meetingTitle={props.meetingTitle}
+        peerName={props.peer.name}
+        meetingToken={props.meetingToken}
+        leaveHref={leaveHref}
+        onAccept={setJoinPrefs}
+      />
+    );
+  }
+
   return (
-    <LiveKitMeetingShell meetingToken={props.meetingToken}>
-      <PrivateMinistryRoomContent {...props} />
+    <LiveKitMeetingShell
+      meetingToken={props.meetingToken}
+      meetingTitle={props.meetingTitle}
+      enableAudioUnlock
+    >
+      <PrivateMinistryRoomContent {...props} joinPrefs={joinPrefs} />
     </LiveKitMeetingShell>
   );
 }
@@ -69,7 +97,8 @@ function PrivateMinistryRoomContent({
   peer,
   isOnboardingApproval = false,
   invitedUserId,
-}: Props) {
+  joinPrefs,
+}: Props & { joinPrefs: MemberJoinMediaPrefs }) {
   const router = useRouter();
   const isMobile = useIsMobile();
   const messagesPath = useAppPath("/messages");
@@ -113,6 +142,7 @@ function PrivateMinistryRoomContent({
     switchFacingMode,
     refreshMediaInputDevices,
     isRefreshingDevices,
+    mediaError,
     toggleMute,
     toggleCamera,
   } = useLiveKitStage({
@@ -121,6 +151,8 @@ function PrivateMinistryRoomContent({
     isHost,
     memberVideoEnabled: true,
     memberMicEnabled: true,
+    initialMemberCameraOn: joinPrefs.cameraOn,
+    initialMemberMicOn: joinPrefs.micOn,
     mode: "private",
   });
 
@@ -132,7 +164,7 @@ function PrivateMinistryRoomContent({
     finalizeRecording,
   } = usePrivateMinistryRecording({ meetingToken, meetingTitle, isHost });
 
-  const error = recordingError;
+  const error = recordingError || mediaError;
   const peerLabel = isHost ? peer.name : `Your Session Host ${peer.name}`;
 
   async function handleEndSession() {
