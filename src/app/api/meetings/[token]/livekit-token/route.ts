@@ -69,7 +69,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
       data: {
         status: "LIVE",
         startedAt: new Date(),
-        ...(meeting.kind === "LIVESTREAM"
+        ...(meeting.kind === "LIVESTREAM" || meeting.kind === "PRIVATE"
           ? { memberVideoEnabled: true, memberMicEnabled: true }
           : {}),
       },
@@ -116,6 +116,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     isHost,
     memberVideoEnabled,
     memberMicEnabled,
+    roomKind: roomKind,
   });
 
   return Response.json({

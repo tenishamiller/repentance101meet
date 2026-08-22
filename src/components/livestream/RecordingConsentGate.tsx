@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Circle, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import type { MemberJoinMediaPrefs } from "@/lib/member-join-media";
+import { primeJoinMedia } from "@/lib/member-join-media";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -67,20 +68,6 @@ function JoinMediaToggle({
       </span>
     </button>
   );
-}
-
-async function primeJoinMedia(cameraOn: boolean, micOn: boolean) {
-  if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return;
-  if (!cameraOn && !micOn) return;
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: micOn,
-      video: cameraOn,
-    });
-    for (const track of stream.getTracks()) track.stop();
-  } catch {
-    /* LiveKit will ask again after join if the browser blocked this tap. */
-  }
 }
 
 export function RecordingConsentGate({ meetingTitle, onAccept }: Props) {

@@ -7,10 +7,14 @@ import { MINISTRY_NAME } from "@/lib/brand";
 
 type Props = {
   meetingTitle?: string;
+  resumeLabel?: string;
 };
 
 /** Keeps livestream audio playing in background and offers tap-to-resume when the browser pauses it. */
-export function LiveKitBackgroundAudio({ meetingTitle }: Props) {
+export function LiveKitBackgroundAudio({
+  meetingTitle,
+  resumeLabel = "Tap to connect livestream audio",
+}: Props) {
   const room = useRoomContext();
   const connectionState = useConnectionState();
   const { canPlayAudio, startAudio } = useAudioPlayback(room);
@@ -118,7 +122,7 @@ export function LiveKitBackgroundAudio({ meetingTitle }: Props) {
         }}
         className="pointer-events-auto rounded-full border border-gold/50 bg-burgundy-dark/95 px-4 py-2.5 text-sm font-semibold text-cream shadow-lg backdrop-blur"
       >
-        Tap to connect livestream audio
+        {resumeLabel}
       </button>
     </div>
   );
