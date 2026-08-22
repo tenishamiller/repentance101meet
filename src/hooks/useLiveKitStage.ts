@@ -420,23 +420,13 @@ export function useLiveKitStage({
           appliedJoinMediaRef.current = true;
 
           if (mode === "private") {
-            micWantedRef.current = initialMemberMicOn;
+            micWantedRef.current = true;
             lockPlayAndRecordAudioSession();
-            if (initialMemberCameraOn) {
-              await enablePrivateCamera(true);
-              cameraOffByUserRef.current = false;
-              setCameraOffByUser(false);
-            } else {
-              cameraOffByUserRef.current = true;
-              setCameraOffByUser(true);
-              await localParticipant.setCameraEnabled(false);
-            }
-            if (micWantedRef.current) {
-              await enableMicrophone(true);
-              await restoreMicrophoneIfNeeded(true, true);
-            } else {
-              await enableMicrophone(false);
-            }
+            await enablePrivateCamera(true);
+            cameraOffByUserRef.current = false;
+            setCameraOffByUser(false);
+            await enableMicrophone(true);
+            await restoreMicrophoneIfNeeded(true, true);
             return;
           }
 
